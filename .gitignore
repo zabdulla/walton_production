@@ -1,0 +1,35 @@
+# Exclude Excel files at project root
+/*.xlsx
+
+# Large data files - exclude all in processing_reports except aggregated data
+processing_reports/*
+!processing_reports/aggregated_master_data.xlsx
+
+# Generated artifacts (can be regenerated)
+auto_generated_graphs/
+Meeting_Plots/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/Editor
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# Temporary files
+*.tmp
+*~
