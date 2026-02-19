@@ -681,6 +681,7 @@ def render_dashboard(
     <header>
       <h1>Processing Performance Dashboard</h1>
       <p class="subtitle">Toggle metrics, running averages, and output product splits. Drag the range slider to zoom.</p>
+      <a href="daily.html" style="display:inline-block;margin-top:12px;padding:8px 16px;background:#3b82f6;color:white;text-decoration:none;border-radius:6px;font-size:14px;">View Daily Details</a>
     </header>
     <main>
       <div class="controls">

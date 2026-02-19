@@ -1,4 +1,4 @@
-name: Build and Deploy Dashboard
+name: Build and Deploy Dashboards
 
 on:
   # Trigger on push to main branch
@@ -7,6 +7,8 @@ on:
     paths:
       - '*.py'
       - 'processing_reports/aggregated_master_data.xlsx'
+      - 'processing_reports/aggregated_daily_data.xlsx'
+      - 'processing_reports/aggregated_notes.xlsx'
       - 'requirements.txt'
 
   # Allow manual trigger from Actions tab
@@ -37,19 +39,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build dashboard
+      - name: Build weekly dashboard
         run: python build_interactive_dashboard.py
+
+      - name: Build daily dashboard
+        run: python build_daily_dashboard.py
 
       - name: Check for changes
         id: changes
         run: |
-          git diff --quiet docs/index.html || echo "changed=true" >> $GITHUB_OUTPUT
+          git diff --quiet docs/ || echo "changed=true" >> $GITHUB_OUTPUT
 
       - name: Commit and push if changed
         if: steps.changes.outputs.changed == 'true'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add docs/index.html
-          git commit -m "Update dashboard [automated]"
+          git add docs/index.html docs/daily.html
+          git commit -m "Update dashboards [automated]"
           git push

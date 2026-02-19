@@ -4,6 +4,8 @@
 # Large data files - exclude all in processing_reports except aggregated data
 processing_reports/*
 !processing_reports/aggregated_master_data.xlsx
+!processing_reports/aggregated_daily_data.xlsx
+!processing_reports/aggregated_notes.xlsx
 
 # Generated artifacts (can be regenerated)
 auto_generated_graphs/
