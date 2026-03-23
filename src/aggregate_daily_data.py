@@ -164,6 +164,39 @@ def extract_daily_data_from_file(
             logger.warning(f"{file_name}/{sheet_name}: Could not extract date, skipping")
             continue
 
+        # Validate date falls within a reasonable range of the week from the filename.
+        # Catches typos like 12-30 instead of 01-30 in the Excel cell.
+        if week_start and week_end:
+            parsed_date = datetime.strptime(sheet_date, "%Y-%m-%d")
+            ws = datetime.strptime(week_start, "%Y-%m-%d")
+            we = datetime.strptime(week_end, "%Y-%m-%d")
+            tolerance = pd.Timedelta(days=7)
+            if parsed_date < ws - tolerance or parsed_date > we + tolerance:
+                logger.warning(
+                    "%s/%s: Date %s outside expected week %s–%s, correcting to week range",
+                    file_name, sheet_name, sheet_date, week_start, week_end,
+                )
+                corrected = False
+                # Try swapping month/day to see if it fits
+                try:
+                    swapped = datetime(parsed_date.year, parsed_date.day, parsed_date.month)
+                    if ws - tolerance <= swapped <= we + tolerance:
+                        sheet_date = swapped.strftime("%Y-%m-%d")
+                        logger.info("  Corrected to %s (month/day swap)", sheet_date)
+                        corrected = True
+                except ValueError:
+                    pass
+                # Fallback: infer date from sheet name (day of week) within the week range
+                if not corrected:
+                    day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5}
+                    if sheet_name in day_map:
+                        inferred = ws + pd.Timedelta(days=day_map[sheet_name])
+                        sheet_date = inferred.strftime("%Y-%m-%d")
+                        logger.info("  Corrected to %s (inferred from sheet name '%s')", sheet_date, sheet_name)
+                    else:
+                        logger.warning("  Could not auto-correct, skipping sheet")
+                        continue
+
         # Extract machine data
         for machine, (start_row, end_row) in MACHINE_DATA_RANGES.items():
             if data.shape[0] < end_row:
