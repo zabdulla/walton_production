@@ -8,8 +8,8 @@ Features:
 - Presentation polish (spacing, colors, hover, typography)
 
 Usage:
-    python build_interactive_dashboard.py \
-        --input processing_reports/aggregated_master_data.xlsx \
+    python src/build_interactive_dashboard.py \
+        --input data/aggregated_daily_data.xlsx \
         --output docs/index.html
 
 The output HTML is self-contained and ready to host on GitHub Pages (e.g., via a
@@ -26,7 +26,7 @@ from plotly.io import to_html
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_master_data.xlsx"
+DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
 DEFAULT_OUTPUT = _PROJECT_ROOT / "docs" / "index.html"
 RUNNING_AVG_WINDOW = 4
 COST_PER_POUND_THRESHOLD = 0.10  # Highlight cells exceeding this threshold
@@ -95,6 +95,21 @@ def _calc_wow_change(current: float, previous: float) -> str:
 
 def load_data(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path)
+    # Support daily-format data (from aggregate_daily_data.py)
+    if "Week_Start" in df.columns and "Start Date" not in df.columns:
+        df = df.rename(columns={
+            "Week_Start": "Start Date",
+            "Week_End": "End Date",
+            "Machine_Name": "Machine Name",
+            "Actual_Output": "Actual Output (Lbs)",
+            "Machine_Hours": "Total Machine Hours",
+            "Man_Hours": "Total Man Hours",
+            "Output_Product": "Output Product",
+            "Output_per_Hour": "Output per Hour",
+            "Labor_Cost": "Labor Cost",
+            "Total_Expense": "Total Expense",
+            "Cost_per_Pound": "Production Cost per Pound",
+        })
     # Normalize date columns
     for col in ["Start Date", "End Date"]:
         if col in df.columns:
@@ -835,7 +850,7 @@ def main(input_path: Path, output_path: Path) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build interactive processing dashboard.")
-    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Path to aggregated_master_data.xlsx")
+    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Path to aggregated_daily_data.xlsx")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Path to write HTML dashboard")
     args = parser.parse_args()
     main(args.input, args.output)
