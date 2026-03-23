@@ -519,6 +519,27 @@ def build_dashboard_html(
             font-size: 1.1rem;
         }}
 
+        /* Chart toggle buttons */
+        .chart-toggle-btns {{
+            display: flex;
+            gap: 0;
+        }}
+        .chart-toggle {{
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }}
+        .chart-toggle:first-child {{ border-radius: 6px 0 0 6px; }}
+        .chart-toggle:last-child {{ border-radius: 0 6px 6px 0; }}
+        .chart-toggle.active {{
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }}
+
         /* Mobile responsive */
         @media (max-width: 768px) {{
             body {{ padding: 12px; }}
@@ -587,13 +608,15 @@ def build_dashboard_html(
     </div>
 
     <div class="chart-section">
-        <h2>Daily Output by Machine</h2>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <h2 style="margin:0;">Daily Production</h2>
+            <div class="chart-toggle-btns">
+                <button class="chart-toggle active" data-chart="output">Output (Lbs)</button>
+                <button class="chart-toggle" data-chart="hours">Machine Hours</button>
+            </div>
+        </div>
         <div id="outputChart"></div>
-    </div>
-
-    <div class="chart-section">
-        <h2>Machine Hours</h2>
-        <div id="hoursChart"></div>
+        <div id="hoursChart" style="display:none;"></div>
     </div>
 
     <!-- Day detail popup -->
@@ -728,13 +751,9 @@ def build_dashboard_html(
 
             const totalOutput = data.reduce((sum, d) => sum + (d.Total_Output || 0), 0);
             const totalHours = data.reduce((sum, d) => sum + (d.Total_Machine_Hours || 0), 0);
-            const avgQuality = data.reduce((sum, d) => sum + (d.Avg_Quality || 0), 0) / data.length;
             const completeDays = data.filter(d => d.Status === 'complete').length;
-            const partialDays = data.filter(d => d.Status === 'partial').length;
-            const missingDays = data.filter(d => d.Status === 'missing').length;
-            const daysWithNotes = data.filter(d => notesByDate[d.Date_Str]).length;
+            const machinesActive = Math.max(...data.map(d => d.Machines_Active || 0));
 
-            const qualityClass = avgQuality >= 80 ? 'good' : avgQuality >= 50 ? 'warn' : 'bad';
             const completeClass = completeDays === data.length ? 'good' : completeDays > data.length / 2 ? 'warn' : 'bad';
 
             kpiGrid.innerHTML = `
@@ -747,24 +766,12 @@ def build_dashboard_html(
                     <div class="kpi-value">${{totalHours.toLocaleString(undefined, {{maximumFractionDigits: 1}})}}</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Avg Quality</div>
-                    <div class="kpi-value ${{qualityClass}}">${{avgQuality.toFixed(0)}}%</div>
-                </div>
-                <div class="kpi-card">
                     <div class="kpi-label">Complete Days</div>
                     <div class="kpi-value ${{completeClass}}">${{completeDays}} / ${{data.length}}</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Partial Data</div>
-                    <div class="kpi-value ${{partialDays > 0 ? 'warn' : ''}}">${{partialDays}}</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">No Data</div>
-                    <div class="kpi-value ${{missingDays > 0 ? 'bad' : ''}}">${{missingDays}}</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Days w/ Notes</div>
-                    <div class="kpi-value">${{daysWithNotes}}</div>
+                    <div class="kpi-label">Machines Active</div>
+                    <div class="kpi-value">${{machinesActive}}</div>
                 </div>
             `;
         }}
@@ -1006,6 +1013,17 @@ def build_dashboard_html(
                 height: 350,
             }}, {{ responsive: true }});
         }}
+
+        // Chart toggle (Output vs Hours)
+        document.querySelectorAll('.chart-toggle').forEach(btn => {{
+            btn.addEventListener('click', () => {{
+                document.querySelectorAll('.chart-toggle').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const show = btn.dataset.chart;
+                document.getElementById('outputChart').style.display = show === 'output' ? '' : 'none';
+                document.getElementById('hoursChart').style.display = show === 'hours' ? '' : 'none';
+            }});
+        }});
 
         // Initialize on load
         init();
