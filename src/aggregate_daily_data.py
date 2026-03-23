@@ -287,7 +287,7 @@ def aggregate_daily_folder(
     if daily_dataframes:
         aggregated_daily = pd.concat(daily_dataframes, ignore_index=True)
         aggregated_daily = aggregated_daily.sort_values(["Date", "Shift", "Machine_Name"])
-        output_path = folder / "aggregated_daily_data.xlsx"
+        output_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_daily_data.xlsx"
         aggregated_daily.to_excel(output_path, index=False)
         logger.info("Daily data saved to %s (%d records)", output_path, len(aggregated_daily))
     else:
@@ -297,7 +297,7 @@ def aggregate_daily_folder(
     if notes_dataframes:
         aggregated_notes = pd.concat(notes_dataframes, ignore_index=True)
         aggregated_notes = aggregated_notes.sort_values(["Date", "Shift", "Machine_Name"])
-        notes_path = folder / "aggregated_notes.xlsx"
+        notes_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_notes.xlsx"
         aggregated_notes.to_excel(notes_path, index=False)
         logger.info("Notes saved to %s (%d records)", notes_path, len(aggregated_notes))
     else:
@@ -309,5 +309,5 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    folder_name = "processing_reports"
+    folder_name = Path(__file__).resolve().parent.parent / "processing_reports"
     aggregate_daily_folder(folder_name, hourly_rate=24, overhead_multiplier=1.0)

@@ -19,9 +19,10 @@ from typing import Any
 
 import pandas as pd
 
-DEFAULT_DAILY_INPUT = Path("processing_reports/aggregated_daily_data.xlsx")
-DEFAULT_NOTES_INPUT = Path("processing_reports/aggregated_notes.xlsx")
-DEFAULT_OUTPUT = Path("docs/daily.html")
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_DAILY_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
+DEFAULT_NOTES_INPUT = _PROJECT_ROOT / "data" / "aggregated_notes.xlsx"
+DEFAULT_OUTPUT = _PROJECT_ROOT / "docs" / "daily.html"
 
 CHART_PALETTE = [
     "#0B6E4F", "#2CA58D", "#84BCDA", "#33658A", "#F26419",

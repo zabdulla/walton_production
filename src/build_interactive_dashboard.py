@@ -25,8 +25,9 @@ import plotly.graph_objects as go
 from plotly.io import to_html
 
 
-DEFAULT_INPUT = Path("processing_reports/aggregated_master_data.xlsx")
-DEFAULT_OUTPUT = Path("docs/index.html")
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_master_data.xlsx"
+DEFAULT_OUTPUT = _PROJECT_ROOT / "docs" / "index.html"
 RUNNING_AVG_WINDOW = 4
 COST_PER_POUND_THRESHOLD = 0.10  # Highlight cells exceeding this threshold
 

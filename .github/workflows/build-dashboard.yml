@@ -5,10 +5,8 @@ on:
   push:
     branches: [main]
     paths:
-      - '*.py'
-      - 'processing_reports/aggregated_master_data.xlsx'
-      - 'processing_reports/aggregated_daily_data.xlsx'
-      - 'processing_reports/aggregated_notes.xlsx'
+      - 'src/*.py'
+      - 'data/*.xlsx'
       - 'requirements.txt'
 
   # Allow manual trigger from Actions tab
@@ -40,10 +38,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Build weekly dashboard
-        run: python build_interactive_dashboard.py
+        run: python src/build_interactive_dashboard.py
 
       - name: Build daily dashboard
-        run: python build_daily_dashboard.py
+        run: python src/build_daily_dashboard.py
 
       - name: Check for changes
         id: changes
