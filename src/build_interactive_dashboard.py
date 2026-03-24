@@ -86,6 +86,7 @@ def load_data(path: Path) -> pd.DataFrame:
             "Week_End": "End Date",
             "Machine_Name": "Machine Name",
             "Actual_Output": "Actual Output (Lbs)",
+            "Actual_Input": "Actual Input (Lbs)",
             "Machine_Hours": "Total Machine Hours",
             "Man_Hours": "Total Man Hours",
             "Output_Product": "Output Product",
@@ -97,6 +98,18 @@ def load_data(path: Path) -> pd.DataFrame:
     for col in ["Start Date", "End Date"]:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col])
+    return df
+
+
+def _apply_guillotine_support(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a copy where Guillotine rows with output=0 use input as output."""
+    df = df.copy()
+    mask = (
+        df["Machine Name"].str.contains("GUILLOTINE", case=False, na=False)
+        & (df["Actual Output (Lbs)"] == 0)
+        & (df["Actual Input (Lbs)"] > 0)
+    )
+    df.loc[mask, "Actual Output (Lbs)"] = df.loc[mask, "Actual Input (Lbs)"]
     return df
 
 
@@ -506,22 +519,25 @@ def build_pareto_chart(weekly: pd.DataFrame) -> go.Figure:
 # ---------------------------------------------------------------------------
 
 def render_dashboard(
-    trends_html: str,
-    fig_sections: list,
+    trends_std: str, trends_sup: str,
+    fig_sections_std: list, fig_sections_sup: list,
     machine_options_html: str,
     metric_options_html: str,
-    snapshot_html: str,
-    monthly_html: str,
+    snapshot_std: str, snapshot_sup: str,
+    monthly_std: str, monthly_sup: str,
 ) -> str:
-    rendered = [
-        (title, to_html(fig, include_plotlyjs=False, full_html=False,
-                        default_width="100%", default_height="600px", div_id=fig_id))
-        for title, fig_id, fig in fig_sections
-    ]
-    sections_html = "\n".join(
-        f'<section class="card"><h2 style="margin-top:0">{title}</h2>{html}</section>'
-        for title, html in rendered
-    )
+    def _render_figs(fig_sections):
+        rendered = [
+            (title, to_html(fig, include_plotlyjs=False, full_html=False,
+                            default_width="100%", default_height="600px", div_id=fig_id))
+            for title, fig_id, fig in fig_sections
+        ]
+        return "\n".join(
+            f'<section class="card"><h2 style="margin-top:0">{title}</h2>{html}</section>'
+            for title, html in rendered
+        )
+    sections_std = _render_figs(fig_sections_std)
+    sections_sup = _render_figs(fig_sections_sup)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -598,32 +614,79 @@ def render_dashboard(
         <select id="metricSelect">{metric_options_html}</select>
       </div>
       <button class="toggle-btn" id="showRawBtn" title="Show raw weekly values instead of running averages">Show Raw</button>
+      <button class="toggle-btn" id="supportBtn" title="Include Guillotine support work (cutting for other machines) in output totals">+ Guillotine Support</button>
       <div class="export-buttons">
-        <button class="export-btn" onclick="exportChart('fig-metrics')">Export PNG</button>
+        <button class="export-btn" onclick="exportChart(includeSupport ? 'fig-metrics-sup' : 'fig-metrics')">Export PNG</button>
         <button class="export-btn" onclick="window.print()">Print</button>
       </div>
     </div>
-    <section class="card">
-      <h2 style="margin-top:0">Recent Trends</h2>
-      {trends_html}
-    </section>
-    {sections_html}
-    <section class="card">
-      <h2 style="margin-top:0">Latest Week vs 4-Week Average</h2>
-      {snapshot_html}
-    </section>
-    <section class="card">
-      <h2 style="margin-top:0">Monthly Summary</h2>
-      {monthly_html}
-    </section>
+    <!-- Standard view (profit-producing output only) -->
+    <div id="view-standard">
+      <section class="card">
+        <h2 style="margin-top:0">Recent Trends</h2>
+        {trends_std}
+      </section>
+      {sections_std}
+      <section class="card">
+        <h2 style="margin-top:0">Latest Week vs 4-Week Average</h2>
+        {snapshot_std}
+      </section>
+      <section class="card">
+        <h2 style="margin-top:0">Monthly Summary</h2>
+        {monthly_std}
+      </section>
+    </div>
+    <!-- With Guillotine support work -->
+    <div id="view-support" style="display:none;">
+      <section class="card">
+        <h2 style="margin-top:0">Recent Trends <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
+        {trends_sup}
+      </section>
+      {sections_sup}
+      <section class="card">
+        <h2 style="margin-top:0">Latest Week vs 4-Week Average <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
+        {snapshot_sup}
+      </section>
+      <section class="card">
+        <h2 style="margin-top:0">Monthly Summary <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
+        {monthly_sup}
+      </section>
+    </div>
   </main>
   <script>
     const machineSelect = document.getElementById('machineSelect');
     const metricSelect = document.getElementById('metricSelect');
     const showRawBtn = document.getElementById('showRawBtn');
-    const metricsFig = document.getElementById('fig-metrics');
-    const productFig = document.getElementById('fig-products');
+    const supportBtn = document.getElementById('supportBtn');
+    const viewStandard = document.getElementById('view-standard');
+    const viewSupport = document.getElementById('view-support');
     let showRaw = false;
+    let includeSupport = false;
+    let supportInitialized = false;
+
+    function getMetricsFig() {{
+      return document.getElementById(includeSupport ? 'fig-metrics-sup' : 'fig-metrics');
+    }}
+    function getProductFig() {{
+      return document.getElementById(includeSupport ? 'fig-products-sup' : 'fig-products');
+    }}
+
+    supportBtn.addEventListener('click', () => {{
+      includeSupport = !includeSupport;
+      supportBtn.classList.toggle('active', includeSupport);
+      supportBtn.textContent = includeSupport ? '\\u2713 Guillotine Support' : '+ Guillotine Support';
+      viewStandard.style.display = includeSupport ? 'none' : '';
+      viewSupport.style.display = includeSupport ? '' : 'none';
+      // Plotly charts in hidden divs may not render correctly; trigger a resize on first show
+      if (includeSupport && !supportInitialized) {{
+        supportInitialized = true;
+        ['fig-metrics-sup','fig-heatmap-sup','fig-pareto-sup','fig-products-sup'].forEach(id => {{
+          const el = document.getElementById(id);
+          if (el && el.data) Plotly.Plots.resize(el);
+        }});
+      }}
+      updatePlots();
+    }});
 
     showRawBtn.addEventListener('click', () => {{
       showRaw = !showRaw;
@@ -634,7 +697,6 @@ def render_dashboard(
     }});
 
     function rebuildMetricDropdown() {{
-      // Rebuild options based on showRaw
       const opts = metricSelect.querySelectorAll('option');
       opts.forEach(opt => {{
         const isRaw = opt.dataset.group === 'raw';
@@ -646,7 +708,6 @@ def render_dashboard(
           opt.style.display = (isKeyRA || isExtraRA) ? '' : 'none';
         }}
       }});
-      // Select first visible option if current is hidden
       const current = metricSelect.options[metricSelect.selectedIndex];
       if (current && current.style.display === 'none') {{
         for (const opt of metricSelect.options) {{
@@ -658,6 +719,8 @@ def render_dashboard(
     function updatePlots() {{
       const selectedMachine = machineSelect.value;
       const selectedMetric = metricSelect.value;
+      const metricsFig = getMetricsFig();
+      const productFig = getProductFig();
 
       if (metricsFig && metricsFig.data) {{
         const vis = metricsFig.data.map(tr => {{
@@ -697,26 +760,28 @@ def render_dashboard(
 </html>"""
 
 
-def main(input_path: Path, output_path: Path) -> None:
-    df = load_data(input_path)
-    df = df[(df["Total Man Hours"] > 0) & (df["Total Machine Hours"] > 0)]
-
+def _build_pipeline(df: pd.DataFrame):
+    """Run full aggregation + chart pipeline on a dataframe. Returns (weekly_all, weekly_recent, df_recent, trends, snapshot, monthly, fig_sections)."""
     weekly_all = aggregate_weekly(df)
     weekly_all = add_running_averages(weekly_all, metrics=list(ALL_METRICS.keys()), window=RUNNING_AVG_WINDOW)
-
-    # Recent subset for charts
     weekly_recent = _recent_weeks(weekly_all, DEFAULT_WEEKS)
     df_recent = df[df["Start Date"] >= weekly_recent["Week Start"].min()]
 
-    # Build HTML sections
     trends_html = build_recent_trends_html(weekly_all)
     snapshot_html = build_latest_week_table_html(weekly_all)
     monthly_html = build_monthly_summary_html(weekly_all)
 
+    return weekly_all, weekly_recent, df_recent, trends_html, snapshot_html, monthly_html
+
+
+def main(input_path: Path, output_path: Path) -> None:
+    df = load_data(input_path)
+    df = df[(df["Total Man Hours"] > 0) | (df["Actual Input (Lbs)"] > 0)]
+
     machine_options = ["All Machines"] + sorted(df["Machine Name"].unique())
     machine_options_html = "\n".join(f'<option value="{m}">{m}</option>' for m in machine_options)
 
-    # Metric dropdown: key RA metrics first, then extra RA, then raw
+    # Metric dropdown
     metric_opts = []
     for key, (label, _) in KEY_METRICS.items():
         metric_opts.append((f"{key}_RA", f"{label} ({RUNNING_AVG_WINDOW}-wk avg)", "key_ra"))
@@ -725,24 +790,45 @@ def main(input_path: Path, output_path: Path) -> None:
             metric_opts.append((f"{key}_RA", f"{label} ({RUNNING_AVG_WINDOW}-wk avg)", "extra_ra"))
     for key, (label, _) in ALL_METRICS.items():
         metric_opts.append((key, f"{label} (raw)", "raw"))
-
     metric_options_html = "\n".join(
         f'<option value="{val}" data-group="{group}" {"selected" if i == 0 else ""}'
         f' style="{"display:none" if group == "raw" else ""}">{label}</option>'
         for i, (val, label, group) in enumerate(metric_opts)
     )
 
-    # Charts — built from recent data
-    fig_sections = [
-        ("Weekly Metrics by Machine", "fig-metrics", build_interactive_fig(weekly_recent)),
-        ("Machine Utilization Heatmap", "fig-heatmap", build_utilization_heatmap(weekly_recent)),
-        ("Pareto Analysis: Output Contribution", "fig-pareto", build_pareto_chart(weekly_recent)),
-        ("Output Product Breakdown", "fig-products", build_output_product_fig(df_recent)),
+    # Standard pipeline (profit-producing output only)
+    df_std = df[(df["Total Man Hours"] > 0) & (df["Total Machine Hours"] > 0)]
+    _, weekly_std, df_recent_std, trends_std, snapshot_std, monthly_std = _build_pipeline(df_std)
+
+    # With Guillotine support work included
+    df_sup = _apply_guillotine_support(df)
+    df_sup = df_sup[(df_sup["Total Man Hours"] > 0) | (df_sup["Actual Output (Lbs)"] > 0)]
+    df_sup = df_sup[(df_sup["Total Man Hours"] > 0) & (df_sup["Total Machine Hours"] > 0)]
+    _, weekly_sup, df_recent_sup, trends_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
+
+    # Charts for both modes
+    fig_sections_std = [
+        ("Weekly Metrics by Machine", "fig-metrics", build_interactive_fig(weekly_std)),
+        ("Machine Utilization Heatmap", "fig-heatmap", build_utilization_heatmap(weekly_std)),
+        ("Pareto Analysis: Output Contribution", "fig-pareto", build_pareto_chart(weekly_std)),
+        ("Output Product Breakdown", "fig-products", build_output_product_fig(df_recent_std)),
+    ]
+    fig_sections_sup = [
+        ("Weekly Metrics by Machine", "fig-metrics-sup", build_interactive_fig(weekly_sup)),
+        ("Machine Utilization Heatmap", "fig-heatmap-sup", build_utilization_heatmap(weekly_sup)),
+        ("Pareto Analysis: Output Contribution", "fig-pareto-sup", build_pareto_chart(weekly_sup)),
+        ("Output Product Breakdown", "fig-products-sup", build_output_product_fig(df_recent_sup)),
     ]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        render_dashboard(trends_html, fig_sections, machine_options_html, metric_options_html, snapshot_html, monthly_html),
+        render_dashboard(
+            trends_std, trends_sup,
+            fig_sections_std, fig_sections_sup,
+            machine_options_html, metric_options_html,
+            snapshot_std, snapshot_sup,
+            monthly_std, monthly_sup,
+        ),
         encoding="utf-8",
     )
     print(f"Wrote interactive dashboard to {output_path}")

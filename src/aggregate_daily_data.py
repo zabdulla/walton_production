@@ -214,17 +214,12 @@ def extract_daily_data_from_file(
                 operator = _safe_str(row[COL_OPERATOR])
                 comment = _safe_str(row[COL_COMMENT])
 
-                # Guillotine: input is tracked but output is 0 for items that
-                # support other machines. Use input as output for these rows.
-                if "GUILLOTINE" in machine.upper() and actual_output == 0 and actual_input > 0:
-                    actual_output = actual_input
-
                 # Skip rows with no meaningful data
                 if not input_item or "TOTALS" in input_item.upper():
                     continue
 
                 # Skip completely empty rows
-                if machine_hours == 0 and man_hours == 0 and actual_output == 0 and not operator:
+                if machine_hours == 0 and man_hours == 0 and actual_output == 0 and actual_input == 0 and not operator:
                     continue
 
                 # Calculate derived metrics
