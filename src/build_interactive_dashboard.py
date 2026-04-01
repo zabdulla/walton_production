@@ -13,6 +13,7 @@ The output HTML is self-contained and ready to host on GitHub Pages.
 """
 
 import argparse
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.io import to_html
 
+logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
@@ -31,7 +33,88 @@ COST_PER_POUND_THRESHOLD = 0.10
 CHART_PALETTE = [
     "#0B6E4F", "#2CA58D", "#84BCDA", "#33658A", "#F26419",
     "#FFAF87", "#3A3042", "#5BC0BE", "#C5283D", "#1f77b4",
+    "#e377c2",
 ]
+
+# Machine weekly capacity (hours) for utilization % calculation
+MACHINE_WEEKLY_CAPACITY = {
+    "EXTRUDER": 120,       # 24h/day × 5 days
+    "GUILLOTINE": 120,     # 24h/day × 5 days
+    "AUTO TIE BALER": 80,  # 16h/day × 5 days
+    "BALER 1": 80,
+    "BALER 2": 80,
+    "SHREDDER": 80,
+    "GRINDER": 80,
+    "AVANGUARD DENSIFIER (OLD)": 80,
+    "GREEN MAX DENSIFIER (NEW)": 80,
+}
+DEFAULT_WEEKLY_CAPACITY = 80
+
+# --- Product name cleanup ---
+PRODUCT_TYPO_MAP = {
+    "Tisue bales": "Tissue bales",
+    "Tisuue bales": "Tissue bales",
+    "PS regrdins": "PS regrinds",
+    "LD brickx": "LD bricks",
+    "LD Bales / HD bales": "LD Bales/HD bales",
+    "LD Bales/HDPE bales": "LD Bales/HD bales",
+    "PET slab": "PET slabs",
+    "PP Resin": "PP resin",
+    "PP Shreds": "PP shreds",
+    "HDPE bales": "HD Bales",
+    "OCC bales": "OCC Bales",
+}
+
+PRODUCT_CATEGORY_MAP = {
+    # LDPE
+    "LD Bales": "LDPE - Bales", "LD Nylon Bales": "LDPE - Bales",
+    "Mix Film Bales": "LDPE - Bales",
+    "LD bricks": "LDPE - Bricks/Foam", "LD foam bricks": "LDPE - Bricks/Foam",
+    "LDPE bricks": "LDPE - Bricks/Foam", "LDPE foam": "LDPE - Bricks/Foam",
+    "LDPE foam bricks": "LDPE - Bricks/Foam", "PE bricks": "LDPE - Bricks/Foam",
+    "PE foam bricks": "LDPE - Bricks/Foam", "Foam slabs": "LDPE - Bricks/Foam",
+    "LDPE regrinds": "LDPE - Regrinds",
+    "LDPE resin": "LDPE - Resin",
+    "LDPE slabs": "LDPE - Slabs",
+    "LDPE shreds": "LDPE - Shreds",
+    "LDPE slabs / HDPE slabs": "LDPE - Slabs",
+    # HDPE
+    "HD Bales": "HDPE - Bales",
+    "LD Bales/HD bales": "HDPE/LDPE - Mixed Bales",
+    "HDPE pieces": "HDPE - Regrinds", "HDPE regrinds": "HDPE - Regrinds",
+    "HDPE slabs": "HDPE - Slabs",
+    # PP
+    "PP Bales": "PP - Bales",
+    "PP regrinds": "PP - Regrinds", "PP pallet regrinds": "PP - Regrinds",
+    "PP resin": "PP - Resin",
+    "PP shreds": "PP - Shreds",
+    "Pallet slabs": "PP - Slabs",
+    # PS
+    "PS": "PS - Bales", "PS bales/purge": "PS - Bales",
+    "PS regrinds": "PS - Regrinds",
+    "PS shreds": "PS - Shreds",
+    "PS slabs": "PS - Slabs",
+    # PET
+    "PET": "PET - Bales", "PET bales": "PET - Bales",
+    "PET shreds": "PET - Shreds",
+    "PET slabs": "PET - Slabs",
+    # EPS
+    "EPS": "EPS - Densified", "EPS resin": "EPS - Resin", "EPS slabs": "EPS - Slabs",
+    # BOPP
+    "BOPP": "BOPP - Bales", "BOPP regrinds": "BOPP - Regrinds",
+    "BOPP resin": "BOPP - Resin", "BOPP slabs": "BOPP - Slabs",
+    # Paper / Fiber
+    "OCC Bales": "OCC Bales", "Paper bales": "Paper Bales",
+    "Tissue bales": "Tissue Bales",
+    "SBS bales": "SBS Bales", "SOP bales": "SOP Bales",
+    "Strapping bales": "Strapping Bales", "Supersack Bales": "Supersack Bales",
+    # Specialty
+    "Nylon regrinds": "Nylon - Regrinds", "EVA regrinds": "EVA - Regrinds",
+    "HIPS regrinds": "HIPS - Regrinds",
+    "Rotomold regrinds": "Rotomold - Regrinds", "Rotomold slabs": "Rotomold - Slabs",
+    "Plastic slabs": "Mixed - Slabs",
+    "Mixed plastic shreds": "Mixed - Shreds", "Mixed regrinds": "Mixed - Regrinds",
+}
 
 # Key metrics shown by default (running average). Full list available via toggle.
 KEY_METRICS = {
@@ -98,6 +181,18 @@ def load_data(path: Path) -> pd.DataFrame:
     for col in ["Start Date", "End Date"]:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col])
+    return df
+
+
+def clean_product_names(df: pd.DataFrame) -> pd.DataFrame:
+    """Fix typos and map output products to categories."""
+    df = df.copy()
+    if "Output Product" in df.columns:
+        df["Output Product"] = df["Output Product"].replace(PRODUCT_TYPO_MAP)
+        df["Product Category"] = df["Output Product"].map(PRODUCT_CATEGORY_MAP).fillna("Other")
+        unmapped = df.loc[df["Product Category"] == "Other", "Output Product"].dropna().unique()
+        for p in unmapped:
+            logger.warning("Unmapped product: %s", p)
     return df
 
 
@@ -415,25 +510,32 @@ def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
 def build_output_product_fig(df: pd.DataFrame) -> go.Figure:
     df = df.copy()
     df["Start Date"] = pd.to_datetime(df["Start Date"])
-    products = sorted(df["Output Product"].dropna().unique())
+
+    # Use Product Category (from clean_product_names), top 10 + Other
+    cat_col = "Product Category" if "Product Category" in df.columns else "Output Product"
+    totals = df.groupby(cat_col)["Actual Output (Lbs)"].sum().sort_values(ascending=False)
+    top_categories = totals.head(10).index.tolist()
+    df["Display Category"] = df[cat_col].where(df[cat_col].isin(top_categories), "Other")
+    categories = [c for c in top_categories if c != "Other"] + ["Other"]
+
     machine_options = ["All Machines"] + sorted(df["Machine Name"].unique())
 
     traces = []
     for machine in machine_options:
         scope = df if machine == "All Machines" else df[df["Machine Name"] == machine]
         grouped = (
-            scope.groupby(["Start Date", "Output Product"])["Actual Output (Lbs)"]
+            scope.groupby(["Start Date", "Display Category"])["Actual Output (Lbs)"]
             .sum().reset_index()
             .rename(columns={"Start Date": "Week Start"})
         )
         grouped["Week Label"] = grouped["Week Start"].dt.strftime("%Y-%m-%d")
-        for pidx, product in enumerate(products):
-            subset = grouped[grouped["Output Product"] == product]
+        for pidx, cat in enumerate(categories):
+            subset = grouped[grouped["Display Category"] == cat]
             traces.append(go.Bar(
                 x=subset["Week Start"], y=subset["Actual Output (Lbs)"],
-                name=product,
-                hovertemplate=f"Machine: {machine}<br>Week: %{{customdata[0]}}<br>{product}: %{{y:,.0f}} lbs<extra></extra>",
-                text=subset["Output Product"], customdata=subset[["Week Label"]],
+                name=cat,
+                hovertemplate=f"Machine: {machine}<br>Week: %{{customdata[0]}}<br>{cat}: %{{y:,.0f}} lbs<extra></extra>",
+                text=subset["Display Category"], customdata=subset[["Week Label"]],
                 visible=False,
                 marker_color=CHART_PALETTE[pidx % len(CHART_PALETTE)],
                 meta={"machine": machine},
@@ -445,13 +547,13 @@ def build_output_product_fig(df: pd.DataFrame) -> go.Figure:
 
     fig = go.Figure(data=traces)
     fig.update_layout(
-        title="Output Product Breakdown \u2014 All Machines",
+        title="Output by Product Category \u2014 All Machines",
         barmode="stack", xaxis_title="Week", yaxis_title="Output (Lbs)",
         hovermode="x unified", template="plotly_white",
         plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
         font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
         margin=dict(t=80, r=220, b=60, l=70),
-        legend=dict(title="Product", orientation="v", x=1.08, y=0.5, bgcolor="#ffffff", bordercolor="#e5e7eb"),
+        legend=dict(title="Category", orientation="v", x=1.08, y=0.5, bgcolor="#ffffff", bordercolor="#e5e7eb"),
     )
     fig.update_xaxes(showgrid=True, gridcolor="#e5e7eb")
     fig.update_yaxes(showgrid=True, gridcolor="#e5e7eb", zerolinecolor="#cbd5e1")
@@ -459,18 +561,33 @@ def build_output_product_fig(df: pd.DataFrame) -> go.Figure:
 
 
 def build_utilization_heatmap(weekly: pd.DataFrame) -> go.Figure:
-    pivot = weekly.pivot_table(
+    pivot_hours = weekly.pivot_table(
         index="Machine Name", columns="Week Label",
         values="Total_Machine_Hours", aggfunc="sum", fill_value=0,
     )
+    # Convert to utilization %
+    capacities = [MACHINE_WEEKLY_CAPACITY.get(m, DEFAULT_WEEKLY_CAPACITY) for m in pivot_hours.index]
+    cap_array = pd.DataFrame(
+        [[c] * len(pivot_hours.columns) for c in capacities],
+        index=pivot_hours.index, columns=pivot_hours.columns,
+    )
+    pivot_pct = (pivot_hours / cap_array * 100).round(1)
+
+    # Green → Orange → Red colorscale
+    colorscale = [
+        [0.0, "#e8f5e9"], [0.4, "#66bb6a"], [0.65, "#fdd835"],
+        [0.8, "#ffa726"], [0.95, "#e53935"], [1.0, "#b71c1c"],
+    ]
     fig = go.Figure(data=go.Heatmap(
-        z=pivot.values, x=pivot.columns.tolist(), y=pivot.index.tolist(),
-        colorscale="Blues",
-        hovertemplate="Machine: %{y}<br>Week: %{x}<br>Hours: %{z:.1f}<extra></extra>",
-        colorbar=dict(title="Hours"),
+        z=pivot_pct.values, x=pivot_pct.columns.tolist(), y=pivot_pct.index.tolist(),
+        customdata=pivot_hours.values,
+        colorscale=colorscale,
+        zmin=0, zmax=120,
+        hovertemplate="Machine: %{y}<br>Week: %{x}<br>Utilization: %{z:.0f}%<br>Hours: %{customdata:.1f}<extra></extra>",
+        colorbar=dict(title="Util %", ticksuffix="%"),
     ))
     fig.update_layout(
-        title="Machine Utilization Heatmap",
+        title="Machine Utilization (% of Capacity)",
         xaxis_title="Week", yaxis_title="Machine",
         template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
         font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
@@ -515,6 +632,99 @@ def build_pareto_chart(weekly: pd.DataFrame) -> go.Figure:
 
 
 # ---------------------------------------------------------------------------
+# Shift comparison
+# ---------------------------------------------------------------------------
+
+SHIFT_METRICS = {
+    "Output": ("Actual_Output", ",.0f", "lbs"),
+    "Output/Hr": ("Output_per_Hour", ",.1f", "lbs/hr"),
+    "Cost/Lb": ("Cost_per_Pound", "$.4f", ""),
+}
+SHIFT_COLORS = {"1st": "#3b82f6", "2nd": "#f59e0b", "3rd": "#8b5cf6"}
+
+
+def aggregate_weekly_by_shift(df: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate daily data by machine, week, and shift."""
+    df = df.copy()
+    shift_col = "Shift" if "Shift" in df.columns else None
+    if shift_col is None:
+        return pd.DataFrame()
+    df = df[df["Shift"].isin(["1st", "2nd", "3rd"])]
+    grouped = (
+        df.groupby(["Machine Name", "Start Date", "Shift"])
+        .agg(
+            Actual_Output=("Actual Output (Lbs)", "sum"),
+            Total_Machine_Hours=("Total Machine Hours", "sum"),
+            Total_Man_Hours=("Total Man Hours", "sum"),
+            Total_Expense=("Total Expense", "sum"),
+        )
+        .reset_index()
+        .rename(columns={"Start Date": "Week Start"})
+    )
+    grouped["Output_per_Hour"] = (grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, float("nan"))).fillna(0)
+    grouped["Cost_per_Pound"] = (grouped["Total_Expense"] / grouped["Actual_Output"].replace(0, float("nan"))).fillna(0)
+    grouped["Week Start"] = pd.to_datetime(grouped["Week Start"])
+    grouped["Week Label"] = grouped["Week Start"].dt.strftime("%Y-%m-%d")
+    return grouped
+
+
+def build_shift_comparison_fig(df_shift: pd.DataFrame) -> go.Figure:
+    """Build a grouped bar chart comparing shifts by metric, filterable by machine."""
+    if df_shift.empty:
+        return go.Figure()
+
+    shifts = sorted(df_shift["Shift"].unique())
+    machine_options = ["All Machines"] + sorted(df_shift["Machine Name"].unique())
+
+    traces = []
+    for metric_label, (metric_col, fmt, unit) in SHIFT_METRICS.items():
+        for machine in machine_options:
+            scope = df_shift if machine == "All Machines" else df_shift[df_shift["Machine Name"] == machine]
+            if machine == "All Machines":
+                # Aggregate across machines per week+shift
+                agg = scope.groupby(["Week Start", "Week Label", "Shift"]).agg(
+                    Actual_Output=("Actual_Output", "sum"),
+                    Total_Machine_Hours=("Total_Machine_Hours", "sum"),
+                    Total_Expense=("Total_Expense", "sum"),
+                ).reset_index()
+                agg["Output_per_Hour"] = (agg["Actual_Output"] / agg["Total_Machine_Hours"].replace(0, float("nan"))).fillna(0)
+                agg["Cost_per_Pound"] = (agg["Total_Expense"] / agg["Actual_Output"].replace(0, float("nan"))).fillna(0)
+                scope = agg
+
+            for shift in shifts:
+                subset = scope[scope["Shift"] == shift].sort_values("Week Start")
+                traces.append(go.Bar(
+                    x=subset["Week Start"],
+                    y=subset[metric_col],
+                    name=f"{shift} Shift",
+                    hovertemplate=f"{shift} Shift<br>Week: %{{customdata[0]}}<br>{metric_label}: %{{y:{fmt}}} {unit}<extra></extra>",
+                    customdata=subset[["Week Label"]],
+                    visible=False,
+                    marker_color=SHIFT_COLORS.get(shift, "#999"),
+                    meta={"machine": machine, "shift_metric": metric_label, "shift": shift},
+                ))
+
+    # Default: Output/Hr, All Machines
+    for tr in traces:
+        if tr.meta["machine"] == "All Machines" and tr.meta["shift_metric"] == "Output/Hr":
+            tr.visible = True
+
+    fig = go.Figure(data=traces)
+    fig.update_layout(
+        title="Shift Comparison \u2014 Output/Hr \u2014 All Machines",
+        barmode="group", xaxis_title="Week", yaxis_title="Output/Hr",
+        hovermode="x unified", template="plotly_white",
+        plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
+        font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
+        margin=dict(t=80, r=180, b=60, l=70),
+        legend=dict(title="Shift", orientation="v", x=1.08, y=0.5, bgcolor="#ffffff", bordercolor="#e5e7eb"),
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="#e5e7eb")
+    fig.update_yaxes(showgrid=True, gridcolor="#e5e7eb", zerolinecolor="#cbd5e1")
+    return fig
+
+
+# ---------------------------------------------------------------------------
 # Dashboard renderer
 # ---------------------------------------------------------------------------
 
@@ -525,6 +735,7 @@ def render_dashboard(
     metric_options_html: str,
     snapshot_std: str, snapshot_sup: str,
     monthly_std: str, monthly_sup: str,
+    shift_fig_std: go.Figure = None, shift_fig_sup: go.Figure = None,
     total_weeks: int = 20,
 ) -> str:
     def _render_figs(fig_sections):
@@ -539,6 +750,23 @@ def render_dashboard(
         )
     sections_std = _render_figs(fig_sections_std)
     sections_sup = _render_figs(fig_sections_sup)
+
+    def _render_shift(fig, div_id):
+        if fig is None or not fig.data:
+            return ""
+        html = to_html(fig, include_plotlyjs=False, full_html=False,
+                        default_width="100%", default_height="500px", div_id=div_id)
+        metric_btns = ''.join(
+            f'<button class="range-btn shift-metric-btn{" active" if m == "Output/Hr" else ""}" data-metric="{m}">{m}</button>'
+            for m in SHIFT_METRICS
+        )
+        return f'''<section class="card">
+            <h2 style="margin-top:0;display:inline-block;">Shift Comparison</h2>
+            <div class="range-btns" style="display:inline-flex;margin-left:16px;vertical-align:middle;">{metric_btns}</div>
+            {html}
+        </section>'''
+    shift_section_std = _render_shift(shift_fig_std, "fig-shift")
+    shift_section_sup = _render_shift(shift_fig_sup, "fig-shift-sup")
 
     return f"""<!doctype html>
 <html lang="en">
@@ -647,6 +875,7 @@ def render_dashboard(
         {trends_std}
       </section>
       {sections_std}
+      {shift_section_std}
       <section class="card">
         <h2 style="margin-top:0">Latest Week vs 4-Week Average</h2>
         {snapshot_std}
@@ -663,6 +892,7 @@ def render_dashboard(
         {trends_sup}
       </section>
       {sections_sup}
+      {shift_section_sup}
       <section class="card">
         <h2 style="margin-top:0">Latest Week vs 4-Week Average <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
         {snapshot_sup}
@@ -680,17 +910,22 @@ def render_dashboard(
     const supportBtn = document.getElementById('supportBtn');
     const viewStandard = document.getElementById('view-standard');
     const viewSupport = document.getElementById('view-support');
-    const rangeBtns = document.querySelectorAll('.range-btn');
+    const rangeBtns = document.querySelectorAll('.range-btn:not(.shift-metric-btn)');
+    const shiftMetricBtns = document.querySelectorAll('.shift-metric-btn');
     let showRaw = false;
     let includeSupport = false;
     let supportInitialized = false;
     let rangeWeeks = {DEFAULT_WEEKS};
+    let shiftMetric = 'Output/Hr';
 
     function getMetricsFig() {{
       return document.getElementById(includeSupport ? 'fig-metrics-sup' : 'fig-metrics');
     }}
     function getProductFig() {{
       return document.getElementById(includeSupport ? 'fig-products-sup' : 'fig-products');
+    }}
+    function getShiftFig() {{
+      return document.getElementById(includeSupport ? 'fig-shift-sup' : 'fig-shift');
     }}
 
     // Compute x-axis date range from weeks setting
@@ -726,8 +961,8 @@ def render_dashboard(
     function applyRange() {{
       // Apply range to all chart figures in both views
       const figIds = [
-        'fig-metrics', 'fig-products', 'fig-heatmap',
-        'fig-metrics-sup', 'fig-products-sup', 'fig-heatmap-sup'
+        'fig-metrics', 'fig-products', 'fig-heatmap', 'fig-shift',
+        'fig-metrics-sup', 'fig-products-sup', 'fig-heatmap-sup', 'fig-shift-sup'
       ];
       figIds.forEach(id => {{
         const el = document.getElementById(id);
@@ -749,7 +984,7 @@ def render_dashboard(
       viewSupport.style.display = includeSupport ? '' : 'none';
       if (includeSupport && !supportInitialized) {{
         supportInitialized = true;
-        ['fig-metrics-sup','fig-heatmap-sup','fig-pareto-sup','fig-products-sup'].forEach(id => {{
+        ['fig-metrics-sup','fig-heatmap-sup','fig-pareto-sup','fig-products-sup','fig-shift-sup'].forEach(id => {{
           const el = document.getElementById(id);
           if (el && el.data) Plotly.Plots.resize(el);
         }});
@@ -828,7 +1063,38 @@ def render_dashboard(
         }}
         Plotly.relayout(productFig, layoutUpdate);
       }}
+
+      // Shift comparison chart
+      const shiftFig = getShiftFig();
+      if (shiftFig && shiftFig.data) {{
+        const vis = shiftFig.data.map(tr => {{
+          if (!tr.meta) return false;
+          const machineMatch = selectedMachine === 'All Machines' ? tr.meta.machine === 'All Machines' : tr.meta.machine === selectedMachine;
+          const metricMatch = tr.meta.shift_metric === shiftMetric;
+          return machineMatch && metricMatch;
+        }});
+        Plotly.restyle(shiftFig, 'visible', vis);
+        const range = getXRange(shiftFig);
+        const layoutUpdate = {{title: 'Shift Comparison \\u2014 ' + shiftMetric + ' \\u2014 ' + selectedMachine, yaxis: {{title: shiftMetric}}}};
+        if (range) {{
+          layoutUpdate['xaxis.range'] = range;
+          layoutUpdate['xaxis.autorange'] = false;
+        }} else {{
+          layoutUpdate['xaxis.autorange'] = true;
+        }}
+        Plotly.relayout(shiftFig, layoutUpdate);
+      }}
     }}
+
+    // Shift metric buttons
+    shiftMetricBtns.forEach(btn => {{
+      btn.addEventListener('click', () => {{
+        shiftMetricBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        shiftMetric = btn.dataset.metric;
+        updatePlots();
+      }});
+    }});
 
     function exportChart(divId) {{
       const el = document.getElementById(divId);
@@ -862,6 +1128,7 @@ def _build_pipeline(df: pd.DataFrame):
 
 def main(input_path: Path, output_path: Path) -> None:
     df = load_data(input_path)
+    df = clean_product_names(df)
     df = df[(df["Total Man Hours"] > 0) | (df["Actual Input (Lbs)"] > 0)]
 
     machine_options = ["All Machines"] + sorted(df["Machine Name"].unique())
@@ -892,6 +1159,12 @@ def main(input_path: Path, output_path: Path) -> None:
     df_sup = df_sup[(df_sup["Total Man Hours"] > 0) & (df_sup["Total Machine Hours"] > 0)]
     weekly_sup, df_sup_full, trends_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
 
+    # Shift comparison charts
+    shift_std = aggregate_weekly_by_shift(df_std)
+    shift_fig_std = build_shift_comparison_fig(shift_std)
+    shift_sup = aggregate_weekly_by_shift(df_sup)
+    shift_fig_sup = build_shift_comparison_fig(shift_sup)
+
     # Total weeks available (for range control)
     total_weeks = len(weekly_std["Week Start"].unique())
 
@@ -917,6 +1190,7 @@ def main(input_path: Path, output_path: Path) -> None:
             machine_options_html, metric_options_html,
             snapshot_std, snapshot_sup,
             monthly_std, monthly_sup,
+            shift_fig_std=shift_fig_std, shift_fig_sup=shift_fig_sup,
             total_weeks=total_weeks,
         ),
         encoding="utf-8",

@@ -8,6 +8,9 @@ processing_reports/
 auto_generated_graphs/
 Meeting_Plots/
 
+# Local-only reports (operator dashboard, etc.)
+reports/
+
 # Python cache
 __pycache__/
 *.pyc
