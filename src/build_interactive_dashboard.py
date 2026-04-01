@@ -525,6 +525,7 @@ def render_dashboard(
     metric_options_html: str,
     snapshot_std: str, snapshot_sup: str,
     monthly_std: str, monthly_sup: str,
+    total_weeks: int = 20,
 ) -> str:
     def _render_figs(fig_sections):
         rendered = [
@@ -567,6 +568,16 @@ def render_dashboard(
     .toggle-btn.active {{ background:#3b82f6; color:#fff; border-color:#3b82f6; }}
     .toggle-btn:hover {{ background:#f3f4f6; }}
     .toggle-btn.active:hover {{ background:#2563eb; }}
+    .range-control {{ display:flex; align-items:center; gap:6px; }}
+    .range-control label {{ font-weight:600; color:var(--muted); }}
+    .range-btns {{ display:flex; gap:0; }}
+    .range-btn {{ padding:6px 12px; border:1px solid var(--border); background:#fff; cursor:pointer;
+                  font-size:12px; transition:all .2s; }}
+    .range-btn:first-child {{ border-radius:8px 0 0 8px; }}
+    .range-btn:last-child {{ border-radius:0 8px 8px 0; }}
+    .range-btn:not(:first-child) {{ border-left:none; }}
+    .range-btn.active {{ background:#3b82f6; color:#fff; border-color:#3b82f6; }}
+    .range-btn:hover:not(.active) {{ background:#f3f4f6; }}
     .muted {{ color:var(--muted); }}
     .table-wrap {{ overflow-x:auto; }}
     table {{ width:100%; border-collapse:collapse; }}
@@ -600,7 +611,7 @@ def render_dashboard(
 <body>
   <header>
     <h1>Processing Performance Dashboard</h1>
-    <p class="subtitle">Last {DEFAULT_WEEKS} weeks shown by default. Use controls to adjust view.</p>
+    <p class="subtitle">Use controls below to adjust view. {total_weeks} weeks of data available.</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
   </header>
   <main>
@@ -615,6 +626,15 @@ def render_dashboard(
       </div>
       <button class="toggle-btn" id="showRawBtn" title="Show raw weekly values instead of running averages">Show Raw</button>
       <button class="toggle-btn" id="supportBtn" title="Include Guillotine support work (cutting for other machines) in output totals">+ Guillotine Support</button>
+      <div class="range-control">
+        <label>Range:</label>
+        <div class="range-btns">
+          <button class="range-btn" data-weeks="12">12w</button>
+          <button class="range-btn active" data-weeks="{DEFAULT_WEEKS}">20w</button>
+          <button class="range-btn" data-weeks="52">1y</button>
+          <button class="range-btn" data-weeks="{total_weeks}">All</button>
+        </div>
+      </div>
       <div class="export-buttons">
         <button class="export-btn" onclick="exportChart(includeSupport ? 'fig-metrics-sup' : 'fig-metrics')">Export PNG</button>
         <button class="export-btn" onclick="window.print()">Print</button>
@@ -660,9 +680,11 @@ def render_dashboard(
     const supportBtn = document.getElementById('supportBtn');
     const viewStandard = document.getElementById('view-standard');
     const viewSupport = document.getElementById('view-support');
+    const rangeBtns = document.querySelectorAll('.range-btn');
     let showRaw = false;
     let includeSupport = false;
     let supportInitialized = false;
+    let rangeWeeks = {DEFAULT_WEEKS};
 
     function getMetricsFig() {{
       return document.getElementById(includeSupport ? 'fig-metrics-sup' : 'fig-metrics');
@@ -671,13 +693,60 @@ def render_dashboard(
       return document.getElementById(includeSupport ? 'fig-products-sup' : 'fig-products');
     }}
 
+    // Compute x-axis date range from weeks setting
+    function getXRange(fig) {{
+      if (!fig || !fig.data) return null;
+      // Collect all x dates across visible and hidden traces
+      let allDates = [];
+      fig.data.forEach(tr => {{
+        if (tr.x) tr.x.forEach(d => allDates.push(new Date(d)));
+      }});
+      if (allDates.length === 0) return null;
+      const maxDate = new Date(Math.max(...allDates));
+      const totalWeeks = {total_weeks};
+      if (rangeWeeks >= totalWeeks) return null; // show all — let Plotly autorange
+      const minDate = new Date(maxDate);
+      minDate.setDate(minDate.getDate() - rangeWeeks * 7);
+      // Pad by a few days for readability
+      const padMin = new Date(minDate); padMin.setDate(padMin.getDate() - 3);
+      const padMax = new Date(maxDate); padMax.setDate(padMax.getDate() + 3);
+      return [padMin.toISOString().slice(0, 10), padMax.toISOString().slice(0, 10)];
+    }}
+
+    // Range buttons
+    rangeBtns.forEach(btn => {{
+      btn.addEventListener('click', () => {{
+        rangeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        rangeWeeks = parseInt(btn.dataset.weeks, 10);
+        applyRange();
+      }});
+    }});
+
+    function applyRange() {{
+      // Apply range to all chart figures in both views
+      const figIds = [
+        'fig-metrics', 'fig-products', 'fig-heatmap',
+        'fig-metrics-sup', 'fig-products-sup', 'fig-heatmap-sup'
+      ];
+      figIds.forEach(id => {{
+        const el = document.getElementById(id);
+        if (!el || !el.data) return;
+        const range = getXRange(el);
+        if (range) {{
+          Plotly.relayout(el, {{'xaxis.range': range, 'xaxis.autorange': false}});
+        }} else {{
+          Plotly.relayout(el, {{'xaxis.autorange': true}});
+        }}
+      }});
+    }}
+
     supportBtn.addEventListener('click', () => {{
       includeSupport = !includeSupport;
       supportBtn.classList.toggle('active', includeSupport);
       supportBtn.textContent = includeSupport ? '\\u2713 Guillotine Support' : '+ Guillotine Support';
       viewStandard.style.display = includeSupport ? 'none' : '';
       viewSupport.style.display = includeSupport ? '' : 'none';
-      // Plotly charts in hidden divs may not render correctly; trigger a resize on first show
       if (includeSupport && !supportInitialized) {{
         supportInitialized = true;
         ['fig-metrics-sup','fig-heatmap-sup','fig-pareto-sup','fig-products-sup'].forEach(id => {{
@@ -686,6 +755,7 @@ def render_dashboard(
         }});
       }}
       updatePlots();
+      applyRange();
     }});
 
     showRawBtn.addEventListener('click', () => {{
@@ -731,7 +801,15 @@ def render_dashboard(
         }});
         Plotly.restyle(metricsFig, 'visible', vis);
         const label = metricsFig.data.find((tr, idx) => vis[idx])?.meta?.label || selectedMetric;
-        Plotly.relayout(metricsFig, {{title: label + ' by Machine', yaxis: {{title: label}}}});
+        const range = getXRange(metricsFig);
+        const layoutUpdate = {{title: label + ' by Machine', yaxis: {{title: label}}}};
+        if (range) {{
+          layoutUpdate['xaxis.range'] = range;
+          layoutUpdate['xaxis.autorange'] = false;
+        }} else {{
+          layoutUpdate['xaxis.autorange'] = true;
+        }}
+        Plotly.relayout(metricsFig, layoutUpdate);
       }}
 
       if (productFig && productFig.data) {{
@@ -740,7 +818,15 @@ def render_dashboard(
           return selectedMachine === 'All Machines' ? tr.meta.machine === 'All Machines' : tr.meta.machine === selectedMachine;
         }});
         Plotly.restyle(productFig, 'visible', vis);
-        Plotly.relayout(productFig, {{title: 'Output Product Breakdown \\u2014 ' + selectedMachine}});
+        const range = getXRange(productFig);
+        const layoutUpdate = {{title: 'Output Product Breakdown \\u2014 ' + selectedMachine}};
+        if (range) {{
+          layoutUpdate['xaxis.range'] = range;
+          layoutUpdate['xaxis.autorange'] = false;
+        }} else {{
+          layoutUpdate['xaxis.autorange'] = true;
+        }}
+        Plotly.relayout(productFig, layoutUpdate);
       }}
     }}
 
@@ -755,23 +841,23 @@ def render_dashboard(
     // Initialize
     rebuildMetricDropdown();
     updatePlots();
+    // Apply default range after Plotly renders
+    setTimeout(applyRange, 500);
   </script>
 </body>
 </html>"""
 
 
 def _build_pipeline(df: pd.DataFrame):
-    """Run full aggregation + chart pipeline on a dataframe. Returns (weekly_all, weekly_recent, df_recent, trends, snapshot, monthly, fig_sections)."""
+    """Run full aggregation + chart pipeline on a dataframe. Returns (weekly_all, df, trends, snapshot, monthly)."""
     weekly_all = aggregate_weekly(df)
     weekly_all = add_running_averages(weekly_all, metrics=list(ALL_METRICS.keys()), window=RUNNING_AVG_WINDOW)
-    weekly_recent = _recent_weeks(weekly_all, DEFAULT_WEEKS)
-    df_recent = df[df["Start Date"] >= weekly_recent["Week Start"].min()]
 
     trends_html = build_recent_trends_html(weekly_all)
     snapshot_html = build_latest_week_table_html(weekly_all)
     monthly_html = build_monthly_summary_html(weekly_all)
 
-    return weekly_all, weekly_recent, df_recent, trends_html, snapshot_html, monthly_html
+    return weekly_all, df, trends_html, snapshot_html, monthly_html
 
 
 def main(input_path: Path, output_path: Path) -> None:
@@ -798,26 +884,29 @@ def main(input_path: Path, output_path: Path) -> None:
 
     # Standard pipeline (profit-producing output only)
     df_std = df[(df["Total Man Hours"] > 0) & (df["Total Machine Hours"] > 0)]
-    _, weekly_std, df_recent_std, trends_std, snapshot_std, monthly_std = _build_pipeline(df_std)
+    weekly_std, df_std_full, trends_std, snapshot_std, monthly_std = _build_pipeline(df_std)
 
     # With Guillotine support work included
     df_sup = _apply_guillotine_support(df)
     df_sup = df_sup[(df_sup["Total Man Hours"] > 0) | (df_sup["Actual Output (Lbs)"] > 0)]
     df_sup = df_sup[(df_sup["Total Man Hours"] > 0) & (df_sup["Total Machine Hours"] > 0)]
-    _, weekly_sup, df_recent_sup, trends_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
+    weekly_sup, df_sup_full, trends_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
 
-    # Charts for both modes
+    # Total weeks available (for range control)
+    total_weeks = len(weekly_std["Week Start"].unique())
+
+    # Charts for both modes — pass ALL data, JS controls visible range
     fig_sections_std = [
         ("Weekly Metrics by Machine", "fig-metrics", build_interactive_fig(weekly_std)),
         ("Machine Utilization Heatmap", "fig-heatmap", build_utilization_heatmap(weekly_std)),
         ("Pareto Analysis: Output Contribution", "fig-pareto", build_pareto_chart(weekly_std)),
-        ("Output Product Breakdown", "fig-products", build_output_product_fig(df_recent_std)),
+        ("Output Product Breakdown", "fig-products", build_output_product_fig(df_std_full)),
     ]
     fig_sections_sup = [
         ("Weekly Metrics by Machine", "fig-metrics-sup", build_interactive_fig(weekly_sup)),
         ("Machine Utilization Heatmap", "fig-heatmap-sup", build_utilization_heatmap(weekly_sup)),
         ("Pareto Analysis: Output Contribution", "fig-pareto-sup", build_pareto_chart(weekly_sup)),
-        ("Output Product Breakdown", "fig-products-sup", build_output_product_fig(df_recent_sup)),
+        ("Output Product Breakdown", "fig-products-sup", build_output_product_fig(df_sup_full)),
     ]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -828,6 +917,7 @@ def main(input_path: Path, output_path: Path) -> None:
             machine_options_html, metric_options_html,
             snapshot_std, snapshot_sup,
             monthly_std, monthly_sup,
+            total_weeks=total_weeks,
         ),
         encoding="utf-8",
     )
