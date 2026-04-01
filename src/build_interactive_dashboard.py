@@ -50,6 +50,21 @@ MACHINE_WEEKLY_CAPACITY = {
     "GREEN MAX DENSIFIER (NEW)": 80,
 }
 DEFAULT_WEEKLY_CAPACITY = 80
+UTILIZATION_TARGET_PCT = 85  # Target utilization % (shown as dashed line)
+
+# Weekly output targets (lbs) per machine — adjust as goals change
+MACHINE_WEEKLY_OUTPUT_TARGETS = {
+    "EXTRUDER": 40000,
+    "GUILLOTINE": 30000,
+    "AUTO TIE BALER": 25000,
+    "BALER 1": 20000,
+    "BALER 2": 20000,
+    "SHREDDER": 15000,
+    "GRINDER": 15000,
+    "SMALL GRINDER": 5000,
+    "AVANGUARD DENSIFIER (OLD)": 8000,
+    "GREEN MAX DENSIFIER (NEW)": 8000,
+}
 
 # --- Product name cleanup ---
 PRODUCT_TYPO_MAP = {
@@ -509,127 +524,137 @@ def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def build_output_product_fig(df: pd.DataFrame) -> go.Figure:
-    df = df.copy()
-    df["Start Date"] = pd.to_datetime(df["Start Date"])
+def build_utilization_bullet_fig(weekly: pd.DataFrame) -> go.Figure:
+    """Horizontal bullet bars: latest week utilization % per machine with target line."""
+    latest_week = weekly["Week Start"].max()
+    latest = weekly[weekly["Week Start"] == latest_week]
+    week_label = latest["Week Label"].iloc[0] if not latest.empty else ""
 
-    # Use Product Category (from clean_product_names), top 10 + Other
-    cat_col = "Product Category" if "Product Category" in df.columns else "Output Product"
-    totals = df.groupby(cat_col)["Actual Output (Lbs)"].sum().sort_values(ascending=False)
-    top_categories = totals.head(10).index.tolist()
-    df["Display Category"] = df[cat_col].where(df[cat_col].isin(top_categories), "Other")
-    categories = [c for c in top_categories if c != "Other"] + ["Other"]
+    machines = sorted(latest["Machine Name"].unique())
+    utils = []
+    caps = []
+    hours_vals = []
+    for m in machines:
+        row = latest[latest["Machine Name"] == m]
+        hrs = row["Total_Machine_Hours"].sum() if not row.empty else 0
+        cap = MACHINE_WEEKLY_CAPACITY.get(m, DEFAULT_WEEKLY_CAPACITY)
+        pct = (hrs / cap * 100) if cap > 0 else 0
+        utils.append(round(pct, 1))
+        caps.append(cap)
+        hours_vals.append(round(hrs, 1))
 
-    machine_options = ["All Machines"] + sorted(df["Machine Name"].unique())
+    # Color bars by utilization level
+    colors = []
+    for u in utils:
+        if u >= 90:
+            colors.append("#22c55e")  # green — strong
+        elif u >= 70:
+            colors.append("#3b82f6")  # blue — on track
+        elif u >= 50:
+            colors.append("#f59e0b")  # amber — needs attention
+        else:
+            colors.append("#ef4444")  # red — underutilized
+
+    target_pct = UTILIZATION_TARGET_PCT
+
+    fig = go.Figure()
+
+    # Actual utilization bars
+    fig.add_trace(go.Bar(
+        y=machines, x=utils, orientation="h",
+        marker_color=colors,
+        text=[f"{u:.0f}%" for u in utils],
+        textposition="auto",
+        hovertemplate=[
+            f"{m}<br>Utilization: {u:.0f}%<br>Hours: {h:.1f} / {c}h capacity<extra></extra>"
+            for m, u, h, c in zip(machines, utils, hours_vals, caps)
+        ],
+    ))
+
+    # Target line
+    fig.add_vline(
+        x=target_pct, line_dash="dash", line_color="#ef4444", line_width=2,
+        annotation_text=f"Target {target_pct}%", annotation_position="top",
+        annotation_font=dict(color="#ef4444", size=12),
+    )
+
+    fig.update_layout(
+        title=f"Machine Utilization — Week of {week_label}",
+        xaxis_title="Utilization %", yaxis_title="",
+        xaxis=dict(range=[0, max(max(utils) + 10, target_pct + 10, 110)], dtick=20),
+        template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
+        font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
+        margin=dict(t=80, r=40, b=60, l=200),
+        showlegend=False,
+        height=max(350, len(machines) * 45 + 120),
+    )
+    fig.update_yaxes(autorange="reversed")
+    return fig
+
+
+def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
+    """Weekly output vs target per machine, with machine selector and WoW delta."""
+    machine_options = ["All Machines"] + sorted(weekly["Machine Name"].unique())
 
     traces = []
     for machine in machine_options:
-        scope = df if machine == "All Machines" else df[df["Machine Name"] == machine]
-        grouped = (
-            scope.groupby(["Start Date", "Display Category"])["Actual Output (Lbs)"]
-            .sum().reset_index()
-            .rename(columns={"Start Date": "Week Start"})
-        )
-        grouped["Week Label"] = grouped["Week Start"].dt.strftime("%Y-%m-%d")
-        for pidx, cat in enumerate(categories):
-            subset = grouped[grouped["Display Category"] == cat]
-            traces.append(go.Bar(
-                x=subset["Week Start"], y=subset["Actual Output (Lbs)"],
-                name=cat,
-                hovertemplate=f"Machine: {machine}<br>Week: %{{customdata[0]}}<br>{cat}: %{{y:,.0f}} lbs<extra></extra>",
-                text=subset["Display Category"], customdata=subset[["Week Label"]],
-                visible=False,
-                marker_color=CHART_PALETTE[pidx % len(CHART_PALETTE)],
-                meta={"machine": machine},
-            ))
+        if machine == "All Machines":
+            scope = weekly.groupby("Week Start").agg(
+                Actual_Output=("Actual_Output", "sum"),
+                Week_Label=("Week Label", "first"),
+            ).reset_index()
+            target = sum(MACHINE_WEEKLY_OUTPUT_TARGETS.values())
+        else:
+            scope = weekly[weekly["Machine Name"] == machine].copy()
+            scope = scope.rename(columns={"Week Label": "Week_Label"})
+            target = MACHINE_WEEKLY_OUTPUT_TARGETS.get(machine, 0)
 
-    for trace in traces:
-        if trace.meta["machine"] == "All Machines":
-            trace.visible = True
+        scope = scope.sort_values("Week Start")
+
+        # Actual output bars
+        bar_colors = ["#22c55e" if v >= target else "#ef4444" for v in scope["Actual_Output"]]
+        traces.append(go.Bar(
+            x=scope["Week Start"], y=scope["Actual_Output"],
+            name="Actual",
+            marker_color=bar_colors,
+            hovertemplate=[
+                f"Machine: {machine}<br>Week: {wl}<br>Actual: {act:,.0f} lbs<br>Target: {target:,.0f} lbs<br>{'✓ Hit' if act >= target else f'Gap: {target - act:,.0f} lbs'}<extra></extra>"
+                for wl, act in zip(scope["Week_Label"], scope["Actual_Output"])
+            ],
+            visible=False,
+            meta={"machine": machine, "chart_type": "targets"},
+        ))
+
+        # Target line
+        traces.append(go.Scatter(
+            x=scope["Week Start"], y=[target] * len(scope),
+            name="Target",
+            mode="lines",
+            line=dict(color="#6b7280", width=2, dash="dash"),
+            hovertemplate=f"Target: {target:,.0f} lbs<extra></extra>",
+            visible=False,
+            showlegend=True,
+            meta={"machine": machine, "chart_type": "targets"},
+        ))
+
+    # Default: All Machines visible
+    for tr in traces:
+        if tr.meta["machine"] == "All Machines":
+            tr.visible = True
 
     fig = go.Figure(data=traces)
     fig.update_layout(
-        title="Output by Product Category \u2014 All Machines",
-        barmode="stack", xaxis_title="Week", yaxis_title="Output (Lbs)",
+        title="Output vs Target — All Machines",
+        xaxis_title="Week", yaxis_title="Output (Lbs)",
         hovermode="x unified", template="plotly_white",
         plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
         font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
-        margin=dict(t=80, r=220, b=60, l=70),
-        legend=dict(title="Category", orientation="v", x=1.08, y=0.5, bgcolor="#ffffff", bordercolor="#e5e7eb"),
+        margin=dict(t=80, r=40, b=60, l=70),
+        legend=dict(orientation="h", x=0.5, xanchor="center", y=1.08),
+        barmode="overlay",
     )
     fig.update_xaxes(showgrid=True, gridcolor="#e5e7eb")
     fig.update_yaxes(showgrid=True, gridcolor="#e5e7eb", zerolinecolor="#cbd5e1")
-    return fig
-
-
-def build_utilization_heatmap(weekly: pd.DataFrame) -> go.Figure:
-    pivot_hours = weekly.pivot_table(
-        index="Machine Name", columns="Week Label",
-        values="Total_Machine_Hours", aggfunc="sum", fill_value=0,
-    )
-    # Convert to utilization %
-    capacities = [MACHINE_WEEKLY_CAPACITY.get(m, DEFAULT_WEEKLY_CAPACITY) for m in pivot_hours.index]
-    cap_array = pd.DataFrame(
-        [[c] * len(pivot_hours.columns) for c in capacities],
-        index=pivot_hours.index, columns=pivot_hours.columns,
-    )
-    pivot_pct = (pivot_hours / cap_array * 100).round(1)
-
-    # Green → Orange → Red colorscale
-    colorscale = [
-        [0.0, "#e8f5e9"], [0.4, "#66bb6a"], [0.65, "#fdd835"],
-        [0.8, "#ffa726"], [0.95, "#e53935"], [1.0, "#b71c1c"],
-    ]
-    fig = go.Figure(data=go.Heatmap(
-        z=pivot_pct.values, x=pivot_pct.columns.tolist(), y=pivot_pct.index.tolist(),
-        customdata=pivot_hours.values,
-        colorscale=colorscale,
-        zmin=0, zmax=120,
-        hovertemplate="Machine: %{y}<br>Week: %{x}<br>Utilization: %{z:.0f}%<br>Hours: %{customdata:.1f}<extra></extra>",
-        colorbar=dict(title="Util %", ticksuffix="%"),
-    ))
-    fig.update_layout(
-        title="Machine Utilization (% of Capacity)",
-        xaxis_title="Week", yaxis_title="Machine",
-        template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
-        font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
-        margin=dict(t=80, r=40, b=100, l=180),
-        xaxis=dict(tickangle=45),
-    )
-    return fig
-
-
-def build_pareto_chart(weekly: pd.DataFrame) -> go.Figure:
-    machine_totals = (
-        weekly.groupby("Machine Name")["Actual_Output"]
-        .sum().sort_values(ascending=False).reset_index()
-    )
-    machine_totals["Cumulative"] = machine_totals["Actual_Output"].cumsum()
-    machine_totals["Cumulative_Pct"] = machine_totals["Cumulative"] / machine_totals["Actual_Output"].sum() * 100
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=machine_totals["Machine Name"], y=machine_totals["Actual_Output"],
-        name="Output (Lbs)", marker_color="#3b82f6",
-        hovertemplate="Machine: %{x}<br>Output: %{y:,.0f} lbs<extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=machine_totals["Machine Name"], y=machine_totals["Cumulative_Pct"],
-        name="Cumulative %", mode="lines+markers", yaxis="y2",
-        line=dict(color="#ef4444", width=2), marker=dict(size=8),
-        hovertemplate="Cumulative: %{y:.1f}%<extra></extra>",
-    ))
-    fig.add_hline(y=80, line_dash="dash", line_color="#9ca3af", annotation_text="80%", yref="y2")
-    fig.update_layout(
-        title="Pareto Analysis: Machine Output Contribution",
-        xaxis_title="Machine",
-        yaxis=dict(title="Output (Lbs)", side="left"),
-        yaxis2=dict(title="Cumulative %", side="right", overlaying="y", range=[0, 105]),
-        template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
-        font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
-        legend=dict(x=0.7, y=1.1, orientation="h"),
-        margin=dict(t=100, b=100),
-    )
     return fig
 
 
@@ -923,8 +948,8 @@ def render_dashboard(
     function getMetricsFig() {{
       return document.getElementById(includeSupport ? 'fig-metrics-sup' : 'fig-metrics');
     }}
-    function getProductFig() {{
-      return document.getElementById(includeSupport ? 'fig-products-sup' : 'fig-products');
+    function getTargetsFig() {{
+      return document.getElementById(includeSupport ? 'fig-targets-sup' : 'fig-targets');
     }}
     function getShiftFig() {{
       return document.getElementById(includeSupport ? 'fig-shift-sup' : 'fig-shift');
@@ -963,8 +988,8 @@ def render_dashboard(
     function applyRange() {{
       // Apply range to all chart figures in both views
       const figIds = [
-        'fig-metrics', 'fig-products', 'fig-heatmap', 'fig-shift',
-        'fig-metrics-sup', 'fig-products-sup', 'fig-heatmap-sup', 'fig-shift-sup'
+        'fig-metrics', 'fig-targets', 'fig-shift',
+        'fig-metrics-sup', 'fig-targets-sup', 'fig-shift-sup'
       ];
       figIds.forEach(id => {{
         const el = document.getElementById(id);
@@ -986,7 +1011,7 @@ def render_dashboard(
       viewSupport.style.display = includeSupport ? '' : 'none';
       if (includeSupport && !supportInitialized) {{
         supportInitialized = true;
-        ['fig-metrics-sup','fig-heatmap-sup','fig-pareto-sup','fig-products-sup','fig-shift-sup'].forEach(id => {{
+        ['fig-metrics-sup','fig-util-sup','fig-targets-sup','fig-shift-sup'].forEach(id => {{
           const el = document.getElementById(id);
           if (el && el.data) Plotly.Plots.resize(el);
         }});
@@ -1027,7 +1052,7 @@ def render_dashboard(
       const selectedMachine = machineSelect.value;
       const selectedMetric = metricSelect.value;
       const metricsFig = getMetricsFig();
-      const productFig = getProductFig();
+      const targetsFig = getTargetsFig();
 
       if (metricsFig && metricsFig.data) {{
         const vis = metricsFig.data.map(tr => {{
@@ -1049,21 +1074,22 @@ def render_dashboard(
         Plotly.relayout(metricsFig, layoutUpdate);
       }}
 
-      if (productFig && productFig.data) {{
-        const vis = productFig.data.map(tr => {{
+      // Targets vs Actuals chart
+      if (targetsFig && targetsFig.data) {{
+        const vis = targetsFig.data.map(tr => {{
           if (!tr.meta) return false;
           return selectedMachine === 'All Machines' ? tr.meta.machine === 'All Machines' : tr.meta.machine === selectedMachine;
         }});
-        Plotly.restyle(productFig, 'visible', vis);
-        const range = getXRange(productFig);
-        const layoutUpdate = {{title: 'Output Product Breakdown \\u2014 ' + selectedMachine}};
+        Plotly.restyle(targetsFig, 'visible', vis);
+        const range = getXRange(targetsFig);
+        const layoutUpdate = {{title: 'Output vs Target \\u2014 ' + selectedMachine}};
         if (range) {{
           layoutUpdate['xaxis.range'] = range;
           layoutUpdate['xaxis.autorange'] = false;
         }} else {{
           layoutUpdate['xaxis.autorange'] = true;
         }}
-        Plotly.relayout(productFig, layoutUpdate);
+        Plotly.relayout(targetsFig, layoutUpdate);
       }}
 
       // Shift comparison chart
@@ -1173,15 +1199,13 @@ def main(input_path: Path, output_path: Path) -> None:
     # Charts for both modes — pass ALL data, JS controls visible range
     fig_sections_std = [
         ("Weekly Metrics by Machine", "fig-metrics", build_interactive_fig(weekly_std)),
-        ("Machine Utilization Heatmap", "fig-heatmap", build_utilization_heatmap(weekly_std)),
-        ("Pareto Analysis: Output Contribution", "fig-pareto", build_pareto_chart(weekly_std)),
-        ("Output Product Breakdown", "fig-products", build_output_product_fig(df_std_full)),
+        ("Machine Utilization", "fig-util", build_utilization_bullet_fig(weekly_std)),
+        ("Output vs Target", "fig-targets", build_targets_vs_actuals_fig(weekly_std)),
     ]
     fig_sections_sup = [
         ("Weekly Metrics by Machine", "fig-metrics-sup", build_interactive_fig(weekly_sup)),
-        ("Machine Utilization Heatmap", "fig-heatmap-sup", build_utilization_heatmap(weekly_sup)),
-        ("Pareto Analysis: Output Contribution", "fig-pareto-sup", build_pareto_chart(weekly_sup)),
-        ("Output Product Breakdown", "fig-products-sup", build_output_product_fig(df_sup_full)),
+        ("Machine Utilization", "fig-util-sup", build_utilization_bullet_fig(weekly_sup)),
+        ("Output vs Target", "fig-targets-sup", build_targets_vs_actuals_fig(weekly_sup)),
     ]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
