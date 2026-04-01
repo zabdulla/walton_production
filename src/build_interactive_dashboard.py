@@ -45,6 +45,7 @@ MACHINE_WEEKLY_CAPACITY = {
     "BALER 2": 80,
     "SHREDDER": 80,
     "GRINDER": 80,
+    "SMALL GRINDER": 80,
     "AVANGUARD DENSIFIER (OLD)": 80,
     "GREEN MAX DENSIFIER (NEW)": 80,
 }
@@ -96,6 +97,7 @@ PRODUCT_CATEGORY_MAP = {
     "PS slabs": "PS - Slabs",
     # PET
     "PET": "PET - Bales", "PET bales": "PET - Bales",
+    "PET regrinds": "PET - Regrinds",
     "PET shreds": "PET - Shreds",
     "PET slabs": "PET - Slabs",
     # EPS

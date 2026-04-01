@@ -47,6 +47,7 @@ MACHINE_DATA_RANGES: dict[str, tuple[int, int]] = {
     "GREEN MAX DENSIFIER (NEW)": (58, 60),
     "EXTRUDER": (63, 66),
     "GRINDER": (69, 74),
+    "SMALL GRINDER": (77, 79),
 }
 
 # Daily sheet names in order
