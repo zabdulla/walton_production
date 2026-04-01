@@ -53,17 +53,13 @@ DEFAULT_WEEKLY_CAPACITY = 80
 UTILIZATION_TARGET_PCT = 85  # Target utilization % (shown as dashed line)
 
 # Weekly output targets (lbs) per machine — adjust as goals change
+# Only tracked machines are included; others are excluded from target/utilization charts
 MACHINE_WEEKLY_OUTPUT_TARGETS = {
-    "EXTRUDER": 40000,
-    "GUILLOTINE": 30000,
-    "AUTO TIE BALER": 25000,
-    "BALER 1": 20000,
-    "BALER 2": 20000,
-    "SHREDDER": 15000,
-    "GRINDER": 15000,
-    "SMALL GRINDER": 5000,
-    "AVANGUARD DENSIFIER (OLD)": 8000,
-    "GREEN MAX DENSIFIER (NEW)": 8000,
+    "EXTRUDER": 100000,
+    "GUILLOTINE": 100000,
+    "AUTO TIE BALER": 80000,
+    "GRINDER": 80000,
+    "GREEN MAX DENSIFIER (NEW)": 10000,
 }
 
 # --- Product name cleanup ---
@@ -530,7 +526,8 @@ def build_utilization_bullet_fig(weekly: pd.DataFrame) -> go.Figure:
     latest = weekly[weekly["Week Start"] == latest_week]
     week_label = latest["Week Label"].iloc[0] if not latest.empty else ""
 
-    machines = sorted(latest["Machine Name"].unique())
+    # Only show machines with output targets
+    machines = sorted(m for m in latest["Machine Name"].unique() if m in MACHINE_WEEKLY_OUTPUT_TARGETS)
     utils = []
     caps = []
     hours_vals = []
@@ -594,18 +591,21 @@ def build_utilization_bullet_fig(weekly: pd.DataFrame) -> go.Figure:
 
 def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
     """Weekly output vs target per machine, with machine selector and WoW delta."""
-    machine_options = ["All Machines"] + sorted(weekly["Machine Name"].unique())
+    # Only include machines with targets
+    tracked_machines = sorted(m for m in weekly["Machine Name"].unique() if m in MACHINE_WEEKLY_OUTPUT_TARGETS)
+    weekly_tracked = weekly[weekly["Machine Name"].isin(tracked_machines)]
+    machine_options = ["All Machines"] + tracked_machines
 
     traces = []
     for machine in machine_options:
         if machine == "All Machines":
-            scope = weekly.groupby("Week Start").agg(
+            scope = weekly_tracked.groupby("Week Start").agg(
                 Actual_Output=("Actual_Output", "sum"),
                 Week_Label=("Week Label", "first"),
             ).reset_index()
             target = sum(MACHINE_WEEKLY_OUTPUT_TARGETS.values())
         else:
-            scope = weekly[weekly["Machine Name"] == machine].copy()
+            scope = weekly_tracked[weekly_tracked["Machine Name"] == machine].copy()
             scope = scope.rename(columns={"Week Label": "Week_Label"})
             target = MACHINE_WEEKLY_OUTPUT_TARGETS.get(machine, 0)
 
