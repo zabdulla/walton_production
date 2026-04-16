@@ -55,4 +55,5 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add docs/index.html docs/daily.html
           git commit -m "Update dashboards [automated]"
+          git pull --rebase origin main || true
           git push

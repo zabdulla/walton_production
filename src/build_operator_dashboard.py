@@ -20,14 +20,14 @@ from plotly.io import to_html
 
 # Add src to path so we can import from sibling module
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_interactive_dashboard import (
-    load_data, clean_product_names, _fmt_num, CHART_PALETTE,
-    RUNNING_AVG_WINDOW, DEFAULT_WEEKS,
+from config import (
+    PROJECT_ROOT, DEFAULT_AGGREGATED_DATA,
+    CHART_PALETTE, DEFAULT_WEEKS, RUNNING_AVG_WINDOW,
 )
+from build_interactive_dashboard import load_data, clean_product_names, _fmt_num
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
-DEFAULT_OUTPUT = _PROJECT_ROOT / "reports" / "operator.html"
+DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
+DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "operator.html"
 
 TOP_N = 20  # Show top N operators by total hours
 

@@ -23,42 +23,24 @@ from typing import Any
 
 import pandas as pd
 
+from config import (
+    COL_MACHINE_HOURS,
+    COL_MAN_HOURS,
+    COL_INPUT_ITEM,
+    COL_ACTUAL_INPUT,
+    COL_OUTPUT_PRODUCT,
+    COL_ACTUAL_OUTPUT,
+    COL_OPERATOR,
+    COL_COMMENT,
+    COL_DATE,
+    LABOR_RATE,
+    PRODUCT_TYPO_MAP,
+    MACHINE_DATA_RANGES,
+    DAILY_SHEETS,
+    NOTE_CATEGORIES,
+)
+
 logger = logging.getLogger(__name__)
-
-# Column indices for daily sheets
-COL_MACHINE_HOURS = 1
-COL_MAN_HOURS = 2
-COL_INPUT_ITEM = 3
-COL_ACTUAL_INPUT = 4
-COL_OUTPUT_PRODUCT = 5
-COL_ACTUAL_OUTPUT = 6
-COL_OPERATOR = 7
-COL_COMMENT = 8
-COL_DATE = 9
-
-# Machine configuration: maps machine name to (start_row, end_row) in Excel sheet
-MACHINE_DATA_RANGES: dict[str, tuple[int, int]] = {
-    "AUTO TIE BALER": (4, 13),
-    "BALER 1": (16, 25),
-    "BALER 2": (28, 37),
-    "GUILLOTINE": (40, 44),
-    "SHREDDER": (47, 50),
-    "AVANGUARD DENSIFIER (OLD)": (53, 55),
-    "GREEN MAX DENSIFIER (NEW)": (58, 60),
-    "EXTRUDER": (63, 66),
-    "GRINDER": (69, 74),
-    "SMALL GRINDER": (77, 79),
-}
-
-# Daily sheet names in order
-DAILY_SHEETS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-
-# Note categorization keywords
-NOTE_CATEGORIES = {
-    "downtime": ["down", "stopped", "broken", "repair", "fix", "belt", "chiller", "filter"],
-    "material": ["no material", "waiting for material", "material shortage", "ran out"],
-    "quality": ["no weights", "missing", "not entered", "incomplete"],
-}
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -135,7 +117,7 @@ def _extract_date_from_sheet(data: pd.DataFrame) -> str | None:
 
 def extract_daily_data_from_file(
     file_path: str | Path,
-    hourly_rate: float = 24,
+    hourly_rate: float = LABOR_RATE,
     overhead_multiplier: float = 1.0,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -286,7 +268,7 @@ def extract_daily_data_from_file(
 
 def aggregate_daily_folder(
     folder_path: str | Path,
-    hourly_rate: float = 24,
+    hourly_rate: float = LABOR_RATE,
     overhead_multiplier: float = 1.0,
 ) -> None:
     """Aggregate all processing report files in folder to daily data files."""
@@ -323,6 +305,21 @@ def aggregate_daily_folder(
     if daily_dataframes:
         aggregated_daily = pd.concat(daily_dataframes, ignore_index=True)
         aggregated_daily = aggregated_daily.sort_values(["Date", "Shift", "Machine_Name"])
+
+        # Apply product typo corrections
+        aggregated_daily["Output_Product"] = aggregated_daily["Output_Product"].replace(PRODUCT_TYPO_MAP)
+
+        # Drop exact duplicate rows
+        before_dedup = len(aggregated_daily)
+        aggregated_daily.drop_duplicates(
+            subset=["Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output"],
+            keep="first",
+            inplace=True,
+        )
+        n_dropped = before_dedup - len(aggregated_daily)
+        if n_dropped:
+            logger.warning("Dropped %d duplicate rows during aggregation", n_dropped)
+
         output_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_daily_data.xlsx"
         aggregated_daily.to_excel(output_path, index=False)
         logger.info("Daily data saved to %s (%d records)", output_path, len(aggregated_daily))
@@ -346,4 +343,4 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
     folder_name = Path(__file__).resolve().parent.parent / "processing_reports"
-    aggregate_daily_folder(folder_name, hourly_rate=24, overhead_multiplier=1.0)
+    aggregate_daily_folder(folder_name, hourly_rate=LABOR_RATE, overhead_multiplier=1.0)

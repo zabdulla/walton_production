@@ -17,136 +17,25 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.io import to_html
 
+from config import (
+    PROJECT_ROOT, DEFAULT_AGGREGATED_DATA,
+    CHART_PALETTE, MACHINE_WEEKLY_CAPACITY, DEFAULT_WEEKLY_CAPACITY,
+    UTILIZATION_TARGET_PCT, MACHINE_WEEKLY_OUTPUT_TARGETS,
+    PRODUCT_TYPO_MAP, PRODUCT_CATEGORY_MAP,
+    KEY_METRICS, ALL_METRICS,
+    DEFAULT_WEEKS, RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
+    LABOR_RATE,
+)
+
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
-DEFAULT_OUTPUT = _PROJECT_ROOT / "docs" / "index.html"
-DEFAULT_WEEKS = 20
-RUNNING_AVG_WINDOW = 4
-COST_PER_POUND_THRESHOLD = 0.10
-
-CHART_PALETTE = [
-    "#0B6E4F", "#2CA58D", "#84BCDA", "#33658A", "#F26419",
-    "#FFAF87", "#3A3042", "#5BC0BE", "#C5283D", "#1f77b4",
-    "#e377c2",
-]
-
-# Machine weekly capacity (hours) for utilization % calculation
-MACHINE_WEEKLY_CAPACITY = {
-    "EXTRUDER": 120,       # 24h/day × 5 days
-    "GUILLOTINE": 120,     # 24h/day × 5 days
-    "AUTO TIE BALER": 80,  # 16h/day × 5 days
-    "BALER 1": 80,
-    "BALER 2": 80,
-    "SHREDDER": 80,
-    "GRINDER": 80,
-    "SMALL GRINDER": 80,
-    "AVANGUARD DENSIFIER (OLD)": 80,
-    "GREEN MAX DENSIFIER (NEW)": 80,
-}
-DEFAULT_WEEKLY_CAPACITY = 80
-UTILIZATION_TARGET_PCT = 85  # Target utilization % (shown as dashed line)
-
-# Weekly output targets (lbs) per machine — adjust as goals change
-# Only tracked machines are included; others are excluded from target/utilization charts
-MACHINE_WEEKLY_OUTPUT_TARGETS = {
-    "EXTRUDER": 100000,
-    "GUILLOTINE": 100000,
-    "AUTO TIE BALER": 80000,
-    "GRINDER": 80000,
-    "GREEN MAX DENSIFIER (NEW)": 10000,
-}
-
-# --- Product name cleanup ---
-PRODUCT_TYPO_MAP = {
-    "Tisue bales": "Tissue bales",
-    "Tisuue bales": "Tissue bales",
-    "PS regrdins": "PS regrinds",
-    "LD brickx": "LD bricks",
-    "LD Bales / HD bales": "LD Bales/HD bales",
-    "LD Bales/HDPE bales": "LD Bales/HD bales",
-    "PET slab": "PET slabs",
-    "PP Resin": "PP resin",
-    "PP Shreds": "PP shreds",
-    "HDPE bales": "HD Bales",
-    "OCC bales": "OCC Bales",
-}
-
-PRODUCT_CATEGORY_MAP = {
-    # LDPE
-    "LD Bales": "LDPE - Bales", "LD Nylon Bales": "LDPE - Bales",
-    "Mix Film Bales": "LDPE - Bales",
-    "LD bricks": "LDPE - Bricks/Foam", "LD foam bricks": "LDPE - Bricks/Foam",
-    "LDPE bricks": "LDPE - Bricks/Foam", "LDPE foam": "LDPE - Bricks/Foam",
-    "LDPE foam bricks": "LDPE - Bricks/Foam", "PE bricks": "LDPE - Bricks/Foam",
-    "PE foam bricks": "LDPE - Bricks/Foam", "Foam slabs": "LDPE - Bricks/Foam",
-    "LDPE regrinds": "LDPE - Regrinds",
-    "LDPE resin": "LDPE - Resin",
-    "LDPE slabs": "LDPE - Slabs",
-    "LDPE shreds": "LDPE - Shreds",
-    "LDPE slabs / HDPE slabs": "LDPE - Slabs",
-    # HDPE
-    "HD Bales": "HDPE - Bales",
-    "LD Bales/HD bales": "HDPE/LDPE - Mixed Bales",
-    "HDPE pieces": "HDPE - Regrinds", "HDPE regrinds": "HDPE - Regrinds",
-    "HDPE slabs": "HDPE - Slabs",
-    # PP
-    "PP Bales": "PP - Bales",
-    "PP regrinds": "PP - Regrinds", "PP pallet regrinds": "PP - Regrinds",
-    "PP resin": "PP - Resin",
-    "PP shreds": "PP - Shreds",
-    "Pallet slabs": "PP - Slabs",
-    # PS
-    "PS": "PS - Bales", "PS bales/purge": "PS - Bales",
-    "PS regrinds": "PS - Regrinds",
-    "PS shreds": "PS - Shreds",
-    "PS slabs": "PS - Slabs",
-    # PET
-    "PET": "PET - Bales", "PET bales": "PET - Bales",
-    "PET regrinds": "PET - Regrinds",
-    "PET shreds": "PET - Shreds",
-    "PET slabs": "PET - Slabs",
-    # EPS
-    "EPS": "EPS - Densified", "EPS resin": "EPS - Resin", "EPS slabs": "EPS - Slabs",
-    # BOPP
-    "BOPP": "BOPP - Bales", "BOPP regrinds": "BOPP - Regrinds",
-    "BOPP resin": "BOPP - Resin", "BOPP slabs": "BOPP - Slabs",
-    # Paper / Fiber
-    "OCC Bales": "OCC Bales", "Paper bales": "Paper Bales",
-    "Tissue bales": "Tissue Bales",
-    "SBS bales": "SBS Bales", "SOP bales": "SOP Bales",
-    "Strapping bales": "Strapping Bales", "Supersack Bales": "Supersack Bales",
-    # Specialty
-    "Nylon regrinds": "Nylon - Regrinds", "EVA regrinds": "EVA - Regrinds",
-    "HIPS regrinds": "HIPS - Regrinds",
-    "Rotomold regrinds": "Rotomold - Regrinds", "Rotomold slabs": "Rotomold - Slabs",
-    "Plastic slabs": "Mixed - Slabs",
-    "Mixed plastic shreds": "Mixed - Shreds", "Mixed regrinds": "Mixed - Regrinds",
-}
-
-# Key metrics shown by default (running average). Full list available via toggle.
-KEY_METRICS = {
-    "Actual_Output": ("Actual Output (Lbs)", "int"),
-    "Output_per_Hour": ("Output per Hour", "float1"),
-    "Production_Cost_per_Pound": ("Production Cost per Pound", "currency4"),
-    "Total_Expense": ("Total Expense", "currency"),
-}
-
-ALL_METRICS = {
-    "Actual_Output": ("Actual Output (Lbs)", "int"),
-    "Output_per_Hour": ("Output per Hour", "float1"),
-    "Output_per_Man_Hour": ("Output per Man-Hour", "float1"),
-    "Production_Cost_per_Pound": ("Production Cost per Pound", "currency4"),
-    "Total_Machine_Hours": ("Total Machine Hours", "float1"),
-    "Total_Man_Hours": ("Total Man Hours", "float1"),
-    "Labor_Cost": ("Labor Cost", "currency"),
-    "Total_Expense": ("Total Expense", "currency"),
-}
+DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
+DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "index.html"
 
 
 def _fmt_num(value: Any, kind: str = "int") -> str:
@@ -636,6 +525,35 @@ def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
             showlegend=True,
             meta={"machine": machine, "chart_type": "targets"},
         ))
+
+        # Forecast projection (linear trend from last 8 weeks, projected 4 weeks ahead)
+        if len(scope) >= 4:  # Need at least 4 data points
+            recent = scope.tail(8).copy()
+            x_numeric = (recent["Week Start"] - recent["Week Start"].iloc[0]).dt.days.values.astype(float)
+            y_vals = recent["Actual_Output"].values.astype(float)
+
+            try:
+                coeffs = np.polyfit(x_numeric, y_vals, 1)
+                poly = np.poly1d(coeffs)
+
+                # Build forecast dates: from first point of regression window to 4 weeks ahead
+                last_date = recent["Week Start"].iloc[-1]
+                forecast_dates = pd.date_range(recent["Week Start"].iloc[0], periods=len(recent) + 4, freq="7D")
+                x_forecast = (forecast_dates - recent["Week Start"].iloc[0]).days.astype(float)
+                y_forecast = poly(x_forecast)
+
+                traces.append(go.Scatter(
+                    x=forecast_dates, y=y_forecast,
+                    name="Trend/Forecast",
+                    mode="lines",
+                    line=dict(color="#a855f7", width=2, dash="dot"),
+                    hovertemplate="Forecast: %{y:,.0f} lbs<extra></extra>",
+                    visible=False,
+                    showlegend=True,
+                    meta={"machine": machine, "chart_type": "targets"},
+                ))
+            except Exception:
+                pass  # Skip forecast if regression fails
 
     # Default: All Machines visible
     for tr in traces:

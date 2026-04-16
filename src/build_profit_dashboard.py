@@ -17,26 +17,10 @@ from pathlib import Path
 
 import pandas as pd
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
-DEFAULT_OUTPUT = _PROJECT_ROOT / "reports" / "profit.html"
+from config import PROJECT_ROOT, DEFAULT_AGGREGATED_DATA, LABOR_RATE, MACHINE_PRESETS, DEFAULT_PRESET
 
-LABOR_RATE = 25  # $/hr
-
-# Per-machine default slider presets: (sale_price, buy_price, overhead)
-MACHINE_PRESETS = {
-    "EXTRUDER":                    (0.25, 0.05, 0.04),
-    "GUILLOTINE":                  (0.15, 0.03, 0.03),
-    "AUTO TIE BALER":             (0.20, 0.05, 0.03),
-    "BALER 1":                     (0.18, 0.04, 0.03),
-    "BALER 2":                     (0.18, 0.04, 0.03),
-    "SHREDDER":                    (0.12, 0.03, 0.03),
-    "GRINDER":                     (0.15, 0.04, 0.03),
-    "SMALL GRINDER":               (0.15, 0.04, 0.03),
-    "AVANGUARD DENSIFIER (OLD)":   (0.20, 0.02, 0.04),
-    "GREEN MAX DENSIFIER (NEW)":   (0.20, 0.02, 0.04),
-}
-DEFAULT_PRESET = (0.20, 0.05, 0.03)
+DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
+DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "profit.html"
 
 
 def load_and_aggregate(path: Path) -> list[dict]:

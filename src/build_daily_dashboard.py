@@ -19,15 +19,11 @@ from typing import Any
 
 import pandas as pd
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_DAILY_INPUT = _PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
-DEFAULT_NOTES_INPUT = _PROJECT_ROOT / "data" / "aggregated_notes.xlsx"
-DEFAULT_OUTPUT = _PROJECT_ROOT / "docs" / "daily.html"
+from config import PROJECT_ROOT, DEFAULT_AGGREGATED_DATA, DEFAULT_AGGREGATED_NOTES, CHART_PALETTE
 
-CHART_PALETTE = [
-    "#0B6E4F", "#2CA58D", "#84BCDA", "#33658A", "#F26419",
-    "#FFAF87", "#3A3042", "#5BC0BE", "#C5283D", "#1f77b4",
-]
+DEFAULT_DAILY_INPUT = DEFAULT_AGGREGATED_DATA
+DEFAULT_NOTES_INPUT = DEFAULT_AGGREGATED_NOTES
+DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "daily.html"
 
 
 def load_data(daily_path: Path, notes_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -540,6 +536,15 @@ def build_dashboard_html(
             border-color: var(--accent);
         }}
 
+        /* Machine activity calendar */
+        .machine-cal {{ border-collapse: collapse; font-size: 12px; width: 100%; }}
+        .machine-cal th {{ background: var(--primary); color: white; padding: 6px 8px; position: sticky; top: 0; }}
+        .machine-cal td {{ padding: 4px 6px; text-align: center; border: 1px solid var(--border); min-width: 40px; }}
+        .machine-cal .cal-active {{ background: #d1fae5; color: #065f46; font-weight: 600; }}
+        .machine-cal .cal-idle {{ background: #fef3c7; color: #92400e; }}
+        .machine-cal .cal-off {{ background: #f3f4f6; color: #9ca3af; }}
+        .machine-cal .machine-label {{ text-align: left; font-weight: 600; white-space: nowrap; background: #f8fafc; position: sticky; left: 0; }}
+
         /* Mobile responsive */
         @media (max-width: 768px) {{
             body {{ padding: 12px; }}
@@ -617,6 +622,16 @@ def build_dashboard_html(
         </div>
         <div id="outputChart"></div>
         <div id="hoursChart" style="display:none;"></div>
+    </div>
+
+    <div class="chart-section" id="machineCalendarSection">
+        <h2>Machine Activity Calendar</h2>
+        <div style="display:flex;gap:16px;margin-bottom:12px;font-size:13px;">
+            <span><span style="display:inline-block;width:14px;height:14px;background:#d1fae5;border:1px solid #065f46;border-radius:3px;vertical-align:middle;"></span> Active (output)</span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#fef3c7;border:1px solid #92400e;border-radius:3px;vertical-align:middle;"></span> Hours but no output</span>
+            <span><span style="display:inline-block;width:14px;height:14px;background:#f3f4f6;border:1px solid #9ca3af;border-radius:3px;vertical-align:middle;"></span> No data</span>
+        </div>
+        <div id="machineCalendar" style="overflow-x:auto;"></div>
     </div>
 
     <!-- Day detail popup -->
@@ -741,6 +756,7 @@ def build_dashboard_html(
             renderCalendar(period, filteredSummary);
             renderOutputChart(filteredMachine);
             renderHoursChart(filteredMachine);
+            renderMachineCalendar(period, filteredMachine);
         }}
 
         function renderKPIs(data) {{
@@ -1012,6 +1028,54 @@ def build_dashboard_html(
                 margin: {{ t: 20, b: 100, l: 60, r: 20 }},
                 height: 350,
             }}, {{ responsive: true }});
+        }}
+
+        function renderMachineCalendar(period, machData) {{
+            const startDate = period.startDate;
+            const endDate = period.endDate;
+
+            // Build array of date strings for the period
+            const dateStrs = [];
+            const cur = new Date(startDate);
+            while (cur <= endDate) {{
+                dateStrs.push(cur.toISOString().slice(0,10));
+                cur.setDate(cur.getDate() + 1);
+            }}
+
+            // Build lookup: {{machine: {{date: {{output, hours}}}}}}
+            const lookup = {{}};
+            machData.forEach(r => {{
+                const key = r.Machine_Name;
+                if (!lookup[key]) lookup[key] = {{}};
+                const ds = r.Date_Str || new Date(r.Date).toISOString().slice(0,10);
+                if (!lookup[key][ds]) lookup[key][ds] = {{output: 0, hours: 0}};
+                lookup[key][ds].output += r.Actual_Output || 0;
+                lookup[key][ds].hours += r.Machine_Hours || 0;
+            }});
+
+            let html = '<table class="machine-cal"><thead><tr><th>Machine</th>';
+            dateStrs.forEach(d => {{
+                const dt = new Date(d + 'T00:00:00');
+                html += `<th>${{dt.toLocaleDateString('en-US',{{weekday:'short'}})}}<br>${{dt.getMonth()+1}}/${{dt.getDate()}}</th>`;
+            }});
+            html += '</tr></thead><tbody>';
+
+            machines.forEach(m => {{
+                html += `<tr><td class="machine-label">${{m}}</td>`;
+                dateStrs.forEach(d => {{
+                    const cell = lookup[m] && lookup[m][d];
+                    if (!cell || (cell.output === 0 && cell.hours === 0)) {{
+                        html += '<td class="cal-off">&mdash;</td>';
+                    }} else if (cell.output === 0 && cell.hours > 0) {{
+                        html += `<td class="cal-idle">${{cell.hours.toFixed(1)}}h</td>`;
+                    }} else {{
+                        html += `<td class="cal-active">${{(cell.output/1000).toFixed(1)}}k</td>`;
+                    }}
+                }});
+                html += '</tr>';
+            }});
+            html += '</tbody></table>';
+            document.getElementById('machineCalendar').innerHTML = html;
         }}
 
         // Chart toggle (Output vs Hours)
