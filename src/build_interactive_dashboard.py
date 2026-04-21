@@ -227,16 +227,25 @@ def build_recent_trends_html(weekly: pd.DataFrame) -> str:
 # Monthly summary table
 # ---------------------------------------------------------------------------
 
-def build_monthly_summary_html(weekly: pd.DataFrame) -> str:
-    """Month-over-month summary table for the last 6 months."""
+def build_monthly_summary_html(weekly: pd.DataFrame, visible_months: int = 6) -> str:
+    """Month-over-month summary table showing all months (newest on top).
+
+    First ``visible_months`` rows are shown by default; older rows are hidden
+    behind a toggle button (unique per table instance via a random id).
+    """
+    import uuid
+    table_id = f"monthly-{uuid.uuid4().hex[:8]}"
+
     weekly = weekly.copy()
     weekly["Month"] = weekly["Week Start"].dt.to_period("M")
-    months = sorted(weekly["Month"].unique())[-6:]
+    months_asc = sorted(weekly["Month"].unique())
 
-    rows = []
+    # Build row data in ascending order so trends compare correctly to the
+    # chronologically prior month, then reverse for descending display.
+    row_data = []
     prev_output = None
     prev_expense = None
-    for month in months:
+    for month in months_asc:
         m = weekly[weekly["Month"] == month]
         output = m["Actual_Output"].sum()
         expense = m["Total_Expense"].sum()
@@ -244,24 +253,47 @@ def build_monthly_summary_html(weekly: pd.DataFrame) -> str:
         cost_lb = expense / max(output, 1)
         output_trend = _pct_change_html(output, prev_output) if prev_output is not None else ""
         expense_trend = _pct_change_html(expense, prev_expense) if prev_expense is not None else ""
-        rows.append(f"""<tr>
-            <td>{month.strftime('%b %Y')}</td>
-            <td>{_fmt_num(output)} {output_trend}</td>
-            <td>{_fmt_num(expense, 'currency')} {expense_trend}</td>
-            <td>{_fmt_num(cost_lb, 'currency4')}</td>
-            <td>{_fmt_num(hours, 'float1')}</td>
-        </tr>""")
+        row_data.append({
+            "label": month.strftime("%b %Y"),
+            "output": output, "output_trend": output_trend,
+            "expense": expense, "expense_trend": expense_trend,
+            "cost_lb": cost_lb, "hours": hours,
+        })
         prev_output, prev_expense = output, expense
+
+    # Reverse so newest is on top
+    row_data.reverse()
+    total_months = len(row_data)
+    older_count = max(0, total_months - visible_months)
+
+    rows_html = []
+    for i, d in enumerate(row_data):
+        older_attr = ' class="older-month" style="display:none;"' if i >= visible_months else ""
+        rows_html.append(f"""<tr{older_attr}>
+            <td>{d['label']}</td>
+            <td>{_fmt_num(d['output'])} {d['output_trend']}</td>
+            <td>{_fmt_num(d['expense'], 'currency')} {d['expense_trend']}</td>
+            <td>{_fmt_num(d['cost_lb'], 'currency4')}</td>
+            <td>{_fmt_num(d['hours'], 'float1')}</td>
+        </tr>""")
+
+    toggle_html = ""
+    if older_count > 0:
+        toggle_html = (
+            f'<button class="toggle-btn monthly-toggle" data-table="{table_id}" '
+            f'style="margin-top:10px;">Show all months ({older_count} older)</button>'
+        )
 
     return f"""
     <div class="table-wrap">
-      <table>
+      <table id="{table_id}">
         <thead><tr>
             <th>Month</th><th>Output (Lbs)</th><th>Expense</th><th>Cost / Lb</th><th>Machine Hrs</th>
         </tr></thead>
-        <tbody>{''.join(rows)}</tbody>
+        <tbody>{''.join(rows_html)}</tbody>
       </table>
     </div>
+    {toggle_html}
     """
 
 
@@ -1039,6 +1071,23 @@ def render_dashboard(
         btn.classList.add('active');
         shiftMetric = btn.dataset.metric;
         updatePlots();
+      }});
+    }});
+
+    // Monthly summary: Show all / Show fewer toggle
+    document.querySelectorAll('.monthly-toggle').forEach(btn => {{
+      btn.addEventListener('click', () => {{
+        const tableId = btn.dataset.table;
+        const table = document.getElementById(tableId);
+        if (!table) return;
+        const olderRows = table.querySelectorAll('tr.older-month');
+        const expanded = btn.classList.toggle('active');
+        olderRows.forEach(row => {{
+          row.style.display = expanded ? '' : 'none';
+        }});
+        btn.textContent = expanded
+          ? `Show fewer (${{olderRows.length}} older)`
+          : `Show all months (${{olderRows.length}} older)`;
       }});
     }});
 
