@@ -334,7 +334,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
 
     function computeSummary(employees) {{
       let clockTotal = 0, ptoTotal = 0, workedTotal = 0;
-      let prodTotal = 0, srTotal = 0, gapTotal = 0;
+      let prodTotal = 0, srTotal = 0, maintTotal = 0, gapTotal = 0;
       let costClock = 0, costProd = 0;
       employees.forEach(e => {{
         clockTotal += e.clock_total;
@@ -342,6 +342,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
         workedTotal += e.worked_hours;
         prodTotal += e.production_hours;
         srTotal += e.sr_hours;
+        maintTotal += (e.maintenance_hours || 0);
         gapTotal += e.gap_hours;
         costClock += e.labor_cost_clock;
         costProd += e.labor_cost_production;
@@ -349,7 +350,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
       const available = clockTotal - ptoTotal;
       const captureRate = workedTotal > 0 ? (prodTotal / workedTotal * 100) : 0;
       const hiddenOverhead = costClock - costProd;
-      return {{ clockTotal, ptoTotal, workedTotal, available, prodTotal, srTotal, gapTotal,
+      return {{ clockTotal, ptoTotal, workedTotal, available, prodTotal, srTotal, maintTotal, gapTotal,
                 captureRate, costClock, costProd, hiddenOverhead }};
     }}
 
@@ -372,6 +373,10 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
           <div class="kpi-label">S&amp;R Hours</div>
           <div class="kpi-value">${{fmt(s.srTotal)}}</div>
         </div>
+        <div class="kpi-card yellow">
+          <div class="kpi-label">Maintenance Hours</div>
+          <div class="kpi-value warning">${{fmt(s.maintTotal)}}</div>
+        </div>
         <div class="kpi-card red">
           <div class="kpi-label">Unaccounted Hours</div>
           <div class="kpi-value negative">${{fmt(s.gapTotal)}}</div>
@@ -391,9 +396,9 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
       const trace = {{
         type: 'waterfall',
         orientation: 'v',
-        x: ['Total Clock', '-PTO', 'Available', '-S&R', '-Productive', 'Unaccounted Gap'],
-        y: [s.clockTotal, -s.ptoTotal, 0, -s.srTotal, -s.prodTotal, 0],
-        measure: ['absolute', 'relative', 'total', 'relative', 'relative', 'total'],
+        x: ['Total Clock', '-PTO', 'Available', '-S&R', '-Maintenance', '-Productive', 'Unaccounted Gap'],
+        y: [s.clockTotal, -s.ptoTotal, 0, -s.srTotal, -s.maintTotal, -s.prodTotal, 0],
+        measure: ['absolute', 'relative', 'total', 'relative', 'relative', 'relative', 'total'],
         connector: {{ line: {{ color: '#e5e7eb' }} }},
         increasing: {{ marker: {{ color: '#22c55e' }} }},
         decreasing: {{ marker: {{ color: '#ef4444' }} }},
@@ -404,6 +409,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
           '-' + fmt(s.ptoTotal),
           fmt(s.available),
           '-' + fmt(s.srTotal),
+          '-' + fmt(s.maintTotal),
           '-' + fmt(s.prodTotal),
           fmt(s.gapTotal)
         ],
@@ -438,6 +444,12 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
         marker: {{ color: '#3b82f6' }},
         hovertemplate: '%{{y}}<br>S&R: %{{x:.1f}} hrs<extra></extra>',
       }};
+      const traceMaint = {{
+        type: 'bar', orientation: 'h', name: 'Maintenance',
+        y: names, x: sorted.map(e => e.maintenance_hours || 0),
+        marker: {{ color: '#f97316' }},
+        hovertemplate: '%{{y}}<br>Maintenance: %{{x:.1f}} hrs<extra></extra>',
+      }};
       const tracePTO = {{
         type: 'bar', orientation: 'h', name: 'PTO',
         y: names, x: sorted.map(e => e.pto_hours),
@@ -466,7 +478,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
       }};
 
       document.getElementById('employeeChart').style.height = chartHeight + 'px';
-      Plotly.react('employeeChart', [traceProd, traceSR, tracePTO, traceGap], layout, {{responsive: true}});
+      Plotly.react('employeeChart', [traceProd, traceSR, traceMaint, tracePTO, traceGap], layout, {{responsive: true}});
     }}
 
     function updateMachineTable(machines) {{

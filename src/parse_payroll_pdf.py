@@ -337,6 +337,21 @@ def load_roster(path: Path = EMPLOYEE_ROSTER_PATH) -> dict:
         return json.load(f)
 
 
+def _sum_production_hours_for_employee(
+    prod_exploded: pd.DataFrame,
+    aliases: list[str],
+    shift_filter: str | None = None,
+) -> float:
+    """Sum production man-hours for an employee's aliases, optionally filtered by shift."""
+    if not aliases:
+        return 0.0
+    df = prod_exploded
+    if shift_filter and "Shift" in df.columns:
+        df = df[df["Shift"] == shift_filter]
+    mask = df["Operator"].isin(aliases)
+    return float(df.loc[mask, "Man_Hours"].sum())
+
+
 def compare_payroll_to_production(
     period_start: str,
     period_end: str,
@@ -347,10 +362,20 @@ def compare_payroll_to_production(
     """
     Compare payroll clock hours to production-reported man-hours for a pay period.
 
+    Supported roles (from roster JSON):
+        - machine_operator: gap_hours = max(0, worked - production)
+        - shipping_receiving: all worked hours are S&R (no gap)
+        - maintenance: all worked hours are maintenance (no gap)
+        - hybrid_sr: production from aliases, remainder is S&R (no gap)
+
+    Per-employee roster overrides:
+        - pay_rate: use in place of LABOR_RATE for this employee
+        - shift_filter: only count production hours from this shift ("1st"/"2nd"/"3rd")
+
     Returns a DataFrame with per-employee breakdown:
         employee_name, role, clock_total, pto_hours, worked_hours,
-        production_hours, sr_hours, gap_hours, labor_cost_clock,
-        labor_cost_production
+        production_hours, sr_hours, maintenance_hours, gap_hours,
+        labor_cost_clock, labor_cost_production, pay_rate
     """
     roster = load_roster(roster_path)
     employees_map = roster.get("employees", {})
@@ -369,20 +394,13 @@ def compare_payroll_to_production(
     df_prod["Date"] = pd.to_datetime(df_prod["Date"])
     df_prod_period = df_prod[(df_prod["Date"] >= start_dt) & (df_prod["Date"] <= end_dt)].copy()
 
-    # Build production hours by operator alias
+    # Build exploded per-row operator view (preserve Shift for filtering)
     prod_ops = df_prod_period[df_prod_period["Operator"].notna()].copy()
     prod_ops["Operator"] = prod_ops["Operator"].str.strip()
     prod_exploded = prod_ops.assign(
         Operator=prod_ops["Operator"].str.split(",")
     ).explode("Operator")
     prod_exploded["Operator"] = prod_exploded["Operator"].str.strip()
-
-    alias_hours: dict[str, float] = {}
-    for name in prod_exploded["Operator"].unique():
-        if name:
-            alias_hours[name] = float(
-                prod_exploded[prod_exploded["Operator"] == name]["Man_Hours"].sum()
-            )
 
     # Build comparison rows
     rows = []
@@ -391,6 +409,8 @@ def compare_payroll_to_production(
         info = employees_map.get(name, {})
         role = info.get("role", "unknown")
         aliases = info.get("production_aliases", [])
+        shift_filter = info.get("shift_filter")
+        pay_rate = float(info.get("pay_rate", LABOR_RATE))
 
         clock_total = emp_row["total"]
         pto_hours = emp_row["pto_hours"]
@@ -399,24 +419,46 @@ def compare_payroll_to_production(
         ot1 = emp_row["ot1"]
         ot2 = emp_row["ot2"]
 
-        # Sum production hours from all aliases
-        production_hours = sum(alias_hours.get(a, 0.0) for a in aliases)
+        # Sum production hours (optionally filtered by shift)
+        production_hours = _sum_production_hours_for_employee(
+            prod_exploded, aliases, shift_filter
+        )
 
-        # SR hours = worked hours if role is shipping_receiving
-        sr_hours = worked_hours if role == "shipping_receiving" else 0.0
+        # Bucket worked hours by role
+        if role == "shipping_receiving":
+            sr_hours = worked_hours
+            maintenance_hours = 0.0
+            gap_hours = 0.0
+        elif role == "maintenance":
+            sr_hours = 0.0
+            maintenance_hours = worked_hours
+            gap_hours = 0.0
+        elif role == "hybrid_sr":
+            # Production counts when noted; the rest is S&R
+            sr_hours = max(0.0, worked_hours - production_hours)
+            maintenance_hours = 0.0
+            gap_hours = 0.0
+        else:  # machine_operator or unknown
+            sr_hours = 0.0
+            maintenance_hours = 0.0
+            gap_hours = max(0.0, worked_hours - production_hours)
 
-        # Gap = worked - production - SR
-        gap_hours = max(0.0, worked_hours - production_hours - sr_hours)
+        # Labor cost using actual clock hours (including OT multipliers, per-employee pay rate)
+        labor_cost_clock = (
+            (reg * pay_rate)
+            + (ot1 * pay_rate * OT_MULTIPLIER_1)
+            + (ot2 * pay_rate * OT_MULTIPLIER_2)
+            + (pto_hours * pay_rate)
+        )
 
-        # Labor cost using actual clock hours (including OT multipliers)
-        labor_cost_clock = (reg * LABOR_RATE) + (ot1 * LABOR_RATE * OT_MULTIPLIER_1) + (ot2 * LABOR_RATE * OT_MULTIPLIER_2) + (pto_hours * LABOR_RATE)
-
-        # Labor cost as reported in production data
-        labor_cost_production = production_hours * LABOR_RATE
+        # Labor cost as reported in production data (at this employee's rate)
+        labor_cost_production = production_hours * pay_rate
 
         rows.append({
             "employee_name": name,
             "role": role,
+            "pay_rate": pay_rate,
+            "shift_filter": shift_filter or "",
             "clock_total": clock_total,
             "reg": reg,
             "ot1": ot1,
@@ -425,6 +467,7 @@ def compare_payroll_to_production(
             "worked_hours": worked_hours,
             "production_hours": production_hours,
             "sr_hours": sr_hours,
+            "maintenance_hours": maintenance_hours,
             "gap_hours": gap_hours,
             "labor_cost_clock": round(labor_cost_clock, 2),
             "labor_cost_production": round(labor_cost_production, 2),
@@ -448,6 +491,7 @@ def print_comparison(df: pd.DataFrame) -> None:
     total_worked = df["worked_hours"].sum()
     total_production = df["production_hours"].sum()
     total_sr = df["sr_hours"].sum()
+    total_maint = df["maintenance_hours"].sum() if "maintenance_hours" in df.columns else 0.0
     total_gap = df["gap_hours"].sum()
     capture_pct = (total_production / total_worked * 100) if total_worked else 0
 
@@ -458,6 +502,7 @@ def print_comparison(df: pd.DataFrame) -> None:
     print(f"  Worked Hours:           {total_worked:>10.1f}")
     print(f"  {green}Production Hours:       {total_production:>10.1f}{reset}")
     print(f"  S&R Hours:              {total_sr:>10.1f}")
+    print(f"  Maintenance Hours:      {total_maint:>10.1f}")
     print(f"  {red}Unaccounted Gap:        {total_gap:>10.1f}{reset}")
     print(f"  Capture Rate:           {capture_pct:>9.1f}%")
     print()
@@ -467,16 +512,21 @@ def print_comparison(df: pd.DataFrame) -> None:
     print()
 
     # Per-employee table
-    print(f"{'Employee':<28} {'Role':<18} {'Clock':>7} {'Worked':>7} {'Prod':>7} {'Gap':>7}")
-    print("-" * 92)
+    print(f"{'Employee':<26} {'Role':<16} {'Rate':>5} {'Shift':>5} {'Clock':>7} {'Worked':>7} {'Prod':>7} {'S&R':>6} {'Maint':>6} {'Gap':>7}")
+    print("-" * 110)
     for _, row in df.sort_values("gap_hours", ascending=False).iterrows():
         role_display = row["role"].replace("_", "/").title()
         gap_color = red if row["gap_hours"] > 10 else (yellow if row["gap_hours"] > 0 else "")
         gap_reset = reset if gap_color else ""
+        maint = row.get("maintenance_hours", 0.0)
+        rate = row.get("pay_rate", 0)
+        shift = row.get("shift_filter", "") or ""
         print(
-            f"  {row['employee_name']:<26} {role_display:<18} "
+            f"  {row['employee_name']:<24} {role_display:<16} "
+            f"${rate:>3.0f} {shift:>5} "
             f"{row['clock_total']:>7.1f} {row['worked_hours']:>7.1f} "
-            f"{row['production_hours']:>7.1f} {gap_color}{row['gap_hours']:>7.1f}{gap_reset}"
+            f"{row['production_hours']:>7.1f} {row['sr_hours']:>6.1f} "
+            f"{maint:>6.1f} {gap_color}{row['gap_hours']:>7.1f}{gap_reset}"
         )
     print()
 

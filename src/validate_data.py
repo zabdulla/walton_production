@@ -186,11 +186,15 @@ def _check_payroll_roster(
     rostered_names = set(employees_map.keys())
     result["unrostered_employees"] = sorted(payroll_names - rostered_names)
 
-    # Unclassified: rostered but role == unknown (or empty aliases for machine_operator)
+    # Unclassified: rostered but role is unknown/invalid, or role requires aliases that aren't set
+    valid_roles = {"machine_operator", "shipping_receiving", "maintenance", "hybrid_sr", "unknown"}
     for name, info in employees_map.items():
         role = info.get("role", "unknown")
-        if role == "unknown":
+        aliases = info.get("production_aliases", [])
+        if role == "unknown" or role not in valid_roles:
             result["unclassified_aliases"].append(name)
+        elif role in ("machine_operator", "hybrid_sr") and not aliases:
+            result["unclassified_aliases"].append(f"{name} ({role}, no aliases)")
 
     # Unmatched production operators: in production data but not in any roster alias
     all_aliases = set()

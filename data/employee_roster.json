@@ -1,7 +1,7 @@
 {
   "_meta": {
     "last_updated": "2026-04-16",
-    "notes": "Auto-generated \u2014 review and correct before use",
+    "notes": "Auto-generated, then manually corrected. Supports: role, shift_filter, pay_rate, production_aliases, primary_machine, secondary_machines. Valid roles: machine_operator, shipping_receiving, maintenance, hybrid_sr.",
     "unmatched_production_operators": [
       "Benard",
       "Bernard",
@@ -70,13 +70,15 @@
   },
   "employees": {
     "Chad Falkins": {
-      "role": "shipping_receiving",
+      "role": "maintenance",
+      "pay_rate": 50,
       "production_aliases": [],
       "primary_machine": null,
       "secondary_machines": []
     },
     "Chris Jackson": {
-      "role": "machine_operator",
+      "role": "hybrid_sr",
+      "_note": "Primarily S&R; production hours counted when his name appears on production reports, remainder is S&R",
       "production_aliases": [
         "Chris",
         "Chris J"
@@ -108,7 +110,7 @@
       "secondary_machines": []
     },
     "Damien Falkins": {
-      "role": "shipping_receiving",
+      "role": "maintenance",
       "production_aliases": [],
       "primary_machine": null,
       "secondary_machines": []
@@ -196,7 +198,8 @@
     },
     "Steven Broach": {
       "role": "machine_operator",
-      "_note": "AMBIGUOUS: 'Steven' and 'Steve' in production could be Broach or Byrd — assign aliases after user review",
+      "shift_filter": "1st",
+      "_note": "Always 1st shift \u2014 production hours filtered by shift to disambiguate from Steven Byrd",
       "production_aliases": [
         "Steven",
         "Steve"
@@ -214,10 +217,22 @@
     },
     "Steven Byrd": {
       "role": "machine_operator",
-      "_note": "AMBIGUOUS: See Steven Broach note — production hours currently assigned to Broach",
-      "production_aliases": [],
-      "primary_machine": null,
-      "secondary_machines": []
+      "shift_filter": "2nd",
+      "_note": "Always 2nd shift \u2014 production hours filtered by shift to disambiguate from Steven Broach",
+      "production_aliases": [
+        "Steven",
+        "Steve"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "AVANGUARD DENSIFIER (OLD)",
+        "BALER 2",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
     },
     "Tameria Odom": {
       "role": "machine_operator",
