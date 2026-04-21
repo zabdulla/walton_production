@@ -367,6 +367,7 @@ def compare_payroll_to_production(
         - shipping_receiving: all worked hours are S&R (no gap)
         - maintenance: all worked hours are maintenance (no gap)
         - hybrid_sr: production from aliases, remainder is S&R (no gap)
+        - supervisor: production from aliases, remainder is supervisor/support (no gap)
 
     Per-employee roster overrides:
         - pay_rate: use in place of LABOR_RATE for this employee
@@ -374,8 +375,8 @@ def compare_payroll_to_production(
 
     Returns a DataFrame with per-employee breakdown:
         employee_name, role, clock_total, pto_hours, worked_hours,
-        production_hours, sr_hours, maintenance_hours, gap_hours,
-        labor_cost_clock, labor_cost_production, pay_rate
+        production_hours, sr_hours, maintenance_hours, supervisor_hours,
+        gap_hours, labor_cost_clock, labor_cost_production, pay_rate
     """
     roster = load_roster(roster_path)
     employees_map = roster.get("employees", {})
@@ -428,19 +429,29 @@ def compare_payroll_to_production(
         if role == "shipping_receiving":
             sr_hours = worked_hours
             maintenance_hours = 0.0
+            supervisor_hours = 0.0
             gap_hours = 0.0
         elif role == "maintenance":
             sr_hours = 0.0
             maintenance_hours = worked_hours
+            supervisor_hours = 0.0
             gap_hours = 0.0
         elif role == "hybrid_sr":
             # Production counts when noted; the rest is S&R
             sr_hours = max(0.0, worked_hours - production_hours)
             maintenance_hours = 0.0
+            supervisor_hours = 0.0
+            gap_hours = 0.0
+        elif role == "supervisor":
+            # Production counts when noted; the rest is supervisor/support/runner time
+            sr_hours = 0.0
+            maintenance_hours = 0.0
+            supervisor_hours = max(0.0, worked_hours - production_hours)
             gap_hours = 0.0
         else:  # machine_operator or unknown
             sr_hours = 0.0
             maintenance_hours = 0.0
+            supervisor_hours = 0.0
             gap_hours = max(0.0, worked_hours - production_hours)
 
         # Labor cost using actual clock hours (including OT multipliers, per-employee pay rate)
@@ -468,6 +479,7 @@ def compare_payroll_to_production(
             "production_hours": production_hours,
             "sr_hours": sr_hours,
             "maintenance_hours": maintenance_hours,
+            "supervisor_hours": supervisor_hours,
             "gap_hours": gap_hours,
             "labor_cost_clock": round(labor_cost_clock, 2),
             "labor_cost_production": round(labor_cost_production, 2),
@@ -492,6 +504,7 @@ def print_comparison(df: pd.DataFrame) -> None:
     total_production = df["production_hours"].sum()
     total_sr = df["sr_hours"].sum()
     total_maint = df["maintenance_hours"].sum() if "maintenance_hours" in df.columns else 0.0
+    total_super = df["supervisor_hours"].sum() if "supervisor_hours" in df.columns else 0.0
     total_gap = df["gap_hours"].sum()
     capture_pct = (total_production / total_worked * 100) if total_worked else 0
 
@@ -503,6 +516,7 @@ def print_comparison(df: pd.DataFrame) -> None:
     print(f"  {green}Production Hours:       {total_production:>10.1f}{reset}")
     print(f"  S&R Hours:              {total_sr:>10.1f}")
     print(f"  Maintenance Hours:      {total_maint:>10.1f}")
+    print(f"  Supervisor Hours:       {total_super:>10.1f}")
     print(f"  {red}Unaccounted Gap:        {total_gap:>10.1f}{reset}")
     print(f"  Capture Rate:           {capture_pct:>9.1f}%")
     print()
@@ -512,13 +526,14 @@ def print_comparison(df: pd.DataFrame) -> None:
     print()
 
     # Per-employee table
-    print(f"{'Employee':<26} {'Role':<16} {'Rate':>5} {'Shift':>5} {'Clock':>7} {'Worked':>7} {'Prod':>7} {'S&R':>6} {'Maint':>6} {'Gap':>7}")
-    print("-" * 110)
+    print(f"{'Employee':<26} {'Role':<16} {'Rate':>5} {'Shift':>5} {'Clock':>7} {'Worked':>7} {'Prod':>7} {'S&R':>6} {'Maint':>6} {'Sup':>6} {'Gap':>7}")
+    print("-" * 118)
     for _, row in df.sort_values("gap_hours", ascending=False).iterrows():
         role_display = row["role"].replace("_", "/").title()
         gap_color = red if row["gap_hours"] > 10 else (yellow if row["gap_hours"] > 0 else "")
         gap_reset = reset if gap_color else ""
         maint = row.get("maintenance_hours", 0.0)
+        supervisor = row.get("supervisor_hours", 0.0)
         rate = row.get("pay_rate", 0)
         shift = row.get("shift_filter", "") or ""
         print(
@@ -526,7 +541,7 @@ def print_comparison(df: pd.DataFrame) -> None:
             f"${rate:>3.0f} {shift:>5} "
             f"{row['clock_total']:>7.1f} {row['worked_hours']:>7.1f} "
             f"{row['production_hours']:>7.1f} {row['sr_hours']:>6.1f} "
-            f"{maint:>6.1f} {gap_color}{row['gap_hours']:>7.1f}{gap_reset}"
+            f"{maint:>6.1f} {supervisor:>6.1f} {gap_color}{row['gap_hours']:>7.1f}{gap_reset}"
         )
     print()
 

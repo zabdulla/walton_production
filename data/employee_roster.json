@@ -1,7 +1,7 @@
 {
   "_meta": {
     "last_updated": "2026-04-16",
-    "notes": "Auto-generated, then manually corrected. Supports: role, shift_filter, pay_rate, production_aliases, primary_machine, secondary_machines. Valid roles: machine_operator, shipping_receiving, maintenance, hybrid_sr.",
+    "notes": "Auto-generated, then manually corrected. Supports: role, shift_filter, pay_rate, production_aliases, primary_machine, secondary_machines. Valid roles: machine_operator, shipping_receiving, maintenance, hybrid_sr, supervisor.",
     "unmatched_production_operators": [
       "Benard",
       "Bernard",
@@ -160,7 +160,8 @@
       ]
     },
     "Jamel Malloy": {
-      "role": "machine_operator",
+      "role": "supervisor",
+      "_note": "Supervisor — production counted when noted; remainder is supervisor/support/runner time",
       "production_aliases": [
         "Jamel"
       ],
@@ -248,7 +249,8 @@
       ]
     },
     "Tim Lowe": {
-      "role": "machine_operator",
+      "role": "supervisor",
+      "_note": "Supervisor \u2014 production counted when noted; remainder is supervisor/support/runner time",
       "production_aliases": [
         "Tim"
       ],
