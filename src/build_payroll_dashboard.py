@@ -175,6 +175,25 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     .trend-section.visible {{ display:block; }}
     .trend-row {{ display:flex; gap:20px; flex-wrap:wrap; }}
     .trend-row > div {{ flex:1; min-width:400px; }}
+    .toggle-btn {{
+      padding:8px 14px; border-radius:8px; border:1px solid var(--border);
+      background:#fff; cursor:pointer; font-size:13px; font-weight:600;
+      transition:all .2s; color:var(--text); margin-right:6px;
+    }}
+    .toggle-btn:hover {{ background:#f3f4f6; }}
+    .toggle-btn.active {{ background:#7c3aed; color:#fff; border-color:#7c3aed; }}
+    .toggle-btn.active:hover {{ background:#6d28d9; }}
+    .anon-banner {{
+      margin-top:12px; padding:10px 14px; border-radius:8px;
+      background:#f5f3ff; color:#5b21b6; border:1px solid #ddd6fe;
+      font-size:13px;
+    }}
+    body.anonymized .internal-only-badge {{ display:none; }}
+    @media print {{
+      .controls, .toggle-btn, .anon-banner {{ display:none !important; }}
+      .card {{ box-shadow:none; break-inside:avoid; }}
+      body {{ background:#fff; padding:0; }}
+    }}
   </style>
 </head>
 <body>
@@ -191,6 +210,18 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
         <label>Pay Period</label>
         <select id="periodSelect"></select>
       </div>
+      <div class="control-group" style="flex:0 0 auto;">
+        <label>Sharing</label>
+        <button id="anonymizeToggle" class="toggle-btn" title="Replace employee names with generic 'Employee N' labels for safe sharing">
+          \U0001f441 Anonymize
+        </button>
+        <button id="printBtn" class="toggle-btn" title="Open browser print dialog (use 'Save as PDF' to export)">
+          \U0001f5a8 Print / Save PDF
+        </button>
+      </div>
+    </div>
+    <div id="anonBanner" class="anon-banner" style="display:none;">
+      <strong>\U0001f510 Anonymized view</strong> &mdash; employee names hidden. Safe to share externally.
     </div>
   </div>
 
@@ -243,6 +274,25 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     const LABELS = {period_labels_json};
     const ROSTER = {roster_json};
     const periodSelect = document.getElementById('periodSelect');
+    const anonymizeToggle = document.getElementById('anonymizeToggle');
+    const anonBanner = document.getElementById('anonBanner');
+    const printBtn = document.getElementById('printBtn');
+    let anonymized = false;
+
+    // Build a stable name -> pseudonym map across ALL periods so the same person
+    // gets the same "Employee N" label across views.
+    const NAME_MAP = (() => {{
+      const allNames = new Set();
+      PERIODS.forEach(p => p.employees.forEach(e => allNames.add(e.employee_name)));
+      const sorted = [...allNames].sort();
+      const map = {{}};
+      sorted.forEach((name, i) => {{
+        map[name] = `Employee ${{String(i + 1).padStart(2, '0')}}`;
+      }});
+      return map;
+    }})();
+
+    function displayName(name) {{ return anonymized ? (NAME_MAP[name] || name) : name; }}
 
     // Populate period dropdown
     LABELS.forEach((lbl, i) => {{
@@ -255,6 +305,23 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     if (LABELS.length > 0) {{
       periodSelect.value = LABELS.length - 1;
     }}
+
+    anonymizeToggle.addEventListener('click', () => {{
+      anonymized = !anonymized;
+      anonymizeToggle.classList.toggle('active', anonymized);
+      anonymizeToggle.textContent = anonymized ? '\\u2713 Anonymized' : '\\u{{1f441}} Anonymize';
+      anonBanner.style.display = anonymized ? '' : 'none';
+      document.body.classList.toggle('anonymized', anonymized);
+      // Hide/show the INTERNAL ONLY badge in the header
+      document.querySelectorAll('.badge').forEach(el => {{
+        el.style.display = anonymized ? 'none' : '';
+      }});
+      update();
+    }});
+
+    printBtn.addEventListener('click', () => {{
+      window.print();
+    }});
 
     function fmt(n) {{ return n.toLocaleString('en-US', {{minimumFractionDigits:1, maximumFractionDigits:1}}); }}
     function fmtInt(n) {{ return n.toLocaleString('en-US', {{minimumFractionDigits:0, maximumFractionDigits:0}}); }}
@@ -357,7 +424,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     function updateEmployeeChart(employees) {{
       // Sort by gap descending
       const sorted = [...employees].sort((a, b) => b.gap_hours - a.gap_hours);
-      const names = sorted.map(e => e.employee_name);
+      const names = sorted.map(e => displayName(e.employee_name));
 
       const traceProd = {{
         type: 'bar', orientation: 'h', name: 'Production',
@@ -406,10 +473,11 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
       let html = '';
       const sorted = [...machines].sort((a, b) => b.production_hours - a.production_hours);
       sorted.forEach(m => {{
+        const workers = m.workers.map(w => displayName(w));
         html += `<tr>
           <td>${{m.machine}}</td>
           <td>${{fmt(m.production_hours)}}</td>
-          <td style="text-align:left">${{m.workers.join(', ') || '&mdash;'}}</td>
+          <td style="text-align:left">${{workers.join(', ') || '&mdash;'}}</td>
           <td>${{fmt(m.clock_hours_allocated)}}</td>
         </tr>`;
       }});
