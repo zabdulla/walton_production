@@ -293,6 +293,72 @@
         "SHREDDER",
         "SMALL GRINDER"
       ]
+    },
+    "Kemonicas Butler": {
+      "role": "machine_operator",
+      "_note": "Historical employee — 18 pay periods in older data, maps to 'Kemonica' in production (1683h)",
+      "production_aliases": [
+        "Kemonica"
+      ],
+      "primary_machine": "AUTO TIE BALER",
+      "secondary_machines": [
+        "AVANGUARD DENSIFIER (OLD)",
+        "BALER 1",
+        "BALER 2",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "SHREDDER",
+        "SMALL GRINDER"
+      ]
+    },
+    "Rohan Britton": {
+      "role": "machine_operator",
+      "_note": "Historical employee — 7 pay periods, maps to 'Rohan'/'Roha' in production (3393h)",
+      "production_aliases": [
+        "Rohan",
+        "Roha"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "AVANGUARD DENSIFIER (OLD)",
+        "BALER 2",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "GUILLOTINE"
+      ]
+    },
+    "Cortez Baker": {
+      "role": "machine_operator",
+      "_note": "One-off employee — 1 pay period, maps to 'Cortez' in production (209h)",
+      "production_aliases": [
+        "Cortez"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "SHREDDER"
+      ]
+    },
+    "Bryan Brown": {
+      "role": "shipping_receiving",
+      "_note": "One-off employee — 1 pay period, no production match found",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Chris Haynes": {
+      "role": "shipping_receiving",
+      "_note": "One-off employee — 1 pay period, no production match (Chris Jackson is hybrid_sr)",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Kimberly Snyder": {
+      "role": "shipping_receiving",
+      "_note": "One-off employee — 1 pay period, no production match",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
     }
   }
 }

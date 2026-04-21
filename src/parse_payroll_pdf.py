@@ -95,12 +95,30 @@ def _extract_date_range(rows: list[list[str]]) -> tuple[str, str] | None:
 # PDF Parsing
 # ---------------------------------------------------------------------------
 
-def parse_payroll_pdf(pdf_path: Path) -> dict:
+def _extract_department(rows: list[list[str]]) -> str | None:
+    """Scan the first few rows for a 'Departments : X' line and return X."""
+    pattern = re.compile(r"Departments\s*:\s*([^\r\n]+)", re.IGNORECASE)
+    for row in rows[:6]:
+        for cell in row:
+            if cell:
+                m = pattern.search(str(cell))
+                if m:
+                    return m.group(1).strip()
+    return None
+
+
+def parse_payroll_pdf(pdf_path: Path, required_department: str | None = "Walton") -> dict:
     """
     Parse a pay period PDF into structured data.
 
+    Args:
+        pdf_path: Path to the PDF file
+        required_department: If set, raise ValueError if PDF's "Departments :" header
+            does not contain this substring (case-insensitive). Pass None to skip check.
+
     Returns dict with keys:
         period_start, period_end : str (MM/DD/YYYY)
+        department : str (as reported in the PDF)
         employees : list[dict] with per-employee hour breakdown
         totals : dict with sum columns
     """
@@ -116,6 +134,14 @@ def parse_payroll_pdf(pdf_path: Path) -> dict:
 
     raw = tables.tables[0].extract()
     doc.close()
+
+    # --- Extract department and optionally filter ---
+    department = _extract_department(raw) or ""
+    if required_department and required_department.lower() not in department.lower():
+        raise ValueError(
+            f"PDF department {department!r} does not match required {required_department!r} "
+            f"({pdf_path.name})"
+        )
 
     # --- Extract date range from header rows ---
     date_range = _extract_date_range(raw)
@@ -187,11 +213,15 @@ def parse_payroll_pdf(pdf_path: Path) -> dict:
             if key in col_map:
                 totals[key] = _safe_float(totals_row[col_map[key]])
 
-    logger.info(f"Parsed {len(employees)} employees for period {period_start} - {period_end}")
+    logger.info(
+        f"Parsed {len(employees)} employees for period {period_start} - {period_end} "
+        f"(dept: {department or 'unspecified'})"
+    )
 
     return {
         "period_start": period_start,
         "period_end": period_end,
+        "department": department,
         "employees": employees,
         "totals": totals,
     }
@@ -221,6 +251,55 @@ def aggregate_payroll(parsed: dict, output_path: Path = DEFAULT_PAYROLL_DATA) ->
     df_combined.to_excel(output_path, index=False)
     logger.info(f"Payroll data saved to {output_path} ({len(df_combined)} rows)")
     return df_combined
+
+
+def parse_pdf_directory(
+    directory: Path,
+    output_path: Path = DEFAULT_PAYROLL_DATA,
+    required_department: str | None = "Walton",
+    pattern: str = "*.pdf",
+) -> dict:
+    """
+    Parse every PDF in a directory (recursively) and aggregate.
+
+    Non-matching PDFs (wrong department) are logged and skipped. Returns
+    summary dict with lists of processed, skipped, and failed files.
+    """
+    processed: list[dict] = []
+    skipped: list[str] = []
+    failed: list[tuple[str, str]] = []
+
+    pdfs = sorted(directory.rglob(pattern))
+    if not pdfs:
+        logger.warning(f"No PDFs found in {directory}")
+        return {"processed": [], "skipped": [], "failed": []}
+
+    logger.info(f"Found {len(pdfs)} PDF(s) in {directory}")
+
+    for pdf in pdfs:
+        try:
+            parsed = parse_payroll_pdf(pdf, required_department=required_department)
+            aggregate_payroll(parsed, output_path)
+            processed.append({
+                "file": pdf.name,
+                "period_start": parsed["period_start"],
+                "period_end": parsed["period_end"],
+                "employees": len(parsed["employees"]),
+                "total_hours": parsed["totals"].get("total", 0),
+            })
+        except ValueError as e:
+            # Department mismatch or parse failure
+            if "department" in str(e).lower():
+                skipped.append(pdf.name)
+                logger.info(f"Skipped (non-matching dept): {pdf.name}")
+            else:
+                failed.append((pdf.name, str(e)))
+                logger.warning(f"Failed: {pdf.name}: {e}")
+        except Exception as e:
+            failed.append((pdf.name, str(e)))
+            logger.warning(f"Failed: {pdf.name}: {e}")
+
+    return {"processed": processed, "skipped": skipped, "failed": failed}
 
 
 # ---------------------------------------------------------------------------
@@ -555,6 +634,8 @@ def main():
 
     parser = argparse.ArgumentParser(description="Parse payroll PDFs and compare to production data.")
     parser.add_argument("--pdf", type=Path, help="Path to a pay period PDF to parse and aggregate")
+    parser.add_argument("--pdf-dir", type=Path, help="Directory to batch-parse all PDFs (only Walton)")
+    parser.add_argument("--department", default="Walton", help="Required department substring (default: Walton)")
     parser.add_argument("--init-roster", action="store_true", help="Auto-generate employee roster from data")
     parser.add_argument("--compare", nargs=2, metavar=("START", "END"),
                         help="Compare payroll to production for a date range (MM/DD/YYYY MM/DD/YYYY)")
@@ -564,12 +645,32 @@ def main():
 
     if args.pdf:
         print(f"Parsing {args.pdf}...")
-        parsed = parse_payroll_pdf(args.pdf)
+        parsed = parse_payroll_pdf(args.pdf, required_department=args.department)
         print(f"  Period: {parsed['period_start']} - {parsed['period_end']}")
+        print(f"  Department: {parsed.get('department', 'unspecified')}")
         print(f"  Employees: {len(parsed['employees'])}")
         print(f"  Total hours: {parsed['totals'].get('total', 0):.2f}")
         df = aggregate_payroll(parsed, args.payroll_data)
         print(f"  Aggregated to {args.payroll_data} ({len(df)} total rows)")
+
+    if args.pdf_dir:
+        print(f"Batch-parsing PDFs in {args.pdf_dir} (department filter: {args.department!r})...")
+        summary = parse_pdf_directory(
+            args.pdf_dir, output_path=args.payroll_data,
+            required_department=args.department,
+        )
+        print(f"\n  Processed: {len(summary['processed'])}")
+        for p in summary["processed"]:
+            print(f"    \u2713 {p['period_start']} - {p['period_end']}  "
+                  f"({p['employees']} emps, {p['total_hours']:.1f}h)  [{p['file']}]")
+        if summary["skipped"]:
+            print(f"\n  Skipped (non-matching dept): {len(summary['skipped'])}")
+            for name in summary["skipped"]:
+                print(f"    - {name}")
+        if summary["failed"]:
+            print(f"\n  Failed: {len(summary['failed'])}")
+            for name, err in summary["failed"]:
+                print(f"    \u2717 {name}: {err}")
 
     if args.init_roster:
         if not args.payroll_data.exists() and not (args.pdf and args.payroll_data == DEFAULT_PAYROLL_DATA):
