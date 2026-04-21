@@ -17,11 +17,16 @@ DATA_DIR = PROJECT_ROOT / "data"
 REPORTS_DIR = PROJECT_ROOT / "processing_reports"
 DEFAULT_AGGREGATED_DATA = DATA_DIR / "aggregated_daily_data.xlsx"
 DEFAULT_AGGREGATED_NOTES = DATA_DIR / "aggregated_notes.xlsx"
+DEFAULT_PAYROLL_DATA = DATA_DIR / "aggregated_payroll.xlsx"
+EMPLOYEE_ROSTER_PATH = DATA_DIR / "employee_roster.json"
+PAYROLL_PDF_DIR = DATA_DIR / "payroll_pdfs"
 
 # ---------------------------------------------------------------------------
 # Financial
 # ---------------------------------------------------------------------------
 LABOR_RATE: float = 25.0  # $/hr — used in aggregation and profit dashboard
+OT_MULTIPLIER_1: float = 1.5   # Overtime tier 1 multiplier
+OT_MULTIPLIER_2: float = 2.0   # Overtime tier 2 multiplier
 
 # ---------------------------------------------------------------------------
 # Machine definitions

@@ -17,10 +17,72 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import PROJECT_ROOT, DEFAULT_AGGREGATED_DATA, LABOR_RATE, MACHINE_PRESETS, DEFAULT_PRESET
+from config import (
+    PROJECT_ROOT,
+    DEFAULT_AGGREGATED_DATA,
+    DEFAULT_PAYROLL_DATA,
+    EMPLOYEE_ROSTER_PATH,
+    LABOR_RATE,
+    MACHINE_PRESETS,
+    DEFAULT_PRESET,
+)
 
 DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
 DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "profit.html"
+
+
+def load_payroll_uplift() -> dict:
+    """Compute labor uplift from payroll comparison data if available.
+
+    Returns dict: {
+        "available": bool,
+        "uplift_factor": float,  # multiply labor_cost by (1 + uplift_factor)
+        "total_gap_hours": float,
+        "total_production_hours": float,
+        "periods_count": int,
+    }
+    """
+    result = {
+        "available": False,
+        "uplift_factor": 0.0,
+        "total_gap_hours": 0.0,
+        "total_production_hours": 0.0,
+        "periods_count": 0,
+    }
+    if not DEFAULT_PAYROLL_DATA.exists() or not EMPLOYEE_ROSTER_PATH.exists():
+        return result
+    try:
+        # Import locally to avoid hard dependency on pymupdf when payroll isn't used
+        from parse_payroll_pdf import compare_payroll_to_production
+
+        df_pay = pd.read_excel(DEFAULT_PAYROLL_DATA)
+        periods = (
+            df_pay.groupby(["period_start", "period_end"])
+            .size()
+            .reset_index(name="count")
+        )
+        total_gap = 0.0
+        total_prod = 0.0
+        periods_count = 0
+        for _, p in periods.iterrows():
+            try:
+                df_comp = compare_payroll_to_production(p["period_start"], p["period_end"])
+                total_gap += float(df_comp["gap_hours"].sum())
+                total_prod += float(df_comp["production_hours"].sum())
+                periods_count += 1
+            except Exception:
+                continue
+        if total_prod > 0:
+            result.update({
+                "available": True,
+                "uplift_factor": round(total_gap / total_prod, 4),
+                "total_gap_hours": round(total_gap, 1),
+                "total_production_hours": round(total_prod, 1),
+                "periods_count": periods_count,
+            })
+    except Exception:
+        pass
+    return result
 
 
 def load_and_aggregate(path: Path) -> list[dict]:
@@ -48,7 +110,13 @@ def load_and_aggregate(path: Path) -> list[dict]:
     return records
 
 
-def render_html(data_json: str, machines: list[str], presets_json: str, total_weeks: int) -> str:
+def render_html(
+    data_json: str,
+    machines: list[str],
+    presets_json: str,
+    total_weeks: int,
+    uplift_json: str = "{}",
+) -> str:
     machine_options = "\n".join(
         f'<option value="{m}">{m}</option>'
         for m in ["All Machines"] + machines
@@ -190,6 +258,12 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
         </div>
       </div>
     </div>
+    <div id="upliftControl" style="margin-top:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+      <button id="upliftToggle" class="range-btn" style="border-radius:8px;padding:7px 14px;">
+        + Unaccounted Labor
+      </button>
+      <span id="upliftInfo" style="font-size:12px;color:var(--muted);"></span>
+    </div>
   </div>
 
   <div class="card">
@@ -235,6 +309,7 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
     const DATA = {data_json};
     const PRESETS = {presets_json};
     const TOTAL_WEEKS = {total_weeks};
+    const UPLIFT = {uplift_json};
     const machineSelect = document.getElementById('machineSelect');
     const saleSlider = document.getElementById('saleSlider');
     const buySlider = document.getElementById('buySlider');
@@ -242,8 +317,25 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
     const saleVal = document.getElementById('saleVal');
     const buyVal = document.getElementById('buyVal');
     const overheadVal = document.getElementById('overheadVal');
-    const rangeBtns = document.querySelectorAll('.range-btn');
+    const rangeBtns = document.querySelectorAll('.range-btn:not(#upliftToggle)');
+    const upliftControl = document.getElementById('upliftControl');
+    const upliftToggle = document.getElementById('upliftToggle');
+    const upliftInfo = document.getElementById('upliftInfo');
     let rangeWeeks = 20;
+    let includeUplift = false;
+
+    // Show the uplift control only if payroll comparison data is available
+    if (UPLIFT && UPLIFT.available) {{
+      upliftControl.style.display = 'flex';
+      const pct = (UPLIFT.uplift_factor * 100).toFixed(1);
+      upliftInfo.textContent = `Adds ${{pct}}% to labor cost — gap of ${{UPLIFT.total_gap_hours}}h across ${{UPLIFT.periods_count}} payroll period(s) divided by ${{UPLIFT.total_production_hours}}h reported.`;
+      upliftToggle.addEventListener('click', () => {{
+        includeUplift = !includeUplift;
+        upliftToggle.classList.toggle('active', includeUplift);
+        upliftToggle.textContent = includeUplift ? '\\u2713 Unaccounted Labor' : '+ Unaccounted Labor';
+        update();
+      }});
+    }}
 
     function fmt(n) {{ return n.toLocaleString('en-US', {{minimumFractionDigits:0, maximumFractionDigits:0}}); }}
     function fmtD(n) {{
@@ -278,10 +370,12 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
       const revenue = r.output_lbs * salePrice;
       const feedstock = r.input_lbs * buyPrice;
       const labor = r.labor_cost;
+      const uplift_factor = (includeUplift && UPLIFT && UPLIFT.available) ? UPLIFT.uplift_factor : 0;
+      const gapLabor = labor * uplift_factor;
       const oh = r.output_lbs * overhead;
-      const profit = revenue - feedstock - labor - oh;
+      const profit = revenue - feedstock - labor - gapLabor - oh;
       const margin = revenue !== 0 ? (profit / revenue) * 100 : 0;
-      return {{ revenue, feedstock, labor, oh, profit, margin }};
+      return {{ revenue, feedstock, labor, gapLabor, oh, profit, margin }};
     }}
 
     function update() {{
@@ -318,7 +412,7 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
       }}
 
       const weeks = [], profits = [], margins = [], colors = [];
-      let totalRevenue = 0, totalFeedstock = 0, totalLabor = 0, totalOverhead = 0, totalProfit = 0;
+      let totalRevenue = 0, totalFeedstock = 0, totalLabor = 0, totalGapLabor = 0, totalOverhead = 0, totalProfit = 0;
 
       let tableHtml = '';
       rows.forEach(r => {{
@@ -329,7 +423,7 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
         colors.push(c.profit >= 0 ? '#22c55e' : '#ef4444');
 
         totalRevenue += c.revenue; totalFeedstock += c.feedstock;
-        totalLabor += c.labor; totalOverhead += c.oh; totalProfit += c.profit;
+        totalLabor += c.labor; totalGapLabor += c.gapLabor; totalOverhead += c.oh; totalProfit += c.profit;
 
         const cls = c.profit >= 0 ? 'profit-pos' : 'profit-neg';
         tableHtml += `<tr>
@@ -354,12 +448,17 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
       const marginCls = totalMargin >= 0 ? 'positive' : 'negative';
       const profitCls = totalProfit >= 0 ? 'positive' : 'negative';
 
+      const gapLaborKpi = includeUplift
+        ? `<div class="kpi-card"><div class="kpi-label">Unaccounted Labor</div><div class="kpi-value negative">${{fmtD(totalGapLabor)}}</div></div>`
+        : '';
+
       document.getElementById('kpis').innerHTML = `
         <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${{fmtD(totalRevenue)}}</div></div>
-        <div class="kpi-card"><div class="kpi-label">Total Cost</div><div class="kpi-value">${{fmtD(totalFeedstock + totalLabor + totalOverhead)}}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total Cost</div><div class="kpi-value">${{fmtD(totalFeedstock + totalLabor + totalGapLabor + totalOverhead)}}</div></div>
         <div class="kpi-card"><div class="kpi-label">Total Profit</div><div class="kpi-value ${{profitCls}}">${{fmtD(totalProfit)}}</div></div>
         <div class="kpi-card"><div class="kpi-label">Avg Margin</div><div class="kpi-value ${{marginCls}}">${{fmtPct(totalMargin)}}</div></div>
         <div class="kpi-card"><div class="kpi-label">Avg Weekly Profit</div><div class="kpi-value ${{profitCls}}">${{fmtD(avgWeeklyProfit)}}</div></div>
+        ${{gapLaborKpi}}
         <div class="kpi-card"><div class="kpi-label">Weeks</div><div class="kpi-value">${{rows.length}}</div></div>
       `;
 
@@ -409,16 +508,27 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
       // Feature 2: Cost breakdown donut
       const absFeedstock = Math.abs(totalFeedstock);
       const absLabor = Math.abs(totalLabor);
+      const absGapLabor = Math.abs(totalGapLabor);
       const absOverhead = Math.abs(totalOverhead);
+      const donutValues = includeUplift
+        ? [absFeedstock, absLabor, absGapLabor, absOverhead]
+        : [absFeedstock, absLabor, absOverhead];
+      const donutLabels = includeUplift
+        ? ['Feedstock', 'Labor', 'Unaccounted Labor', 'Overhead']
+        : ['Feedstock', 'Labor', 'Overhead'];
+      const donutColors = includeUplift
+        ? ['#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6']
+        : ['#f59e0b', '#3b82f6', '#8b5cf6'];
       const donutTrace = {{
-        values: [absFeedstock, absLabor, absOverhead],
-        labels: ['Feedstock', 'Labor', 'Overhead'],
+        values: donutValues,
+        labels: donutLabels,
         type: 'pie', hole: 0.55,
-        marker: {{ colors: ['#f59e0b', '#3b82f6', '#8b5cf6'] }},
+        marker: {{ colors: donutColors }},
         textinfo: 'label+percent',
         textposition: 'outside',
         hovertemplate: '%{{label}}: %{{value:$,.0f}} (%{{percent}})<extra></extra>',
       }};
+      const donutTotal = donutValues.reduce((a, b) => a + b, 0);
       const donutLayout = {{
         title: 'Cost Breakdown',
         showlegend: false,
@@ -426,7 +536,7 @@ def render_html(data_json: str, machines: list[str], presets_json: str, total_we
         font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: '#1f2937' }},
         margin: {{ t: 60, r: 20, b: 20, l: 20 }},
         annotations: [{{
-          text: fmtD(absFeedstock + absLabor + absOverhead),
+          text: fmtD(donutTotal),
           showarrow: false, font: {{ size: 16, color: '#374151', family: 'Helvetica, Arial, sans-serif' }},
           x: 0.5, y: 0.5, xref: 'paper', yref: 'paper',
         }}],
@@ -499,12 +609,19 @@ def main(input_path: Path, output_path: Path) -> None:
     presets_json = json.dumps(MACHINE_PRESETS)
     total_weeks = len(set(r["week_label"] for r in records))
 
+    # Compute unaccounted labor uplift from payroll data (optional)
+    uplift = load_payroll_uplift()
+    uplift_json = json.dumps(uplift)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        render_html(data_json, machines, presets_json, total_weeks),
+        render_html(data_json, machines, presets_json, total_weeks, uplift_json),
         encoding="utf-8",
     )
     print(f"Wrote profit dashboard to {output_path}")
+    if uplift.get("available"):
+        print(f"  Payroll uplift available: +{uplift['uplift_factor']*100:.1f}% labor overhead "
+              f"({uplift['total_gap_hours']}h gap / {uplift['total_production_hours']}h production)")
 
 
 if __name__ == "__main__":

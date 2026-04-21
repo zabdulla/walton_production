@@ -1,0 +1,281 @@
+{
+  "_meta": {
+    "last_updated": "2026-04-16",
+    "notes": "Auto-generated \u2014 review and correct before use",
+    "unmatched_production_operators": [
+      "Benard",
+      "Bernard",
+      "Chris J",
+      "Clarence",
+      "Clarnce",
+      "Conner",
+      "Cortez",
+      "Daneil",
+      "Darian",
+      "Darion",
+      "Darius. Sharif",
+      "Denzel",
+      "Emmanuei",
+      "Emmanuel",
+      "Emmett",
+      "Eric",
+      "Gerald",
+      "Greg",
+      "Jamal",
+      "James",
+      "Jaquez",
+      "Jay",
+      "Johhny",
+      "Johnny",
+      "Jones",
+      "Joohnny",
+      "Kemonica",
+      "Malik",
+      "Maliq",
+      "Malique",
+      "Marcus",
+      "Marlique",
+      "Maurice",
+      "Mia",
+      "Mil",
+      "PJ",
+      "Quan",
+      "Quandarious",
+      "Quandarius",
+      "Quindirious",
+      "Qundirios",
+      "Rico",
+      "Rocky",
+      "Roha",
+      "Rohan",
+      "Ron",
+      "Ronnie",
+      "Scotty",
+      "Sean",
+      "Shaq",
+      "Sharif",
+      "Sharuf",
+      "Shay",
+      "Sherif",
+      "Shynequa",
+      "Steve",
+      "Synequa",
+      "Tamia",
+      "Tonya",
+      "Trace",
+      "Trey",
+      "Viince",
+      "Vince"
+    ]
+  },
+  "employees": {
+    "Chad Falkins": {
+      "role": "shipping_receiving",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Chris Jackson": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Chris",
+        "Chris J"
+      ],
+      "primary_machine": "GUILLOTINE",
+      "secondary_machines": [
+        "EXTRUDER",
+        "SHREDDER"
+      ]
+    },
+    "Connor Phanthavong": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Connor",
+        "Conner"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "AVANGUARD DENSIFIER (OLD)",
+        "GRINDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
+    },
+    "Corderleus Kelly": {
+      "role": "shipping_receiving",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Damien Falkins": {
+      "role": "shipping_receiving",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Daniel Malcom": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Daniel",
+        "Daneil"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "GRINDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
+    },
+    "Darius Burce": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Darius",
+        "Darius. Sharif"
+      ],
+      "primary_machine": "AUTO TIE BALER",
+      "secondary_machines": [
+        "BALER 2",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
+    },
+    "Emanuel Butler I": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Emanuel",
+        "Emmanuel",
+        "Emmanuei"
+      ],
+      "primary_machine": "GUILLOTINE",
+      "secondary_machines": [
+        "EXTRUDER",
+        "GREEN MAX DENSIFIER (NEW)",
+        "SHREDDER",
+        "SMALL GRINDER"
+      ]
+    },
+    "Jamel Malloy": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Jamel"
+      ],
+      "primary_machine": "GRINDER",
+      "secondary_machines": [
+        "EXTRUDER",
+        "GUILLOTINE"
+      ]
+    },
+    "Kyle Gooden": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Kyle"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
+    },
+    "Misaki Edwards": {
+      "role": "shipping_receiving",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Richie Snyder": {
+      "role": "shipping_receiving",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Steven Broach": {
+      "role": "machine_operator",
+      "_note": "AMBIGUOUS: 'Steven' and 'Steve' in production could be Broach or Byrd — assign aliases after user review",
+      "production_aliases": [
+        "Steven",
+        "Steve"
+      ],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "AVANGUARD DENSIFIER (OLD)",
+        "BALER 2",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
+    },
+    "Steven Byrd": {
+      "role": "machine_operator",
+      "_note": "AMBIGUOUS: See Steven Broach note — production hours currently assigned to Broach",
+      "production_aliases": [],
+      "primary_machine": null,
+      "secondary_machines": []
+    },
+    "Tameria Odom": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Tameria",
+        "Tamia"
+      ],
+      "primary_machine": "GREEN MAX DENSIFIER (NEW)",
+      "secondary_machines": [
+        "AVANGUARD DENSIFIER (OLD)",
+        "EXTRUDER",
+        "SHREDDER"
+      ]
+    },
+    "Tim Lowe": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Tim"
+      ],
+      "primary_machine": "GRINDER",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "EXTRUDER",
+        "GUILLOTINE",
+        "SHREDDER"
+      ]
+    },
+    "Tony Porter": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Tony"
+      ],
+      "primary_machine": "GUILLOTINE",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "BALER 2",
+        "EXTRUDER",
+        "GREEN MAX DENSIFIER (NEW)",
+        "SHREDDER",
+        "SMALL GRINDER"
+      ]
+    },
+    "Tremaine Morris-Chapman": {
+      "role": "machine_operator",
+      "production_aliases": [
+        "Tremaine"
+      ],
+      "primary_machine": "GUILLOTINE",
+      "secondary_machines": [
+        "AUTO TIE BALER",
+        "AVANGUARD DENSIFIER (OLD)",
+        "BALER 2",
+        "EXTRUDER",
+        "GREEN MAX DENSIFIER (NEW)",
+        "GRINDER",
+        "SHREDDER",
+        "SMALL GRINDER"
+      ]
+    }
+  }
+}

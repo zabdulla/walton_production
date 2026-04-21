@@ -9,6 +9,7 @@ Exit code 1 when critical issues are found (unmapped products, duplicates).
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ import pandas as pd
 from config import (
     ALL_MACHINES,
     DEFAULT_AGGREGATED_DATA,
+    DEFAULT_PAYROLL_DATA,
+    EMPLOYEE_ROSTER_PATH,
     MACHINE_WEEKLY_CAPACITY,
     PRODUCT_CATEGORY_MAP,
     PRODUCT_TYPO_MAP,
@@ -149,6 +152,86 @@ def _check_anomalous_values(df: pd.DataFrame) -> list[dict[str, Any]]:
     return flags
 
 
+def _check_payroll_roster(
+    payroll_path: Path = DEFAULT_PAYROLL_DATA,
+    roster_path: Path = EMPLOYEE_ROSTER_PATH,
+) -> dict[str, Any]:
+    """Check that every payroll employee is in the roster, and flag unmatched production operators.
+
+    Returns dict with keys:
+        status: 'missing_data' | 'ok' | 'issues'
+        unrostered_employees: list[str] — employees in payroll but not roster
+        unclassified_aliases: list[str] — payroll employees with no role set
+        unmatched_production_ops: list[str] — production operators no payroll employee claims
+        latest_period: dict with capture rate summary for the most recent period
+    """
+    result: dict[str, Any] = {
+        "status": "missing_data",
+        "unrostered_employees": [],
+        "unclassified_aliases": [],
+        "unmatched_production_ops": [],
+        "latest_period": None,
+    }
+
+    if not payroll_path.exists() or not roster_path.exists():
+        return result
+
+    df_pay = pd.read_excel(payroll_path)
+    with open(roster_path) as f:
+        roster = json.load(f)
+    employees_map = roster.get("employees", {})
+
+    # Unrostered employees: in payroll but not in roster
+    payroll_names = set(df_pay["employee_name"].unique())
+    rostered_names = set(employees_map.keys())
+    result["unrostered_employees"] = sorted(payroll_names - rostered_names)
+
+    # Unclassified: rostered but role == unknown (or empty aliases for machine_operator)
+    for name, info in employees_map.items():
+        role = info.get("role", "unknown")
+        if role == "unknown":
+            result["unclassified_aliases"].append(name)
+
+    # Unmatched production operators: in production data but not in any roster alias
+    all_aliases = set()
+    for info in employees_map.values():
+        for alias in info.get("production_aliases", []):
+            all_aliases.add(alias)
+    meta_unmatched = roster.get("_meta", {}).get("unmatched_production_operators", [])
+    # Filter meta list to exclude any that have since been added to aliases
+    result["unmatched_production_ops"] = [
+        op for op in meta_unmatched if op not in all_aliases
+    ]
+
+    # Latest period capture rate
+    if len(df_pay):
+        # Pick the most recent period_start by date sort
+        try:
+            df_pay["_sort"] = pd.to_datetime(df_pay["period_start"], format="%m/%d/%Y")
+            latest_start = df_pay.sort_values("_sort").iloc[-1]["period_start"]
+            latest = df_pay[df_pay["period_start"] == latest_start]
+            clock = float(latest["total"].sum())
+            pto = float(latest["pto_hours"].sum()) if "pto_hours" in latest.columns else 0.0
+            worked = float(latest["worked_hours"].sum()) if "worked_hours" in latest.columns else clock - pto
+            result["latest_period"] = {
+                "period_start": latest_start,
+                "period_end": latest.iloc[0]["period_end"],
+                "employees": len(latest),
+                "clock_hours": round(clock, 1),
+                "worked_hours": round(worked, 1),
+                "pto_hours": round(pto, 1),
+            }
+        except Exception:
+            pass
+
+    has_issues = bool(
+        result["unrostered_employees"]
+        or result["unclassified_aliases"]
+    )
+    result["status"] = "issues" if has_issues else "ok"
+    return result
+
+
 def _check_completeness(df: pd.DataFrame, n_weeks: int = 4) -> list[dict[str, Any]]:
     """Per-week summary for the most recent *n_weeks* weeks."""
     dates = pd.to_datetime(df["Date"])
@@ -196,6 +279,7 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
     dup_info = _check_duplicates(df)
     anomalies = _check_anomalous_values(df)
     completeness = _check_completeness(df)
+    payroll = _check_payroll_roster()
 
     return {
         "total_rows": len(df),
@@ -206,6 +290,7 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
         "duplicate_examples": dup_info["examples"],
         "anomalous_values": anomalies,
         "completeness": completeness,
+        "payroll": payroll,
     }
 
 
@@ -298,8 +383,46 @@ def print_report(results: dict[str, Any]) -> None:
                 f"{a['rule']:<28s} value={a['value']}"
             )
 
-    # 6. Data completeness (last 4 weeks)
-    _header("6. Data Completeness (Last 4 Weeks)")
+    # 6. Payroll roster coverage
+    _header("6. Payroll Roster Coverage")
+    payroll = results.get("payroll", {})
+    status = payroll.get("status", "missing_data")
+    if status == "missing_data":
+        _dim("  (No payroll data found \u2014 skip. Run parse_payroll_pdf.py to enable.)")
+    else:
+        unrostered = payroll.get("unrostered_employees", [])
+        unclassified = payroll.get("unclassified_aliases", [])
+        unmatched = payroll.get("unmatched_production_ops", [])
+        latest = payroll.get("latest_period")
+
+        if not unrostered and not unclassified:
+            _ok("All payroll employees are in the roster.")
+        else:
+            if unrostered:
+                _fail(f"{len(unrostered)} payroll employee(s) not in roster:")
+                for name in unrostered:
+                    print(f"        {name}")
+            if unclassified:
+                _warn(f"{len(unclassified)} employee(s) with unknown role:")
+                for name in unclassified:
+                    print(f"        {name}")
+
+        if unmatched:
+            _warn(f"{len(unmatched)} production operator(s) not mapped to any payroll employee:")
+            for name in unmatched[:15]:
+                print(f"        {name}")
+            if len(unmatched) > 15:
+                print(f"        ... and {len(unmatched) - 15} more")
+
+        if latest:
+            print()
+            print(f"        {_bold('Latest pay period:')} {latest['period_start']} - {latest['period_end']}")
+            print(f"        {latest['employees']} employees, "
+                  f"{latest['clock_hours']} clock hrs ({latest['worked_hours']} worked, "
+                  f"{latest['pto_hours']} PTO)")
+
+    # 7. Data completeness (last 4 weeks)
+    _header("7. Data Completeness (Last 4 Weeks)")
     completeness = results["completeness"]
     if not completeness:
         _warn("No recent data found.")
@@ -327,6 +450,11 @@ def print_report(results: dict[str, Any]) -> None:
         issues.append(f"{total_missing:,} missing operator(s)")
     if results["missing_weeks"]:
         issues.append(f"{len(results['missing_weeks'])} missing week(s)")
+    payroll = results.get("payroll", {})
+    if payroll.get("unrostered_employees"):
+        issues.append(f"{len(payroll['unrostered_employees'])} unrostered payroll employee(s)")
+    if payroll.get("unmatched_production_ops"):
+        issues.append(f"{len(payroll['unmatched_production_ops'])} unmapped production operator(s)")
 
     if not issues:
         _ok("All checks passed. Data looks healthy.")

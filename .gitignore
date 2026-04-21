@@ -4,6 +4,11 @@
 # Raw processing reports (large data files)
 processing_reports/
 
+# Payroll PDF source files (do not commit sensitive employee data)
+data/*.pdf
+data/payroll_pdfs/
+data/aggregated_payroll.xlsx
+
 # Generated artifacts (can be regenerated)
 auto_generated_graphs/
 Meeting_Plots/
