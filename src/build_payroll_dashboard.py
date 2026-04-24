@@ -277,7 +277,13 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     const anonymizeToggle = document.getElementById('anonymizeToggle');
     const anonBanner = document.getElementById('anonBanner');
     const printBtn = document.getElementById('printBtn');
-    let anonymized = false;
+    // Anonymized view is the DEFAULT — names are hidden until the user toggles it off.
+    let anonymized = true;
+    anonymizeToggle.classList.add('active');
+    anonymizeToggle.textContent = '\\u2713 Anonymized';
+    anonBanner.style.display = '';
+    document.body.classList.add('anonymized');
+    document.querySelectorAll('.badge').forEach(el => {{ el.style.display = 'none'; }});
 
     // Build a stable name -> pseudonym map across ALL periods so the same person
     // gets the same "Employee N" label across views.
