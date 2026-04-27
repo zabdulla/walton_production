@@ -40,3 +40,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *~
+
+# Logs from the weekly update orchestrator (keep dir, ignore content)
+logs/*.log
+!logs/.gitkeep

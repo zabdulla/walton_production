@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd schedule for the Walton weekly update orchestrator.
+
+  Runs every Monday at 9:00 AM local time. Adjust the StartCalendarInterval
+  block below if you want a different cadence.
+
+  Install with:  scripts/install_schedule.sh
+  Uninstall with: scripts/uninstall_schedule.sh
+
+  Logs:
+    stdout/stderr   → logs/weekly_stdout.log, logs/weekly_stderr.log
+    structured log  → logs/weekly_update.log (timestamped, written by Python)
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.walton.weekly_update</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>python3</string>
+        <string>__PROJECT_ROOT__/src/weekly_update.py</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>   <!-- 0/7=Sun, 1=Mon, 2=Tue, …, 6=Sat -->
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_ROOT__</string>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_ROOT__/logs/weekly_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_ROOT__/logs/weekly_stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- If the Mac is asleep at 9 AM Monday, run as soon as it wakes -->
+    <key>StartOnMount</key>
+    <false/>
+</dict>
+</plist>
