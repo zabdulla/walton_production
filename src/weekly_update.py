@@ -78,9 +78,18 @@ def setup_file_logger() -> None:
     root.addHandler(fh)
 
 
-def run_cmd(cmd: list[str], capture: bool = True, timeout: int = 600) -> tuple[int, str, str]:
-    """Run a shell command, return (returncode, stdout, stderr)."""
+def run_cmd(cmd: list[str], capture: bool = True, timeout: int = 600,
+            extra_env: dict | None = None) -> tuple[int, str, str]:
+    """Run a shell command, return (returncode, stdout, stderr).
+
+    `extra_env` merges into os.environ for this single call (used to set
+    GIT_EDITOR=true so `git rebase --continue` doesn't open an editor).
+    """
+    import os
     logging.info(f"$ {' '.join(cmd)}")
+    env = os.environ.copy()
+    if extra_env:
+        env.update(extra_env)
     try:
         result = subprocess.run(
             cmd,
@@ -88,6 +97,7 @@ def run_cmd(cmd: list[str], capture: bool = True, timeout: int = 600) -> tuple[i
             capture_output=capture,
             text=True,
             timeout=timeout,
+            env=env,
         )
         if capture:
             logging.info(f"stdout: {result.stdout[:500]}")
@@ -259,6 +269,9 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
         log_info("  " + dim("(--no-push, skipping push)"))
         return result
 
+    # Run all git commands non-interactively (no editor prompts)
+    no_editor = {"GIT_EDITOR": "true", "GIT_SEQUENCE_EDITOR": "true"}
+
     # Try push with one retry on rebase conflict
     for attempt in (1, 2):
         rc, out, err = run_cmd(["git", "push", "origin", "main"], capture=True, timeout=60)
@@ -269,7 +282,8 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
         # Common: GH Actions auto-commit pushed first → fast-forward rejected
         if "fast-forward" in err or "rejected" in err:
             log_warn(f"Push rejected (attempt {attempt}); rebasing...")
-            run_cmd(["git", "pull", "--rebase", "origin", "main"], capture=True, timeout=60)
+            run_cmd(["git", "pull", "--rebase", "origin", "main"],
+                    capture=True, timeout=60, extra_env=no_editor)
             # If the rebase had a docs/index.html conflict, re-build and continue
             rc2, status, _ = run_cmd(["git", "status", "--porcelain"], capture=True)
             if "UU docs/index.html" in status:
@@ -277,7 +291,14 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
                 run_cmd(["git", "checkout", "--theirs", "docs/index.html"], capture=True)
                 run_cmd(["python3", str(SRC_DIR / "build_interactive_dashboard.py")], capture=True)
                 run_cmd(["git", "add", "docs/index.html"], capture=True)
-                run_cmd(["git", "rebase", "--continue"], capture=True, timeout=60)
+                run_cmd(["git", "rebase", "--continue"],
+                        capture=True, timeout=60, extra_env=no_editor)
+            # Confirm the rebase actually finished before retrying push
+            rc3, status2, _ = run_cmd(["git", "status", "--porcelain=2", "--branch"], capture=True)
+            if "rebase in progress" in status2 or any(l.startswith("u ") for l in status2.splitlines()):
+                log_err("Rebase did not finish cleanly — manual intervention required")
+                result["ok"] = False
+                return result
             continue
         log_err(f"Push failed: {err.strip()[:200]}")
         result["ok"] = False
