@@ -6,7 +6,7 @@ The full Monday-morning routine — fetch new emails, aggregate, build dashboard
 python3 src/weekly_update.py
 ```
 
-Schedule it to run automatically every Monday at 9 AM with `scripts/install_schedule.sh`.
+Schedule it to run automatically every Monday at noon with `scripts/install_schedule.sh`.
 
 ---
 
@@ -54,9 +54,9 @@ scripts/install_schedule.sh
 This:
 1. Generates `~/Library/LaunchAgents/com.walton.weekly_update.plist` with your absolute project path.
 2. Loads it into launchd.
-3. Schedules every **Monday at 9:00 AM local time**.
+3. Schedules every **Monday at 12:00 PM local time**.
 
-The schedule survives reboots automatically. If your Mac is asleep at 9 AM Monday, launchd will run the job as soon as it next wakes up.
+The schedule survives reboots automatically. If your Mac is asleep at noon Monday, launchd will run the job as soon as it next wakes up.
 
 ### Verify it's installed
 

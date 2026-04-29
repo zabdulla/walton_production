@@ -3,7 +3,7 @@
 <!--
   launchd schedule for the Walton weekly update orchestrator.
 
-  Runs every Monday at 9:00 AM local time. Adjust the StartCalendarInterval
+  Runs every Monday at 12:00 PM local time. Adjust the StartCalendarInterval
   block below if you want a different cadence.
 
   Install with:  scripts/install_schedule.sh
@@ -30,7 +30,7 @@
         <key>Weekday</key>
         <integer>1</integer>   <!-- 0/7=Sun, 1=Mon, 2=Tue, …, 6=Sat -->
         <key>Hour</key>
-        <integer>9</integer>
+        <integer>12</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
@@ -55,7 +55,7 @@
     <key>RunAtLoad</key>
     <false/>
 
-    <!-- If the Mac is asleep at 9 AM Monday, run as soon as it wakes -->
+    <!-- If the Mac is asleep at noon Monday, run as soon as it wakes -->
     <key>StartOnMount</key>
     <false/>
 </dict>

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Install the Walton weekly update launchd job.
-# Schedules src/weekly_update.py to run every Monday at 9:00 AM local time.
+# Schedules src/weekly_update.py to run every Monday at 12:00 PM local time.
 #
 # Re-running this script is safe: it removes any existing job first.
 
@@ -31,7 +31,10 @@ echo "  written → $DEST"
 # Unload existing job (if any) before reloading
 if launchctl list | grep -q "$LABEL"; then
     echo "→ Unloading existing job..."
-    launchctl bootout "gui/$(id -u)" "$DEST" 2>/dev/null || true
+    launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+    # Give launchd a moment to fully unregister the previous instance,
+    # otherwise bootstrap can fail with "Input/output error".
+    sleep 1
 fi
 
 echo "→ Loading job into launchd..."
@@ -39,7 +42,7 @@ launchctl bootstrap "gui/$(id -u)" "$DEST"
 launchctl enable "gui/$(id -u)/$LABEL"
 
 echo
-echo "✓ Installed. Schedule: every Monday 9:00 AM local time."
+echo "✓ Installed. Schedule: every Monday 12:00 PM local time."
 echo
 echo "Manual trigger (test it now):"
 echo "  launchctl kickstart -k gui/$(id -u)/$LABEL"
