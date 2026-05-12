@@ -26,14 +26,18 @@ import json
 import logging
 import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator
 
 # Lazy imports — fail with friendly message if google-api-python-client missing
 try:
+    import httplib2
+    import socket
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
+    from google_auth_httplib2 import AuthorizedHttp
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
@@ -42,6 +46,15 @@ except ImportError as e:
           f"  Install with: pip install -r requirements.txt\n"
           f"  Underlying error: {e}", file=sys.stderr)
     sys.exit(1)
+
+# Per-API-call HTTP timeout in seconds. Without this, a hung connection can
+# wedge the whole job for hours. 60s is generous for any single call.
+HTTP_TIMEOUT_SEC = 60
+
+# Retry config for transient failures (5xx, timeouts)
+MAX_RETRIES = 3
+RETRY_BACKOFF_SEC = 5
+_RETRY_STATUS = {500, 502, 503, 504}
 
 from config import (
     PROJECT_ROOT,
@@ -107,7 +120,48 @@ def get_service() -> Any:
         TOKEN_PATH.chmod(0o600)
         logger.info(f"Token saved to {TOKEN_PATH}")
 
-    return build("gmail", "v1", credentials=creds, cache_discovery=False)
+    # Wrap in an authorized http with an explicit timeout so a single
+    # hung call can't stall the orchestrator (see logs from 2026-05-11
+    # where the job spent 36 min in a single fetch).
+    http = httplib2.Http(timeout=HTTP_TIMEOUT_SEC)
+    authed_http = AuthorizedHttp(creds, http=http)
+    return build("gmail", "v1", http=authed_http, cache_discovery=False)
+
+
+def _with_retry(api_call_fn, *, label: str = "Gmail API call"):
+    """Execute an API call with retry on transient errors.
+
+    ``api_call_fn`` is a zero-arg callable that returns a request object
+    (e.g. ``lambda: service.users().messages().list(...).execute()``).
+    Retries on HTTP 5xx and network timeouts with exponential backoff.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            return api_call_fn()
+        except HttpError as e:
+            status = getattr(e.resp, "status", None)
+            if status in _RETRY_STATUS and attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF_SEC * attempt
+                logger.warning(
+                    f"{label}: HTTP {status} on attempt {attempt}, retrying in {wait}s"
+                )
+                time.sleep(wait)
+                last_exc = e
+                continue
+            raise
+        except (socket.timeout, TimeoutError, OSError) as e:
+            if attempt < MAX_RETRIES:
+                wait = RETRY_BACKOFF_SEC * attempt
+                logger.warning(
+                    f"{label}: timeout/network error on attempt {attempt} ({e!r}), retrying in {wait}s"
+                )
+                time.sleep(wait)
+                last_exc = e
+                continue
+            raise
+    if last_exc:
+        raise last_exc
 
 
 # ---------------------------------------------------------------------------
@@ -116,17 +170,23 @@ def get_service() -> Any:
 
 def list_messages(service, query: str, max_results: int = 50) -> list[dict]:
     """Return a list of message metadata dicts matching ``query``."""
-    response = service.users().messages().list(
-        userId="me", q=query, maxResults=max_results
-    ).execute()
+    response = _with_retry(
+        lambda: service.users().messages().list(
+            userId="me", q=query, maxResults=max_results
+        ).execute(),
+        label=f"messages.list({query[:40]!r})",
+    )
     return response.get("messages", [])
 
 
 def get_message(service, msg_id: str) -> dict:
     """Get a full message including payload + headers + attachment metadata."""
-    return service.users().messages().get(
-        userId="me", id=msg_id, format="full"
-    ).execute()
+    return _with_retry(
+        lambda: service.users().messages().get(
+            userId="me", id=msg_id, format="full"
+        ).execute(),
+        label=f"messages.get({msg_id[:12]})",
+    )
 
 
 def header_value(message: dict, name: str) -> str:
@@ -151,9 +211,12 @@ def iter_attachments(payload: dict) -> Iterator[dict]:
 
 def download_attachment_bytes(service, msg_id: str, attachment_id: str) -> bytes:
     """Download attachment bytes (decodes base64url)."""
-    att = service.users().messages().attachments().get(
-        userId="me", messageId=msg_id, id=attachment_id
-    ).execute()
+    att = _with_retry(
+        lambda: service.users().messages().attachments().get(
+            userId="me", messageId=msg_id, id=attachment_id
+        ).execute(),
+        label=f"attachments.get({attachment_id[:12]})",
+    )
     data = att.get("data", "")
     return base64.urlsafe_b64decode(data)
 

@@ -78,6 +78,21 @@ def setup_file_logger() -> None:
     root.addHandler(fh)
 
 
+def send_notification(title: str, message: str, success: bool = True) -> None:
+    """Send a macOS desktop notification. No-op on other platforms; never raises."""
+    if sys.platform != "darwin":
+        return
+    try:
+        # Escape double quotes inside the strings so the AppleScript stays valid.
+        t = title.replace('"', r'\"')
+        m = message.replace('"', r'\"')
+        sound = "Glass" if success else "Basso"
+        script = f'display notification "{m}" with title "{t}" sound name "{sound}"'
+        subprocess.run(["osascript", "-e", script], timeout=5, capture_output=True)
+    except Exception as e:
+        logging.warning(f"Notification failed (non-fatal): {e}")
+
+
 def run_cmd(cmd: list[str], capture: bool = True, timeout: int = 600,
             extra_env: dict | None = None) -> tuple[int, str, str]:
     """Run a shell command, return (returncode, stdout, stderr).
@@ -394,8 +409,48 @@ def main() -> int:
 
     logging.info(f"=== END runtime={elapsed:.1f}s ===")
 
+    # ---- Mac native notification ----
+    fetch = summary["fetch"]
+    build = summary["build"]
+    git = summary["git"]
+    build_ok = build.get("ok", False)
+    git_ok = git.get("ok", False)
+    success = build_ok and git_ok
+
+    # Build a compact one-line message
+    parts = []
+    new_files = fetch.get("processing", 0) + fetch.get("payroll", 0)
+    if new_files:
+        parts.append(f"{new_files} new file(s)")
+    parts.append(f"{len(build.get('built', []))}/5 dashboards")
+    if git.get("pushed"):
+        parts.append("pushed")
+    elif git.get("committed"):
+        parts.append("committed (no push)")
+    else:
+        parts.append("no changes")
+    parts.append(f"{elapsed:.0f}s")
+
+    minutes = int(elapsed // 60)
+    runtime_label = f"{minutes}m {int(elapsed % 60)}s" if minutes else f"{int(elapsed)}s"
+
+    if success:
+        title = "Walton Weekly Update ✓"
+        message = f"{' · '.join(parts[:-1])} · {runtime_label}"
+    else:
+        title = "Walton Weekly Update ⚠"
+        failed = build.get("failed", [])
+        if failed:
+            message = f"Dashboard build failed: {', '.join(failed)}"
+        elif not git_ok:
+            message = "Pipeline ran but git push failed"
+        else:
+            message = "See logs/weekly_update.log"
+
+    send_notification(title, message, success=success)
+
     # Exit non-zero if anything important failed
-    if not summary["build"].get("ok") or not summary["git"].get("ok"):
+    if not build_ok or not git_ok:
         return 1
     return 0
 
