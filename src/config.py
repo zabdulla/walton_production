@@ -128,6 +128,7 @@ PRODUCT_CATEGORY_MAP: dict[str, str] = {
     "LD Bales/HD bales": "HDPE/LDPE - Mixed Bales",
     "HDPE pieces": "HDPE - Regrinds", "HDPE regrinds": "HDPE - Regrinds",
     "HDPE slabs": "HDPE - Slabs",
+    "HDPE shreds": "HDPE - Shreds",
     # PP
     "PP Bales": "PP - Bales",
     "PP regrinds": "PP - Regrinds", "PP pallet regrinds": "PP - Regrinds",
