@@ -1122,7 +1122,8 @@ def main(daily_path: Path, notes_path: Path, output_path: Path) -> None:
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(html)
+    from atomic import write_atomic_text
+    write_atomic_text(output_path, html)
     print(f"Wrote daily dashboard to {output_path}")
 
 

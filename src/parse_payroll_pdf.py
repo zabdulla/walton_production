@@ -248,8 +248,15 @@ def aggregate_payroll(parsed: dict, output_path: Path = DEFAULT_PAYROLL_DATA) ->
 
     df_combined.sort_values(["period_start", "employee_name"], inplace=True)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    df_combined.to_excel(output_path, index=False)
-    logger.info(f"Payroll data saved to {output_path} ({len(df_combined)} rows)")
+    snapshot_dir = output_path.parent / "snapshots"
+    from atomic import write_with_snapshot
+    result = write_with_snapshot(
+        output_path,
+        lambda tmp: df_combined.to_excel(tmp, index=False),
+        snapshot_dir,
+        new_row_count=len(df_combined),
+    )
+    logger.info(f"Payroll data saved to {output_path} ({len(df_combined)} rows) [{result['growth_msg']}]")
     return df_combined
 
 

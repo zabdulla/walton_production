@@ -1176,7 +1176,9 @@ def main(input_path: Path, output_path: Path) -> None:
     ]
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+    from atomic import write_atomic_text
+    write_atomic_text(
+        output_path,
         render_dashboard(
             trends_std, trends_sup,
             fig_sections_std, fig_sections_sup,
@@ -1186,7 +1188,6 @@ def main(input_path: Path, output_path: Path) -> None:
             shift_fig_std=shift_fig_std, shift_fig_sup=shift_fig_sup,
             total_weeks=total_weeks,
         ),
-        encoding="utf-8",
     )
     print(f"Wrote interactive dashboard to {output_path}")
 

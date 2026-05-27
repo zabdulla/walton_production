@@ -469,12 +469,71 @@ def print_report(results: dict[str, Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Gating decision — which validation issues should block publishing dashboards?
+# ---------------------------------------------------------------------------
+
+def gating_decision(results: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Decide whether validation results should block dashboard publication.
+
+    Returns ``(should_block, reasons)``. The orchestrator uses this to decide
+    whether to restore the previous aggregated file and skip the dashboard +
+    push steps.
+
+    Blocking rules (any one triggers a block):
+      • Unmapped products with >= 5 rows total — small counts are tolerable
+        because the typo map catches them next time someone reviews; a flood
+        of unmapped rows means a new product type appeared and charts will
+        be silently wrong until added.
+      • Duplicate rows detected after aggregation — aggregation already
+        dedups, so duplicates here mean the dedup key is missing a column.
+      • Excessive growth-sanity failure — handled at write time by atomic.py.
+      • Any payroll employee unrostered (only if payroll data is present).
+
+    Non-blocking (warn-only):
+      • Missing weeks (Carl sometimes ships late; missing 1 week is normal).
+      • Missing operators (data-quality issue but not pipeline-blocking).
+      • Anomalous values (often legitimate; per-machine thresholds would help).
+      • New unmapped product with <5 rows (typo, single-occurrence).
+    """
+    reasons: list[str] = []
+
+    unmapped = results.get("unmapped_products") or []
+    unmapped_total_rows = sum(item.get("count", 0) for item in unmapped)
+    if unmapped_total_rows >= 5:
+        reasons.append(
+            f"{len(unmapped)} unmapped product(s) with {unmapped_total_rows} total rows "
+            f"(threshold: 5). Add to PRODUCT_CATEGORY_MAP or PRODUCT_TYPO_MAP."
+        )
+
+    if results.get("duplicates_count", 0) > 0:
+        reasons.append(
+            f"{results['duplicates_count']} duplicate row(s) after aggregation. "
+            f"Aggregation dedup key may be missing a column."
+        )
+
+    payroll = results.get("payroll", {})
+    if payroll.get("status") != "missing_data":
+        unrostered = payroll.get("unrostered_employees") or []
+        if unrostered:
+            reasons.append(
+                f"{len(unrostered)} payroll employee(s) not in roster: "
+                f"{', '.join(unrostered[:3])}. Edit data/employee_roster.json."
+            )
+
+    return (len(reasons) > 0, reasons)
+
+
+# ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     results = run_validation()
     print_report(results)
-    # Exit with code 1 if there are critical issues (unmapped products, duplicates)
-    if results.get("unmapped_products") or results.get("duplicates_count", 0) > 0:
+    blocked, reasons = gating_decision(results)
+    if blocked:
+        print()
+        print(_red(_bold("GATING: publication would be BLOCKED")))
+        for r in reasons:
+            print(f"  - {r}")
         sys.exit(1)

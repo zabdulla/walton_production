@@ -67,6 +67,34 @@ def log_err(msg: str) -> None:
     print(f"  {red('✗')} {msg}", flush=True)
 
 
+def check_dependencies() -> list[str]:
+    """Verify that all third-party packages used by the pipeline are importable.
+
+    Returns a list of *missing* import names. The launchd-spawned Python has
+    been observed to silently lose packages after a Python upgrade or a
+    `pip install` for an unrelated project, so we want to fail fast and
+    loud rather than crashing somewhere deep in the pipeline.
+    """
+    required = [
+        ("pandas", "pandas"),
+        ("plotly", "plotly"),
+        ("openpyxl", "openpyxl"),
+        ("pymupdf", "pymupdf"),  # PDF parsing
+        ("googleapiclient", "google-api-python-client"),
+        ("google.auth", "google-auth"),
+        ("google_auth_oauthlib", "google-auth-oauthlib"),
+        ("google_auth_httplib2", "google-auth-httplib2"),
+        ("httplib2", "httplib2"),
+    ]
+    missing: list[str] = []
+    for module_name, pip_name in required:
+        try:
+            __import__(module_name)
+        except ImportError:
+            missing.append(pip_name)
+    return missing
+
+
 def setup_file_logger() -> None:
     """Tee output to logs/weekly_update.log (rotated by date in the line prefix)."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -155,16 +183,38 @@ def step_fetch_emails(dry_run: bool = False) -> dict[str, Any]:
 
 
 def step_aggregate() -> dict[str, Any]:
-    """Run aggregate_daily_data.py and extract record count."""
+    """Run aggregation. Snapshots the previous aggregated file first so the
+    orchestrator can roll back if downstream validation gates the run.
+    """
+    import shutil
+    from datetime import datetime as _dt
+    agg_path = PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
+    snap_dir = PROJECT_ROOT / "data" / "snapshots"
+    pre_snapshot: Path | None = None
+    if agg_path.exists():
+        snap_dir.mkdir(parents=True, exist_ok=True)
+        ts = _dt.now().strftime("%Y-%m-%dT%H-%M-%S")
+        pre_snapshot = snap_dir / f"{agg_path.stem}_prerun_{ts}{agg_path.suffix}"
+        shutil.copy2(agg_path, pre_snapshot)
+
     rc, out, err = run_cmd(["python3", str(SRC_DIR / "aggregate_daily_data.py")], timeout=300)
-    result = {"ok": rc == 0, "records": 0, "duplicates": 0}
+    result: dict[str, Any] = {
+        "ok": rc == 0, "records": 0, "duplicates": 0,
+        "pre_snapshot": pre_snapshot,
+    }
     if rc != 0:
         log_err(f"Aggregation FAILED (exit {rc})")
+        # If the aggregation script bailed out (e.g., growth sanity check
+        # rejected an unexpectedly small new file), preserve the snapshot
+        # for inspection but don't restore yet — atomic writes mean the
+        # on-disk file is still the previous good one.
         return result
     combined = out + err
-    m = re.search(r"saved.*?\((\d+) records\)", combined)
+    # Strip any thousands-separator commas before int() — supports either
+    # "(3,904 records)" or "(3904 records)".
+    m = re.search(r"saved.*?\(([\d,]+) records\)", combined)
     if m:
-        result["records"] = int(m.group(1))
+        result["records"] = int(m.group(1).replace(",", ""))
     m = re.search(r"Dropped (\d+) duplicate", combined)
     if m:
         result["duplicates"] = int(m.group(1))
@@ -194,27 +244,66 @@ def step_parse_payroll() -> dict[str, Any]:
 
 
 def step_validate() -> dict[str, Any]:
-    """Run validate_data.py — non-fatal warnings."""
-    rc, out, err = run_cmd(["python3", str(SRC_DIR / "validate_data.py")], timeout=120)
-    # Validation exits 1 on critical issues but we treat as warning
-    combined = out + err
-    # Only parse the final "Summary" section to avoid double-counting the
-    # warnings that appear in both the body and the summary.
-    summary_marker = combined.rfind("Summary")
-    if summary_marker > 0:
-        combined = combined[summary_marker:]
+    """Run validation in-process and compute the publish-gating decision.
+
+    Returns dict with:
+      ok       – always True (validation itself never errors fatally)
+      issues   – list of human-readable summary lines (for the report)
+      blocked  – True if publication should be blocked
+      reasons  – list of strings explaining why blocked (empty if not)
+    """
+    # Import the validation module directly so we get structured results
+    # rather than parsing stdout. Both modules live in src/ and are siblings.
+    sys.path.insert(0, str(SRC_DIR))
+    try:
+        from validate_data import run_validation, gating_decision
+    finally:
+        if str(SRC_DIR) in sys.path:
+            sys.path.remove(str(SRC_DIR))
+
+    try:
+        results = run_validation()
+    except Exception as e:
+        log_err(f"Validation crashed: {e}")
+        # Treat crash as block-publish — safer than letting bad data ship.
+        return {"ok": False, "issues": [f"validation crashed: {e}"],
+                "blocked": True, "reasons": [str(e)]}
+
+    # Build a compact summary similar to before
     issues: list[str] = []
-    for line in combined.splitlines():
-        m = re.match(r"\s*WARN\s+(.*)", line)
-        if m: issues.append(m.group(1).strip())
-        m = re.match(r"\s*FAIL\s+(.*)", line)
-        if m: issues.append("CRITICAL: " + m.group(1).strip())
-    if issues:
+    if results.get("unmapped_products"):
+        items = results["unmapped_products"]
+        issues.append(f"{len(items)} unmapped product(s)")
+    if results.get("duplicates_count", 0):
+        issues.append(f"{results['duplicates_count']} duplicate row(s)")
+    if results.get("missing_operators"):
+        n = sum(results["missing_operators"].values())
+        issues.append(f"{n} missing operator(s)")
+    if results.get("missing_weeks"):
+        issues.append(f"{len(results['missing_weeks'])} missing week(s)")
+    payroll = results.get("payroll", {})
+    if payroll.get("unmatched_production_ops"):
+        issues.append(f"{len(payroll['unmatched_production_ops'])} unmapped production operator(s)")
+    if payroll.get("unrostered_employees"):
+        issues.append(f"{len(payroll['unrostered_employees'])} unrostered payroll employee(s)")
+    anomalies = results.get("anomalous_values") or []
+    if anomalies:
+        issues.append(f"{len(anomalies)} anomalous value(s)")
+
+    blocked, reasons = gating_decision(results)
+
+    if not issues:
+        log_ok("All checks passed")
+    else:
         for issue in issues:
             log_warn(issue)
-    else:
-        log_ok("All checks passed")
-    return {"ok": True, "issues": issues}
+
+    if blocked:
+        log_err("Validation gating: BLOCK publication")
+        for r in reasons:
+            log_err(f"  reason: {r}")
+
+    return {"ok": True, "issues": issues, "blocked": blocked, "reasons": reasons}
 
 
 def step_build_dashboards() -> dict[str, Any]:
@@ -287,6 +376,14 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
     # Run all git commands non-interactively (no editor prompts)
     no_editor = {"GIT_EDITOR": "true", "GIT_SEQUENCE_EDITOR": "true"}
 
+    # Map of published HTML dashboard → builder script that produces it.
+    # Used to auto-resolve rebase conflicts on generated artifacts: prefer
+    # the remote version (--theirs), rebuild locally on top, re-stage.
+    DASHBOARD_BUILDERS = {
+        "docs/index.html": "build_interactive_dashboard.py",
+        "docs/daily.html": "build_daily_dashboard.py",
+    }
+
     # Try push with one retry on rebase conflict
     for attempt in (1, 2):
         rc, out, err = run_cmd(["git", "push", "origin", "main"], capture=True, timeout=60)
@@ -299,15 +396,26 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
             log_warn(f"Push rejected (attempt {attempt}); rebasing...")
             run_cmd(["git", "pull", "--rebase", "origin", "main"],
                     capture=True, timeout=60, extra_env=no_editor)
-            # If the rebase had a docs/index.html conflict, re-build and continue
+            # Resolve any conflicts on generated dashboard HTML files.
+            # Pattern: `UU docs/<name>.html` means both modified. Take remote,
+            # then rebuild locally so the on-disk version reflects local data.
             rc2, status, _ = run_cmd(["git", "status", "--porcelain"], capture=True)
-            if "UU docs/index.html" in status:
-                log_info("  resolving docs/index.html conflict by rebuilding...")
-                run_cmd(["git", "checkout", "--theirs", "docs/index.html"], capture=True)
-                run_cmd(["python3", str(SRC_DIR / "build_interactive_dashboard.py")], capture=True)
-                run_cmd(["git", "add", "docs/index.html"], capture=True)
-                run_cmd(["git", "rebase", "--continue"],
-                        capture=True, timeout=60, extra_env=no_editor)
+            for path, builder in DASHBOARD_BUILDERS.items():
+                if f"UU {path}" in status:
+                    log_info(f"  resolving {path} conflict by rebuilding...")
+                    run_cmd(["git", "checkout", "--theirs", path], capture=True)
+                    run_cmd(["python3", str(SRC_DIR / builder)], capture=True)
+                    run_cmd(["git", "add", path], capture=True)
+            # Continue the rebase only if there are no remaining conflicts.
+            rc_status, status_after, _ = run_cmd(["git", "status", "--porcelain"], capture=True)
+            unresolved = [l for l in status_after.splitlines() if l.startswith(("UU ", "AA ", "DD "))]
+            if unresolved:
+                log_err(f"Unresolved rebase conflicts remain: {unresolved[:3]}")
+                log_err("Manual intervention required — leaving rebase in progress")
+                result["ok"] = False
+                return result
+            run_cmd(["git", "rebase", "--continue"],
+                    capture=True, timeout=60, extra_env=no_editor)
             # Confirm the rebase actually finished before retrying push
             rc3, status2, _ = run_cmd(["git", "status", "--porcelain=2", "--branch"], capture=True)
             if "rebase in progress" in status2 or any(l.startswith("u ") for l in status2.splitlines()):
@@ -347,6 +455,23 @@ def main() -> int:
     print("=" * 70)
     logging.info(f"=== START {timestamp} ===")
 
+    # Fail fast if a dependency is missing — the launchd-spawned Python has
+    # lost packages mid-week before (May 2026, see logs). Better to crash
+    # at startup with a clear message than crash deep in the pipeline.
+    missing_deps = check_dependencies()
+    if missing_deps:
+        msg = (
+            f"Missing Python packages: {', '.join(missing_deps)}\n"
+            f"  Fix: cd {PROJECT_ROOT} && python3 -m pip install -r requirements.txt"
+        )
+        log_err(msg)
+        send_notification(
+            "Walton Weekly Update ⚠",
+            f"Pipeline aborted: missing deps ({', '.join(missing_deps[:3])})",
+            success=False,
+        )
+        return 2
+
     summary: dict[str, Any] = {}
 
     # Step 1: Fetch
@@ -375,6 +500,31 @@ def main() -> int:
     # Step 4: Validate
     log_step(4, 6, "Validating data quality")
     summary["validate"] = step_validate()
+
+    # If validation gates publication, restore the pre-aggregation snapshot
+    # so the next run starts from a known-good state, then abort before
+    # building dashboards or pushing.
+    if summary["validate"].get("blocked"):
+        log_err("Validation BLOCKED publication. Skipping dashboard build + git push.")
+        pre_snap = summary["aggregate"].get("pre_snapshot")
+        if pre_snap and Path(pre_snap).exists():
+            import shutil
+            agg_path = PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
+            tmp = agg_path.with_suffix(agg_path.suffix + ".tmp")
+            shutil.copy2(pre_snap, tmp)
+            tmp.replace(agg_path)
+            log_warn(f"Restored aggregated data from snapshot: {Path(pre_snap).name}")
+        else:
+            log_warn("No pre-run snapshot available; aggregated file left as-is.")
+        reasons_short = "; ".join(summary["validate"].get("reasons", []))[:120]
+        send_notification(
+            "Walton Weekly Update ⚠",
+            f"BLOCKED by validation: {reasons_short or 'see logs'}",
+            success=False,
+        )
+        elapsed = time.time() - started
+        logging.info(f"=== END runtime={elapsed:.1f}s BLOCKED ===")
+        return 3
 
     # Step 5: Build all dashboards
     log_step(5, 6, "Building dashboards")

@@ -321,8 +321,21 @@ def aggregate_daily_folder(
             logger.warning("Dropped %d duplicate rows during aggregation", n_dropped)
 
         output_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_daily_data.xlsx"
-        aggregated_daily.to_excel(output_path, index=False)
-        logger.info("Daily data saved to %s (%d records)", output_path, len(aggregated_daily))
+        snapshot_dir = output_path.parent / "snapshots"
+        try:
+            from atomic import write_with_snapshot, GrowthSanityError
+            result = write_with_snapshot(
+                output_path,
+                lambda tmp: aggregated_daily.to_excel(tmp, index=False),
+                snapshot_dir,
+                new_row_count=len(aggregated_daily),
+            )
+            logger.info("Daily data saved to %s (%d records) [%s]",
+                        output_path, len(aggregated_daily), result["growth_msg"])
+        except GrowthSanityError as e:
+            logger.error("REFUSING to overwrite %s: %s", output_path, e)
+            logger.error("If this drop is legitimate, delete the existing file or run with manual override.")
+            raise
     else:
         logger.warning("No daily data aggregated.")
 
@@ -331,8 +344,18 @@ def aggregate_daily_folder(
         aggregated_notes = pd.concat(notes_dataframes, ignore_index=True)
         aggregated_notes = aggregated_notes.sort_values(["Date", "Shift", "Machine_Name"])
         notes_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_notes.xlsx"
-        aggregated_notes.to_excel(notes_path, index=False)
-        logger.info("Notes saved to %s (%d records)", notes_path, len(aggregated_notes))
+        snapshot_dir = notes_path.parent / "snapshots"
+        from atomic import write_with_snapshot
+        result = write_with_snapshot(
+            notes_path,
+            lambda tmp: aggregated_notes.to_excel(tmp, index=False),
+            snapshot_dir,
+            new_row_count=len(aggregated_notes),
+            # Notes can shrink legitimately if older files are removed.
+            min_ratio=0.5,
+        )
+        logger.info("Notes saved to %s (%d records) [%s]",
+                    notes_path, len(aggregated_notes), result["growth_msg"])
     else:
         logger.info("No supervisor notes found.")
 

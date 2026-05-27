@@ -311,10 +311,11 @@ def main(input_path: Path, output_path: Path) -> None:
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+    from atomic import write_atomic_text
+    write_atomic_text(
+        output_path,
         render_operator_dashboard(oph_fig, heatmap_fig, trends_fig,
                                   operator_options_html, total_weeks),
-        encoding="utf-8",
     )
     print(f"Wrote operator dashboard to {output_path}")
 

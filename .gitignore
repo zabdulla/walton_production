@@ -9,6 +9,9 @@ data/*.pdf
 data/payroll_pdfs/
 data/aggregated_payroll.xlsx
 
+# Rolling snapshots of aggregated data (local-only backups)
+data/snapshots/
+
 # Generated artifacts (can be regenerated)
 auto_generated_graphs/
 Meeting_Plots/

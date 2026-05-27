@@ -1,10 +1,19 @@
-pandas>=2.0.0
-plotly>=5.18.0
-openpyxl>=3.1.0
-pymupdf>=1.24.0
+# Walton production dashboards — pinned to ranges known to work together.
+# Currently installed: see `pip list` or scripts/install_schedule.sh.
+# To update a pin, bump the lower bound and run the full pipeline once.
 
-# Gmail API for fetching production data attachments (src/fetch_emails.py)
-google-api-python-client>=2.100.0
-google-auth>=2.23.0
-google-auth-oauthlib>=1.0.0
-google-auth-httplib2>=0.1.0
+# Core data + plotting
+pandas>=2.2,<3.0
+numpy>=1.24,<3.0           # transitive via pandas but used directly in operator dashboard
+plotly>=5.24,<6.0
+openpyxl>=3.1,<4.0
+
+# PDF parsing for payroll reports
+pymupdf>=1.24,<2.0
+
+# Gmail API (src/fetch_emails.py)
+google-api-python-client>=2.100,<3.0
+google-auth>=2.30,<3.0
+google-auth-oauthlib>=1.2,<2.0
+google-auth-httplib2>=0.2,<1.0
+httplib2>=0.20,<1.0        # explicit; needed for per-call timeout in fetch_emails

@@ -614,9 +614,10 @@ def main(input_path: Path, output_path: Path) -> None:
     uplift_json = json.dumps(uplift)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+    from atomic import write_atomic_text
+    write_atomic_text(
+        output_path,
         render_html(data_json, machines, presets_json, total_weeks, uplift_json),
-        encoding="utf-8",
     )
     print(f"Wrote profit dashboard to {output_path}")
     if uplift.get("available"):

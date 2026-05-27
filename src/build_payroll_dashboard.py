@@ -642,9 +642,10 @@ def main(output_path: Path) -> None:
     roster_json = json.dumps(roster.get("employees", {}), default=str)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+    from atomic import write_atomic_text
+    write_atomic_text(
+        output_path,
         render_html(periods_json, labels_json, roster_json),
-        encoding="utf-8",
     )
     print(f"Wrote payroll dashboard to {output_path}")
 
