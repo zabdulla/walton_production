@@ -17,3 +17,6 @@ google-auth>=2.30,<3.0
 google-auth-oauthlib>=1.2,<2.0
 google-auth-httplib2>=0.2,<1.0
 httplib2>=0.20,<1.0        # explicit; needed for per-call timeout in fetch_emails
+
+# Test tooling
+pytest>=8.0,<9.0

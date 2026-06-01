@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'src/*.py'
+      - 'tests/**'
       - 'data/*.xlsx'
       - 'requirements.txt'
 
@@ -37,11 +38,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Run test suite
+        run: python -m pytest tests/ -v --tb=short
+
       - name: Build weekly dashboard
         run: python src/build_interactive_dashboard.py
 
       - name: Build daily dashboard
         run: python src/build_daily_dashboard.py
+
+      - name: Smoke-test built HTML
+        run: python -m pytest tests/test_dashboards_smoke.py -v
 
       - name: Check for changes
         id: changes

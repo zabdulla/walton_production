@@ -237,10 +237,13 @@ def aggregate_payroll(parsed: dict, output_path: Path = DEFAULT_PAYROLL_DATA) ->
     else:
         df_combined = df_new
 
-    # Dedup on (employee_name, period_start)
+    # Dedup on the full period identity. Including period_end is defensive:
+    # two PDFs whose start dates collide (e.g., a corrected re-send) but
+    # whose end dates differ are legitimately different records.
     before = len(df_combined)
     df_combined.drop_duplicates(
-        subset=["employee_name", "period_start"], keep="last", inplace=True
+        subset=["employee_name", "period_start", "period_end"],
+        keep="last", inplace=True,
     )
     dupes = before - len(df_combined)
     if dupes:

@@ -225,8 +225,10 @@ def download_attachment_bytes(service, msg_id: str, attachment_id: str) -> bytes
 # Processing weights — weekly Excel files
 # ---------------------------------------------------------------------------
 
+# Year must be exactly 2 or 4 digits — `\d{2,4}` would silently match a
+# typo like '202' as year 02 = 2002. Use alternation to enforce the contract.
 _DATE_RANGE_RE = re.compile(
-    r"(\d{1,2})/(\d{1,2})/(\d{2,4})\s*[-–]\s*(\d{1,2})/(\d{1,2})/(\d{2,4})"
+    r"(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})\s*[-–]\s*(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})"
 )
 
 

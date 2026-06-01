@@ -53,7 +53,10 @@ def _fmt_num(value: Any, kind: str = "int") -> str:
 
 
 def _pct_change_html(current: float, previous: float) -> str:
-    if previous == 0 or pd.isna(previous) or pd.isna(current):
+    # Check NaN/NA before the equality comparison: `previous == 0` evaluates
+    # to pd.NA (not False) when previous is pd.NA, which makes `or` raise
+    # TypeError: boolean value of NA is ambiguous.
+    if pd.isna(previous) or pd.isna(current) or previous == 0:
         return ""
     pct = ((current - previous) / previous) * 100
     if pct > 0:

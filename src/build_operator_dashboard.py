@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -33,13 +34,27 @@ TOP_N = 20  # Show top N operators by total hours
 
 
 def explode_operators(df: pd.DataFrame) -> pd.DataFrame:
-    """Split comma-separated operator names and divide output/hours evenly."""
+    """Split comma-separated operator names and divide output/hours evenly.
+
+    A trailing comma in the source data (e.g., ``"Alice, Bob,"``) would
+    produce an empty-string entry. We filter empties out before counting
+    so output/hours aren't divided by an inflated denominator.
+    """
     df = df.copy()
     df = df[df["Operator"].notna() & (df["Operator"].str.strip() != "")]
-    df["Operator_List"] = df["Operator"].str.split(r",\s*")
+
+    def _split(s: str) -> list[str]:
+        parts = re.split(r",\s*", s)
+        # Drop blanks introduced by trailing/leading commas
+        return [p.strip() for p in parts if p.strip()]
+
+    df["Operator_List"] = df["Operator"].apply(_split)
     df["Operator_Count"] = df["Operator_List"].apply(len)
+    # If, after cleaning, the list is empty, drop the row (no valid operator)
+    df = df[df["Operator_Count"] > 0]
+
     df = df.explode("Operator_List")
-    df["Individual_Operator"] = df["Operator_List"].str.strip().str.title()
+    df["Individual_Operator"] = df["Operator_List"].str.title()
     # Split output and hours evenly among operators
     for col in ["Actual Output (Lbs)", "Total Man Hours", "Total Machine Hours",
                 "Labor Cost", "Total Expense"]:
