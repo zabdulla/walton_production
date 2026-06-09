@@ -283,12 +283,25 @@ def parse_pdf_directory(
     skipped: list[str] = []
     failed: list[tuple[str, str]] = []
 
-    pdfs = sorted(directory.rglob(pattern))
+    # Unparseable PDFs are moved here so they don't fail again on every
+    # weekly run. Review them manually and move back to retry.
+    quarantine_dir = directory / "failed"
+
+    pdfs = sorted(p for p in directory.rglob(pattern)
+                  if quarantine_dir not in p.parents)
     if not pdfs:
         logger.warning(f"No PDFs found in {directory}")
         return {"processed": [], "skipped": [], "failed": []}
 
     logger.info(f"Found {len(pdfs)} PDF(s) in {directory}")
+
+    def _quarantine(pdf: Path) -> None:
+        try:
+            quarantine_dir.mkdir(parents=True, exist_ok=True)
+            pdf.rename(quarantine_dir / pdf.name)
+            logger.warning(f"Moved unparseable PDF to {quarantine_dir.name}/: {pdf.name}")
+        except OSError as e:
+            logger.warning(f"Could not quarantine {pdf.name}: {e}")
 
     for pdf in pdfs:
         try:
@@ -309,9 +322,11 @@ def parse_pdf_directory(
             else:
                 failed.append((pdf.name, str(e)))
                 logger.warning(f"Failed: {pdf.name}: {e}")
+                _quarantine(pdf)
         except Exception as e:
             failed.append((pdf.name, str(e)))
             logger.warning(f"Failed: {pdf.name}: {e}")
+            _quarantine(pdf)
 
     return {"processed": processed, "skipped": skipped, "failed": failed}
 

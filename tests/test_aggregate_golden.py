@@ -266,3 +266,44 @@ def test_zero_output_row_has_nan_cost_not_zero(tmp_path: Path) -> None:
     assert row["Labor_Cost"] == pytest.approx(8.0 * 25.0)
     assert pd.isna(row["Cost_per_Pound"]), "zero output must yield NaN cost/lb, not 0"
     assert pd.isna(row["Output_per_Hour"]), "zero machine hours must yield NaN output/hr, not 0"
+
+
+def test_date_outside_week_is_corrected_and_flagged(tmp_path: Path) -> None:
+    """A sheet date far outside the filename week gets auto-corrected, and the
+    row carries Date_Corrected=True so the correction is reviewable."""
+    sheet = _build_synthetic_sheet(
+        date_value=pd.Timestamp("2025-06-05"),  # months before the filename week
+        machine_rows={
+            "EXTRUDER": [
+                {"machine_hours": 8.0, "man_hours": 8.0,
+                 "input_item": "x", "actual_input": 100,
+                 "output_product": "PP resin", "actual_output": 100, "operator": "Z"},
+            ],
+        },
+    )
+    fname = "1st shift processing weights 01-05-26 to 01-09-26.xlsx"
+    _write_synthetic_xlsx(tmp_path / fname, sheet)
+
+    df_daily, _ = extract_daily_data_from_file(tmp_path / fname)
+    assert len(df_daily) == 1
+    row = df_daily.iloc[0]
+    assert row["Date"] == "2026-01-05"  # inferred from 'Mon' sheet within week
+    assert bool(row["Date_Corrected"]) is True
+
+
+def test_in_week_date_is_not_flagged(tmp_path: Path) -> None:
+    sheet = _build_synthetic_sheet(
+        date_value=pd.Timestamp("2026-01-05"),
+        machine_rows={
+            "EXTRUDER": [
+                {"machine_hours": 8.0, "man_hours": 8.0,
+                 "input_item": "x", "actual_input": 100,
+                 "output_product": "PP resin", "actual_output": 100, "operator": "Z"},
+            ],
+        },
+    )
+    fname = "1st shift processing weights 01-05-26 to 01-09-26.xlsx"
+    _write_synthetic_xlsx(tmp_path / fname, sheet)
+
+    df_daily, _ = extract_daily_data_from_file(tmp_path / fname)
+    assert bool(df_daily.iloc[0]["Date_Corrected"]) is False

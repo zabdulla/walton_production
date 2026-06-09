@@ -133,3 +133,9 @@ def test_main_returns_zero_on_success(monkeypatch) -> None:
     monkeypatch.setattr(sys, "argv", ["fetch_emails.py", "--all"])
 
     assert fetch_emails.main() == 0
+
+
+def test_parse_week_dates_rejects_impossible_dates() -> None:
+    # 2/30 does not exist — a subject typo must not become a filename
+    assert parse_week_dates("week of 2/30/26-3/5/26") is None
+    assert parse_week_dates("week of 13/01/26-13/05/26") is None

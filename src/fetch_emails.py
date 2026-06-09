@@ -245,6 +245,14 @@ def parse_week_dates(subject: str) -> tuple[str, str] | None:
     em, ed, ey = parts[3], parts[4], parts[5]
     sy = sy if len(sy) == 2 else sy[-2:]
     ey = ey if len(ey) == 2 else ey[-2:]
+    # Reject impossible dates (e.g. 2/30/26 from a subject-line typo) —
+    # they would otherwise become filenames that break downstream parsing.
+    for mm, dd, yy in ((sm, sd, sy), (em, ed, ey)):
+        try:
+            datetime.strptime(f"{int(mm):02d}-{int(dd):02d}-{yy}", "%m-%d-%y")
+        except ValueError:
+            logger.warning(f"Invalid date {mm}/{dd}/{yy} in subject: {subject!r}")
+            return None
     return (
         f"{int(sm):02d}-{int(sd):02d}-{sy}",
         f"{int(em):02d}-{int(ed):02d}-{ey}",

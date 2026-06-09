@@ -98,7 +98,10 @@ def check_dependencies() -> list[str]:
 def setup_file_logger() -> None:
     """Tee output to logs/weekly_update.log (rotated by date in the line prefix)."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+    # datefmt is pinned because last_run_status.py regex-parses these
+    # timestamps as "YYYY-MM-DD HH:MM:SS" — do not change one without the other.
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
+                            datefmt="%Y-%m-%d %H:%M:%S")
     fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
     fh.setFormatter(fmt)
     root = logging.getLogger()

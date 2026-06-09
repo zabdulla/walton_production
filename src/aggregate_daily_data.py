@@ -149,6 +149,7 @@ def extract_daily_data_from_file(
 
         # Validate date falls within a reasonable range of the week from the filename.
         # Catches typos like 12-30 instead of 01-30 in the Excel cell.
+        date_corrected = False
         if week_start and week_end:
             parsed_date = datetime.strptime(sheet_date, "%Y-%m-%d")
             ws = datetime.strptime(week_start, "%Y-%m-%d")
@@ -167,6 +168,7 @@ def extract_daily_data_from_file(
                         sheet_date = swapped.strftime("%Y-%m-%d")
                         logger.info("  Corrected to %s (month/day swap)", sheet_date)
                         corrected = True
+                        date_corrected = True
                 except ValueError:
                     pass
                 # Fallback: infer date from sheet name (day of week) within the week range
@@ -176,6 +178,7 @@ def extract_daily_data_from_file(
                         inferred = ws + pd.Timedelta(days=day_map[sheet_name])
                         sheet_date = inferred.strftime("%Y-%m-%d")
                         logger.info("  Corrected to %s (inferred from sheet name '%s')", sheet_date, sheet_name)
+                        date_corrected = True
                     else:
                         logger.warning("  Could not auto-correct, skipping sheet")
                         continue
@@ -251,6 +254,9 @@ def extract_daily_data_from_file(
                     "Has_Output": has_output,
                     "Has_Comment": has_comment,
                     "Data_Quality_Score": quality_score,
+                    # True when the sheet's date cell was auto-corrected (month/day
+                    # swap or inferred from sheet name) — review these rows.
+                    "Date_Corrected": date_corrected,
                 })
 
                 # Extract notes separately
