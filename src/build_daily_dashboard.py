@@ -654,6 +654,22 @@ def build_dashboard_html(
         const machines = {machines_json};
         const palette = {palette_json};
 
+        // Escape free-text fields (supervisor notes, operator names) before
+        // inserting into innerHTML — they come straight from Excel cells.
+        function escapeHtml(s) {{
+            return String(s ?? '').replace(/[&<>"']/g, c => ({{
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }}[c]));
+        }}
+
+        // Format a Date as YYYY-MM-DD in LOCAL time. toISOString() is UTC and
+        // shifts entries to the wrong calendar day for viewers west of UTC.
+        function localDateStr(d) {{
+            return d.getFullYear() + '-' +
+                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                String(d.getDate()).padStart(2, '0');
+        }}
+
         // State
         let periodType = 'week'; // 'week' or 'month'
         let currentIndex = weeksList.length - 1; // Start with most recent
@@ -818,7 +834,7 @@ def build_dashboard_html(
             // Render each day
             const current = new Date(start);
             while (current <= end) {{
-                const dateStr = current.toISOString().split('T')[0];
+                const dateStr = localDateStr(current);
                 const dayData = dateMap[dateStr];
                 const hasNote = notesByDate[dateStr];
 
@@ -934,8 +950,8 @@ def build_dashboard_html(
                         <h4>📝 Supervisor Notes (${{dayNotes.length}})</h4>
                         ${{dayNotes.map(n => `
                             <div class="detail-note-item">
-                                <div class="detail-note-meta">${{n.machine}} | ${{n.shift}} shift | ${{n.operator || 'Unknown operator'}} | <em>${{n.category}}</em></div>
-                                <div>${{n.note}}</div>
+                                <div class="detail-note-meta">${{escapeHtml(n.machine)}} | ${{escapeHtml(n.shift)}} shift | ${{escapeHtml(n.operator || 'Unknown operator')}} | <em>${{escapeHtml(n.category)}}</em></div>
+                                <div>${{escapeHtml(n.note)}}</div>
                             </div>
                         `).join('')}}
                     </div>
@@ -954,7 +970,7 @@ def build_dashboard_html(
                         </tr>
                         ${{dayMachines.map(m => `
                             <tr style="border-bottom:1px solid #e5e7eb;">
-                                <td style="padding:8px;">${{m.Machine_Name}}</td>
+                                <td style="padding:8px;">${{escapeHtml(m.Machine_Name)}}</td>
                                 <td style="padding:8px; text-align:right;">${{(m.Actual_Output || 0).toLocaleString()}}</td>
                                 <td style="padding:8px; text-align:right;">${{(m.Machine_Hours || 0).toFixed(1)}}</td>
                             </tr>
@@ -1038,7 +1054,7 @@ def build_dashboard_html(
             const dateStrs = [];
             const cur = new Date(startDate);
             while (cur <= endDate) {{
-                dateStrs.push(cur.toISOString().slice(0,10));
+                dateStrs.push(localDateStr(cur));
                 cur.setDate(cur.getDate() + 1);
             }}
 
@@ -1061,7 +1077,7 @@ def build_dashboard_html(
             html += '</tr></thead><tbody>';
 
             machines.forEach(m => {{
-                html += `<tr><td class="machine-label">${{m}}</td>`;
+                html += `<tr><td class="machine-label">${{escapeHtml(m)}}</td>`;
                 dateStrs.forEach(d => {{
                     const cell = lookup[m] && lookup[m][d];
                     if (!cell || (cell.output === 0 && cell.hours === 0)) {{

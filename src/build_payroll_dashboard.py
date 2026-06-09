@@ -116,6 +116,31 @@ def build_period_data(
     return all_periods
 
 
+def anonymize_period_data(
+    period_data: list[dict],
+) -> list[dict]:
+    """Replace employee names with stable 'Employee NN' labels in the data itself.
+
+    The default build embeds NO real names: the on-page anonymize toggle only
+    affects display, so anything embedded in the JSON is visible via View
+    Source. Real names are only embedded with --with-names.
+    """
+    import copy
+
+    all_names = sorted({
+        e["employee_name"] for p in period_data for e in p["employees"]
+    })
+    name_map = {n: f"Employee {i + 1:02d}" for i, n in enumerate(all_names)}
+
+    anon = copy.deepcopy(period_data)
+    for p in anon:
+        for e in p["employees"]:
+            e["employee_name"] = name_map.get(e["employee_name"], e["employee_name"])
+        for m in p.get("machines", []):
+            m["workers"] = sorted(name_map.get(w, w) for w in m.get("workers", []))
+    return anon
+
+
 def format_period_label(start: str, end: str) -> str:
     """Format 'MM/DD/YYYY' pair as 'MM/DD - MM/DD/YYYY'."""
     try:
@@ -609,7 +634,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
 </html>"""
 
 
-def main(output_path: Path) -> None:
+def main(output_path: Path, with_names: bool = False) -> None:
     print("Loading payroll periods...")
     periods = load_all_periods(DEFAULT_PAYROLL_DATA)
     print(f"  Found {len(periods)} pay periods")
@@ -633,13 +658,18 @@ def main(output_path: Path) -> None:
         for p in period_data
     ]
 
-    # Load roster for embedding
-    roster = load_roster(EMPLOYEE_ROSTER_PATH)
+    # Anonymize at the data layer unless real names were explicitly requested.
+    # The roster (pay rates, aliases) is only embedded alongside real names.
+    if with_names:
+        roster = load_roster(EMPLOYEE_ROSTER_PATH)
+        roster_json = json.dumps(roster.get("employees", {}), default=str)
+    else:
+        period_data = anonymize_period_data(period_data)
+        roster_json = "{}"
+        print("  Employee names anonymized (use --with-names to embed real names)")
 
-    # Render
     periods_json = json.dumps(period_data, default=str)
     labels_json = json.dumps(period_labels)
-    roster_json = json.dumps(roster.get("employees", {}), default=str)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     from atomic import write_atomic_text
@@ -653,5 +683,8 @@ def main(output_path: Path) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build payroll analysis dashboard.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--with-names", action="store_true",
+                        help="Embed real employee names and roster in the HTML "
+                             "(default builds are anonymized at the data layer).")
     args = parser.parse_args()
-    main(args.output)
+    main(args.output, with_names=args.with_names)
