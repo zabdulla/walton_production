@@ -1,0 +1,50 @@
+name: Pipeline heartbeat
+
+# The weekly update runs on a single Mac via launchd. If that machine is
+# asleep, off, or broken, the pipeline fails SILENTLY — no run means no
+# error. This workflow checks every Tuesday whether fresh data landed on
+# Monday and opens an issue if it didn't.
+on:
+  schedule:
+    - cron: '0 14 * * 2'  # Tuesdays 14:00 UTC (morning after the Monday run)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check age of last data update
+        id: age
+        run: |
+          last_commit_ts=$(git log -1 --format=%ct -- data/aggregated_daily_data.xlsx)
+          now=$(date +%s)
+          age_days=$(( (now - last_commit_ts) / 86400 ))
+          echo "age_days=$age_days" >> "$GITHUB_OUTPUT"
+          echo "Last data update was $age_days day(s) ago."
+
+      - name: Open issue if data is stale
+        if: ${{ steps.age.outputs.age_days > 8 }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Pipeline heartbeat: no data update in ${{ steps.age.outputs.age_days }} days"
+          existing=$(gh issue list --state open --search "Pipeline heartbeat in:title" --json number --jq 'length')
+          if [ "$existing" -eq 0 ]; then
+            gh issue create --title "$title" --body \
+              "data/aggregated_daily_data.xlsx was last updated ${{ steps.age.outputs.age_days }} days ago.
+          The weekly launchd job on the Mac may not have run. Check:
+          1. Is the Mac on and awake? (\`launchctl list | grep walton\`)
+          2. logs/weekly_update.log for errors
+          3. Run manually: \`python3 src/weekly_update.py --all\`"
+          else
+            echo "Heartbeat issue already open; not duplicating."
+          fi

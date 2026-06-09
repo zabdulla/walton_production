@@ -1,0 +1,38 @@
+name: CI
+
+# Test gate for every branch and PR. The deploy workflow
+# (build-dashboard.yml) only runs on main; this one makes sure broken
+# code is caught BEFORE it lands on main.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies (locked)
+        run: pip install -r requirements.lock
+
+      - name: Run test suite
+        run: python -m pytest tests/ -v --tb=short
+
+      - name: Build dashboards (compile check against committed data)
+        run: |
+          python src/build_interactive_dashboard.py
+          python src/build_daily_dashboard.py
+
+      - name: Smoke-test built HTML
+        run: python -m pytest tests/test_dashboards_smoke.py -v

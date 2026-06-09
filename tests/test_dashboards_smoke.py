@@ -122,3 +122,62 @@ def test_daily_dashboard_does_not_reference_nonexistent_data() -> None:
     html = _read_or_skip(DOCS / "daily.html")
     # Quick check: the daily dashboard injects a SUMMARY array
     assert "SUMMARY" in html or "Total_Output" in html or "summary_json" not in html
+
+
+# ---------------------------------------------------------------------------
+# Content assertions — wrong data should fail, not just broken HTML
+# ---------------------------------------------------------------------------
+
+def _expected_machines() -> list[str]:
+    import sys
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+    from config import MACHINE_WEEKLY_OUTPUT_TARGETS
+    return list(MACHINE_WEEKLY_OUTPUT_TARGETS)
+
+
+def test_published_dashboards_mention_tracked_machines() -> None:
+    """Every target-tracked machine must appear in both published dashboards.
+    A missing machine means the build dropped data silently."""
+    for path, label in PUBLISHED_DASHBOARDS:
+        html = _read_or_skip(path)
+        for machine in _expected_machines():
+            assert machine in html, f"{label} lost machine {machine!r}"
+
+
+def test_daily_dashboard_data_is_fresh_relative_to_source() -> None:
+    """The daily dashboard must contain the most recent date present in the
+    aggregated data file — a stale embed means the build read old data."""
+    import pandas as pd
+    data_path = PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
+    if not data_path.exists():
+        pytest.skip("aggregated data not present")
+    html = _read_or_skip(DOCS / "daily.html")
+    latest = str(pd.read_excel(data_path)["Date"].max())[:10]
+    assert latest in html, (
+        f"daily.html does not contain latest source date {latest} — stale build?"
+    )
+
+
+def test_daily_dashboard_escapes_user_text() -> None:
+    """Regression: free-text fields must go through escapeHtml before
+    innerHTML insertion (XSS / rendering bug otherwise)."""
+    html = _read_or_skip(DOCS / "daily.html")
+    assert "function escapeHtml" in html
+    assert "escapeHtml(n.note)" in html
+
+
+def test_payroll_dashboard_has_no_real_names_by_default() -> None:
+    """If the local payroll dashboard exists, its embedded data must use
+    pseudonyms (real names only with --with-names)."""
+    path = REPORTS / "payroll.html"
+    if not path.exists():
+        pytest.skip("payroll dashboard not built")
+    html = path.read_text(encoding="utf-8")
+    roster_path = PROJECT_ROOT / "data" / "employee_roster.json"
+    if not roster_path.exists():
+        pytest.skip("no roster to check against")
+    import json
+    roster = json.loads(roster_path.read_text())
+    names = list(roster.get("employees", {}))
+    leaked = [n for n in names if n in html]
+    assert not leaked, f"payroll.html embeds real employee names: {leaked[:3]}"

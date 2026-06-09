@@ -9,6 +9,7 @@ on:
       - 'tests/**'
       - 'data/*.xlsx'
       - 'requirements.txt'
+      - 'requirements.lock'
 
   # Allow manual trigger from Actions tab
   workflow_dispatch:
@@ -35,8 +36,8 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install dependencies (locked)
+        run: pip install -r requirements.lock
 
       - name: Run test suite
         run: python -m pytest tests/ -v --tb=short
@@ -62,5 +63,16 @@ jobs:
           git config --local user.name "github-actions[bot]"
           git add docs/index.html docs/daily.html
           git commit -m "Update dashboards [automated]"
-          git pull --rebase origin main || true
-          git push
+          # Retry push with rebase; FAIL on rebase conflict instead of
+          # silently pushing a half-merged state (`|| true` previously
+          # swallowed conflicts when the local launchd job pushed mid-run).
+          for i in 1 2 3; do
+            git pull --rebase origin main
+            if git push; then
+              exit 0
+            fi
+            echo "Push attempt $i failed; retrying in $((i * 5))s..."
+            sleep $((i * 5))
+          done
+          echo "::error::Could not push dashboard update after 3 attempts"
+          exit 1
