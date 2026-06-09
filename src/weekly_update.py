@@ -344,7 +344,6 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
     rc, _, _ = run_cmd(["git", "add",
                         "data/aggregated_daily_data.xlsx",
                         "data/aggregated_notes.xlsx",
-                        "data/employee_roster.json",
                         "docs/index.html",
                         "docs/daily.html"], capture=True)
 

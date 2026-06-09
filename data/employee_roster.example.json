@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "last_updated": "2026-01-01",
+    "notes": "EXAMPLE FILE with fake data. Copy to data/employee_roster.json (gitignored) and fill in real employees. Supports: role, shift_filter, pay_rate, production_aliases, primary_machine, secondary_machines. Valid roles: machine_operator, shipping_receiving, maintenance, hybrid_sr, supervisor.",
+    "unmatched_production_operators": [
+      "Example Alias"
+    ]
+  },
+  "employees": {
+    "Jane Example": {
+      "role": "machine_operator",
+      "production_aliases": ["Jane", "Jane E"],
+      "primary_machine": "EXTRUDER",
+      "secondary_machines": ["GRINDER"]
+    },
+    "John Example": {
+      "role": "maintenance",
+      "pay_rate": 20
+    },
+    "Sam Example": {
+      "role": "hybrid_sr",
+      "shift_filter": "1st",
+      "production_aliases": ["Sam"]
+    }
+  }
+}

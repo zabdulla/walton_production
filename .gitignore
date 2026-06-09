@@ -9,6 +9,9 @@ data/*.pdf
 data/payroll_pdfs/
 data/aggregated_payroll.xlsx
 
+# Employee roster: names, roles, pay rates (see data/employee_roster.example.json)
+data/employee_roster.json
+
 # Rolling snapshots of aggregated data (local-only backups)
 data/snapshots/
 
