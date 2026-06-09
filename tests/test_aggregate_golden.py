@@ -238,3 +238,31 @@ def test_aggregate_categorizes_downtime_note(tmp_path: Path) -> None:
 
     _, df_notes = extract_daily_data_from_file(tmp_path / fname)
     assert df_notes.iloc[0]["Category"] == "downtime"
+
+
+def test_zero_output_row_has_nan_cost_not_zero(tmp_path: Path) -> None:
+    """A shift with labor but no output must NOT report $0.00/lb cost.
+
+    Cost_per_Pound and Output_per_Hour are undefined (NaN) when the
+    denominator is zero; 0 would read as 'free production' and bias averages.
+    """
+    sheet = _build_synthetic_sheet(
+        date_value=pd.Timestamp("2026-01-05"),
+        machine_rows={
+            "EXTRUDER": [
+                {"machine_hours": 0, "man_hours": 8.0,
+                 "input_item": "PP regrind", "actual_input": 500.0,
+                 "output_product": "PP resin", "actual_output": 0,
+                 "operator": "Z", "comment": "machine down all shift"},
+            ],
+        },
+    )
+    fname = "1st shift processing weights 01-05-26 to 01-09-26.xlsx"
+    _write_synthetic_xlsx(tmp_path / fname, sheet)
+
+    df_daily, _ = extract_daily_data_from_file(tmp_path / fname)
+    assert len(df_daily) == 1
+    row = df_daily.iloc[0]
+    assert row["Labor_Cost"] == pytest.approx(8.0 * 25.0)
+    assert pd.isna(row["Cost_per_Pound"]), "zero output must yield NaN cost/lb, not 0"
+    assert pd.isna(row["Output_per_Hour"]), "zero machine hours must yield NaN output/hr, not 0"

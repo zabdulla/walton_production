@@ -641,8 +641,10 @@ def aggregate_weekly_by_shift(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
         .rename(columns={"Start Date": "Week Start"})
     )
-    grouped["Output_per_Hour"] = (grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, float("nan"))).fillna(0)
-    grouped["Cost_per_Pound"] = (grouped["Total_Expense"] / grouped["Actual_Output"].replace(0, float("nan"))).fillna(0)
+    # Leave NaN where the denominator is zero — Plotly omits the bar, which is
+    # truthful; a 0 bar would read as "free production" / "zero rate".
+    grouped["Output_per_Hour"] = grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, float("nan"))
+    grouped["Cost_per_Pound"] = grouped["Total_Expense"] / grouped["Actual_Output"].replace(0, float("nan"))
     grouped["Week Start"] = pd.to_datetime(grouped["Week Start"])
     grouped["Week Label"] = grouped["Week Start"].dt.strftime("%Y-%m-%d")
     return grouped
@@ -667,8 +669,8 @@ def build_shift_comparison_fig(df_shift: pd.DataFrame) -> go.Figure:
                     Total_Machine_Hours=("Total_Machine_Hours", "sum"),
                     Total_Expense=("Total_Expense", "sum"),
                 ).reset_index()
-                agg["Output_per_Hour"] = (agg["Actual_Output"] / agg["Total_Machine_Hours"].replace(0, float("nan"))).fillna(0)
-                agg["Cost_per_Pound"] = (agg["Total_Expense"] / agg["Actual_Output"].replace(0, float("nan"))).fillna(0)
+                agg["Output_per_Hour"] = agg["Actual_Output"] / agg["Total_Machine_Hours"].replace(0, float("nan"))
+                agg["Cost_per_Pound"] = agg["Total_Expense"] / agg["Actual_Output"].replace(0, float("nan"))
                 scope = agg
 
             for shift in shifts:

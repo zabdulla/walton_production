@@ -205,11 +205,13 @@ def extract_daily_data_from_file(
                 if machine_hours == 0 and man_hours == 0 and actual_output == 0 and actual_input == 0 and not operator:
                     continue
 
-                # Calculate derived metrics
-                output_per_hour = actual_output / machine_hours if machine_hours > 0 else 0
+                # Calculate derived metrics. Ratios are undefined (NaN) when the
+                # denominator is zero — a 0 here would read as "free production"
+                # and silently bias averages downstream.
+                output_per_hour = actual_output / machine_hours if machine_hours > 0 else float("nan")
                 labor_cost = man_hours * hourly_rate
                 total_expense = labor_cost * overhead_multiplier
-                cost_per_pound = total_expense / actual_output if actual_output > 0 else 0
+                cost_per_pound = total_expense / actual_output if actual_output > 0 else float("nan")
 
                 # Data quality flags
                 has_machine_hours = machine_hours > 0
@@ -266,6 +268,22 @@ def extract_daily_data_from_file(
     return pd.DataFrame(daily_records), pd.DataFrame(notes_records)
 
 
+# Columns that identify a genuinely duplicated row (same report ingested
+# twice). Operator and hours are included so that two operators who happen to
+# post identical output on the same machine/shift/day are NOT collapsed.
+DEDUP_SUBSET = [
+    "Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output",
+    "Operator", "Machine_Hours", "Man_Hours",
+]
+
+
+def dedup_daily(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """Drop duplicate daily rows; return (deduped_df, n_dropped)."""
+    before = len(df)
+    df = df.drop_duplicates(subset=DEDUP_SUBSET, keep="first")
+    return df, before - len(df)
+
+
 def aggregate_daily_folder(
     folder_path: str | Path,
     hourly_rate: float = LABOR_RATE,
@@ -310,13 +328,7 @@ def aggregate_daily_folder(
         aggregated_daily["Output_Product"] = aggregated_daily["Output_Product"].replace(PRODUCT_TYPO_MAP)
 
         # Drop exact duplicate rows
-        before_dedup = len(aggregated_daily)
-        aggregated_daily.drop_duplicates(
-            subset=["Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output"],
-            keep="first",
-            inplace=True,
-        )
-        n_dropped = before_dedup - len(aggregated_daily)
+        aggregated_daily, n_dropped = dedup_daily(aggregated_daily)
         if n_dropped:
             logger.warning("Dropped %d duplicate rows during aggregation", n_dropped)
 

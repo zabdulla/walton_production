@@ -152,3 +152,43 @@ def test_extract_date_from_sheet_missing_returns_none() -> None:
 def test_extract_date_from_sheet_garbage_returns_none() -> None:
     df = _sheet_with_date_at_0_9("not a date")
     assert _extract_date_from_sheet(df) is None
+
+
+# ---------------------------------------------------------------------------
+# dedup_daily — duplicate-row removal must not collapse distinct operators
+# ---------------------------------------------------------------------------
+
+def _dup_row(**overrides) -> dict:
+    base = {
+        "Date": "2026-01-05", "Shift": "1st", "Machine_Name": "EXTRUDER",
+        "Output_Product": "PP resin", "Actual_Output": 2000.0,
+        "Operator": "Alice", "Machine_Hours": 8.0, "Man_Hours": 8.0,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_dedup_drops_exact_duplicates() -> None:
+    from aggregate_daily_data import dedup_daily
+    df = pd.DataFrame([_dup_row(), _dup_row()])
+    out, dropped = dedup_daily(df)
+    assert len(out) == 1
+    assert dropped == 1
+
+
+def test_dedup_preserves_distinct_operators() -> None:
+    """Two operators hitting the same output number on the same machine/shift
+    are real rows, not duplicates (regression for over-broad dedup key)."""
+    from aggregate_daily_data import dedup_daily
+    df = pd.DataFrame([_dup_row(Operator="Alice"), _dup_row(Operator="Bob")])
+    out, dropped = dedup_daily(df)
+    assert len(out) == 2
+    assert dropped == 0
+
+
+def test_dedup_preserves_distinct_hours() -> None:
+    from aggregate_daily_data import dedup_daily
+    df = pd.DataFrame([_dup_row(Machine_Hours=8.0), _dup_row(Machine_Hours=4.0)])
+    out, dropped = dedup_daily(df)
+    assert len(out) == 2
+    assert dropped == 0
