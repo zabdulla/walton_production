@@ -100,3 +100,36 @@ def test_shift_from_filename_non_shift_file_returns_none() -> None:
 def test_shift_from_filename_requires_shift_keyword() -> None:
     # "1st" alone isn't enough — must be in a shift-file context
     assert shift_from_filename("1st place trophy.xlsx") is None
+
+
+# ---------------------------------------------------------------------------
+# main() exit code — fetch failures must not look like success (regression)
+# ---------------------------------------------------------------------------
+
+def test_main_returns_nonzero_when_fetch_raises(monkeypatch) -> None:
+    import sys
+    import httplib2
+    from googleapiclient.errors import HttpError
+    import fetch_emails
+
+    def boom(*args, **kwargs):
+        raise HttpError(httplib2.Response({"status": "500"}), b"server error")
+
+    monkeypatch.setattr(fetch_emails, "get_service", lambda: object())
+    monkeypatch.setattr(fetch_emails, "fetch_processing_weights", boom)
+    monkeypatch.setattr(fetch_emails, "fetch_payroll_pdfs", boom)
+    monkeypatch.setattr(sys, "argv", ["fetch_emails.py", "--all"])
+
+    assert fetch_emails.main() != 0
+
+
+def test_main_returns_zero_on_success(monkeypatch) -> None:
+    import sys
+    import fetch_emails
+
+    monkeypatch.setattr(fetch_emails, "get_service", lambda: object())
+    monkeypatch.setattr(fetch_emails, "fetch_processing_weights", lambda *a, **k: [])
+    monkeypatch.setattr(fetch_emails, "fetch_payroll_pdfs", lambda *a, **k: [])
+    monkeypatch.setattr(sys, "argv", ["fetch_emails.py", "--all"])
+
+    assert fetch_emails.main() == 0

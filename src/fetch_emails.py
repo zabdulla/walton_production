@@ -404,6 +404,10 @@ def main() -> int:
         if not (args.processing_weights or args.payroll or args.all):
             return 0
 
+    # A failed fetch must surface as a non-zero exit so the orchestrator
+    # (weekly_update.py) doesn't aggregate/publish on incomplete data.
+    exit_code = 0
+
     if args.processing_weights or args.all:
         days = args.days_back if args.days_back is not None else 14
         print(f"\n=== Processing weights (last {days} days) ===")
@@ -412,6 +416,7 @@ def main() -> int:
             print(f"  {len(saved)} new file(s) downloaded" if not args.list else "  (dry-run)")
         except HttpError as e:
             print(f"ERROR fetching processing weights: {e}", file=sys.stderr)
+            exit_code = 1
 
     if args.payroll or args.all:
         days = args.days_back if args.days_back is not None else 90
@@ -421,8 +426,9 @@ def main() -> int:
             print(f"  {len(saved)} new file(s) downloaded" if not args.list else "  (dry-run)")
         except HttpError as e:
             print(f"ERROR fetching payroll: {e}", file=sys.stderr)
+            exit_code = 1
 
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

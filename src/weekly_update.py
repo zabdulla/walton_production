@@ -223,13 +223,29 @@ def step_aggregate() -> dict[str, Any]:
 
 
 def step_parse_payroll() -> dict[str, Any]:
-    """Run parse_payroll_pdf.py --pdf-dir to (re)aggregate payroll data."""
+    """Run parse_payroll_pdf.py --pdf-dir to (re)aggregate payroll data.
+
+    Snapshots the previous aggregated payroll file first so a validation
+    block can restore daily data AND payroll together (they must not desync).
+    """
+    import shutil
+    from datetime import datetime as _dt
+    payroll_path = PROJECT_ROOT / "data" / "aggregated_payroll.xlsx"
+    snap_dir = PROJECT_ROOT / "data" / "snapshots"
+    pre_snapshot: Path | None = None
+    if payroll_path.exists():
+        snap_dir.mkdir(parents=True, exist_ok=True)
+        ts = _dt.now().strftime("%Y-%m-%dT%H-%M-%S")
+        pre_snapshot = snap_dir / f"{payroll_path.stem}_prerun_{ts}{payroll_path.suffix}"
+        shutil.copy2(payroll_path, pre_snapshot)
+
     rc, out, err = run_cmd(
         ["python3", str(SRC_DIR / "parse_payroll_pdf.py"),
          "--pdf-dir", str(PROJECT_ROOT / "data" / "payroll_pdfs")],
         timeout=300,
     )
-    result = {"ok": rc == 0, "processed": 0, "skipped": 0, "failed": 0}
+    result: dict[str, Any] = {"ok": rc == 0, "processed": 0, "skipped": 0,
+                              "failed": 0, "pre_snapshot": pre_snapshot}
     if rc != 0:
         log_err(f"Payroll parse exited with {rc}")
     combined = out + err
@@ -485,6 +501,17 @@ def main() -> int:
         print(f"\n{dim('Dry-run complete.')}\n")
         return 0
 
+    # A failed fetch means files may be missing; aggregating anyway would
+    # publish a silently incomplete week. Abort and alert instead.
+    if not summary["fetch"]["ok"]:
+        log_err("Email fetch failed — aborting before aggregation.")
+        send_notification(
+            "Walton Weekly Update ⚠",
+            "Email fetch failed; pipeline aborted before aggregation. See logs.",
+            success=False,
+        )
+        return 1
+
     # Step 2: Aggregate
     log_step(2, 6, "Aggregating daily production data")
     summary["aggregate"] = step_aggregate()
@@ -505,16 +532,24 @@ def main() -> int:
     # building dashboards or pushing.
     if summary["validate"].get("blocked"):
         log_err("Validation BLOCKED publication. Skipping dashboard build + git push.")
-        pre_snap = summary["aggregate"].get("pre_snapshot")
-        if pre_snap and Path(pre_snap).exists():
-            import shutil
-            agg_path = PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
-            tmp = agg_path.with_suffix(agg_path.suffix + ".tmp")
-            shutil.copy2(pre_snap, tmp)
-            tmp.replace(agg_path)
-            log_warn(f"Restored aggregated data from snapshot: {Path(pre_snap).name}")
-        else:
-            log_warn("No pre-run snapshot available; aggregated file left as-is.")
+        import shutil
+
+        def _restore(pre_snap, target: Path, label: str) -> None:
+            if pre_snap and Path(pre_snap).exists():
+                tmp = target.with_suffix(target.suffix + ".tmp")
+                shutil.copy2(pre_snap, tmp)
+                tmp.replace(target)
+                log_warn(f"Restored {label} from snapshot: {Path(pre_snap).name}")
+            else:
+                log_warn(f"No pre-run snapshot available; {label} left as-is.")
+
+        # Restore daily data and payroll together so they never desync.
+        _restore(summary["aggregate"].get("pre_snapshot"),
+                 PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx",
+                 "aggregated daily data")
+        _restore(summary["payroll"].get("pre_snapshot"),
+                 PROJECT_ROOT / "data" / "aggregated_payroll.xlsx",
+                 "aggregated payroll")
         reasons_short = "; ".join(summary["validate"].get("reasons", []))[:120]
         send_notification(
             "Walton Weekly Update ⚠",

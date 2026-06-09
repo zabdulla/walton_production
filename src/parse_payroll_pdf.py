@@ -126,14 +126,18 @@ def parse_payroll_pdf(pdf_path: Path, required_department: str | None = "Walton"
         raise ImportError("pymupdf is required: pip install pymupdf")
 
     doc = pymupdf.open(str(pdf_path))
-    page = doc[0]
-    tables = page.find_tables()
+    try:
+        if doc.page_count == 0:
+            raise ValueError(f"PDF has no pages: {pdf_path}")
+        page = doc[0]
+        tables = page.find_tables()
 
-    if not tables.tables:
-        raise ValueError(f"No tables found in {pdf_path}")
+        if not tables.tables:
+            raise ValueError(f"No tables found in {pdf_path}")
 
-    raw = tables.tables[0].extract()
-    doc.close()
+        raw = tables.tables[0].extract()
+    finally:
+        doc.close()
 
     # --- Extract department and optionally filter ---
     department = _extract_department(raw) or ""
