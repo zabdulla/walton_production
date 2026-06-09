@@ -72,6 +72,22 @@
     <p class="subtitle">Use controls below to adjust view. 88 weeks of data available.</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
   </header>
+  <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
+  <script>
+    // Warn when the newest data week is old — the weekly update may have
+    // silently stopped running. Date injected at build time.
+    (function checkStale() {
+      const latest = "2026-06-01";
+      if (!latest) return;
+      const ageDays = Math.floor((Date.now() - new Date(latest + 'T00:00:00').getTime()) / 86400000);
+      if (ageDays > 13) {  // weekly data: latest week start can be ~7 days old normally
+        const b = document.getElementById('staleBanner');
+        b.textContent = '⚠ Data may be stale: latest week starts ' + latest +
+          ' (' + ageDays + ' days ago). The weekly update may not have run.';
+        b.style.display = '';
+      }
+    })();
+  </script>
   <main>
     <div class="controls">
       <div>
@@ -206,7 +222,7 @@
         <h2 style="margin-top:0">Monthly Summary</h2>
         
     <div class="table-wrap">
-      <table id="monthly-29f18821">
+      <table id="monthly-3c8aca53">
         <thead><tr>
             <th>Month</th><th>Output (Lbs)</th><th>Expense</th><th>Cost / Lb</th><th>Machine Hrs</th>
         </tr></thead>
@@ -345,7 +361,7 @@
         </tr></tbody>
       </table>
     </div>
-    <button class="toggle-btn monthly-toggle" data-table="monthly-29f18821" style="margin-top:10px;">Show all months (16 older)</button>
+    <button class="toggle-btn monthly-toggle" data-table="monthly-3c8aca53" style="margin-top:10px;">Show all months (16 older)</button>
     
       </section>
     </div>
@@ -432,7 +448,7 @@
         <h2 style="margin-top:0">Monthly Summary <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
         
     <div class="table-wrap">
-      <table id="monthly-28102f4f">
+      <table id="monthly-e68c3849">
         <thead><tr>
             <th>Month</th><th>Output (Lbs)</th><th>Expense</th><th>Cost / Lb</th><th>Machine Hrs</th>
         </tr></thead>
@@ -571,7 +587,7 @@
         </tr></tbody>
       </table>
     </div>
-    <button class="toggle-btn monthly-toggle" data-table="monthly-28102f4f" style="margin-top:10px;">Show all months (16 older)</button>
+    <button class="toggle-btn monthly-toggle" data-table="monthly-e68c3849" style="margin-top:10px;">Show all months (16 older)</button>
     
       </section>
     </div>

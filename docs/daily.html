@@ -424,6 +424,8 @@
         <a href="index.html" class="nav-link">← Weekly Summary</a>
     </header>
 
+    <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
+
     <div class="period-controls">
         <div class="period-type-btns">
             <button class="period-type-btn active" data-type="week">Week</button>
@@ -942,6 +944,21 @@
                 document.getElementById('hoursChart').style.display = show === 'hours' ? '' : 'none';
             });
         });
+
+        // Warn when the newest data is old so nobody unknowingly reads a
+        // stale dashboard (e.g. the weekly update silently stopped running).
+        (function checkStale() {
+            const dates = dailySummary.map(d => d.Date_Str).sort();
+            if (!dates.length) return;
+            const latestStr = dates[dates.length - 1];
+            const ageDays = Math.floor((Date.now() - new Date(latestStr + 'T00:00:00').getTime()) / 86400000);
+            if (ageDays > 9) {
+                const b = document.getElementById('staleBanner');
+                b.textContent = '⚠ Data may be stale: latest entry is ' + latestStr +
+                    ' (' + ageDays + ' days ago). The weekly update may not have run.';
+                b.style.display = '';
+            }
+        })();
 
         // Initialize on load
         init();

@@ -2,6 +2,17 @@
 
 **Date:** 2026-06-09 · **Scope:** full repo (src/, tests/, scripts/, .github/, data/, docs/) · **Test baseline:** 141 passed, 3 skipped
 
+> **Execution status (2026-06-09, this branch):** Phases 0–3 and the top Phase 4
+> quick wins are IMPLEMENTED here (test suite now: 165 passed, 4 skipped).
+> Fixed: D1–D12 except the shared-template refactor; roster untracked from git;
+> ci.yml (PR/branch test gate), heartbeat.yml, requirements.lock, hardened push
+> logic, content-asserting smoke tests, stale-data banners.
+> **Still manual (repo admin):** make the repo private + Pages strategy (§6.3),
+> purge roster from git history (§0 step 3), enable branch protection on main
+> requiring the "CI / test" check. Remaining code work: dashboard_common.py
+> template refactor, Slack/email notifications, Actions-cron migration, and the
+> rest of the Phase 4 feature list.
+
 > ⚠️ **Read section 0 first.** This repository is currently **public on GitHub**, and this
 > review discusses its weaknesses. Consider making the repo private before merging this
 > document (or anything else) to `main`.

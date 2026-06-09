@@ -719,6 +719,7 @@ def render_dashboard(
     monthly_std: str, monthly_sup: str,
     shift_fig_std: go.Figure = None, shift_fig_sup: go.Figure = None,
     total_weeks: int = 20,
+    latest_data_date: str = "",
 ) -> str:
     def _render_figs(fig_sections):
         rendered = [
@@ -824,6 +825,22 @@ def render_dashboard(
     <p class="subtitle">Use controls below to adjust view. {total_weeks} weeks of data available.</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
   </header>
+  <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
+  <script>
+    // Warn when the newest data week is old — the weekly update may have
+    // silently stopped running. Date injected at build time.
+    (function checkStale() {{
+      const latest = "{latest_data_date}";
+      if (!latest) return;
+      const ageDays = Math.floor((Date.now() - new Date(latest + 'T00:00:00').getTime()) / 86400000);
+      if (ageDays > 13) {{  // weekly data: latest week start can be ~7 days old normally
+        const b = document.getElementById('staleBanner');
+        b.textContent = '⚠ Data may be stale: latest week starts ' + latest +
+          ' (' + ageDays + ' days ago). The weekly update may not have run.';
+        b.style.display = '';
+      }}
+    }})();
+  </script>
   <main>
     <div class="controls">
       <div>
@@ -1192,6 +1209,7 @@ def main(input_path: Path, output_path: Path) -> None:
             monthly_std, monthly_sup,
             shift_fig_std=shift_fig_std, shift_fig_sup=shift_fig_sup,
             total_weeks=total_weeks,
+            latest_data_date=weekly_std["Week Start"].max().strftime("%Y-%m-%d"),
         ),
     )
     print(f"Wrote interactive dashboard to {output_path}")

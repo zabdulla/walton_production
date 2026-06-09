@@ -25,7 +25,7 @@ from config import (
     PROJECT_ROOT, DEFAULT_AGGREGATED_DATA,
     CHART_PALETTE, DEFAULT_WEEKS, RUNNING_AVG_WINDOW,
 )
-from build_interactive_dashboard import load_data, clean_product_names, _fmt_num
+from build_interactive_dashboard import load_data, clean_product_names
 
 DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
 DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "operator.html"
