@@ -137,3 +137,61 @@ The orchestrator already retries once with `git pull --rebase`. If both attempts
 
 **Want to run more than once a week**
 Either edit `StartCalendarInterval` to an array of dicts, or use `StartInterval` (seconds, e.g. `<integer>3600</integer>` for hourly).
+
+---
+
+## Notifications (webhook)
+
+In addition to the macOS desktop notification, the orchestrator can POST to a
+Slack-compatible webhook so the whole team hears about validation blocks and
+pipeline failures even when nobody is at the Mac:
+
+```bash
+# Slack: create an Incoming Webhook and export its URL before the run.
+# For launchd, add it to the plist's EnvironmentVariables dict.
+export WALTON_WEBHOOK_URL="https://hooks.slack.com/services/T000/B000/XXXX"
+```
+
+`SLACK_WEBHOOK_URL` is accepted as an alias. Discord works via the `/slack`
+suffix on its webhook URLs. If the variable is unset, the webhook step is
+skipped silently; webhook failures are logged but never break the pipeline.
+
+---
+
+## Monitoring
+
+Two safety nets watch the pipeline itself:
+
+1. **Heartbeat workflow** (`.github/workflows/heartbeat.yml`) — every Tuesday,
+   GitHub Actions checks when `data/aggregated_daily_data.xlsx` last changed.
+   If it's more than 8 days old, it opens a GitHub issue. This catches the
+   "Mac was off on Monday" failure, which is otherwise invisible.
+2. **Stale-data banners** — both published dashboards display a red banner
+   when their embedded data is older than expected (daily >9 days, weekly
+   >13 days), so viewers can't unknowingly read stale numbers.
+
+---
+
+## Cloud migration path (moving off the Mac)
+
+The single-Mac dependency is the pipeline's biggest operational risk. Moving
+the schedule to GitHub Actions cron is possible but has real prerequisites —
+don't flip the switch without solving these:
+
+1. **Raw reports archive.** `processing_reports/` is gitignored and only
+   exists on the Mac. Aggregation rebuilds from ALL raw files, so a cloud
+   runner that only fetched the last 14 days would produce a tiny dataset
+   (the growth-sanity check in `atomic.py` would refuse to write it, which
+   is correct). Options: store raw reports in a private storage bucket or a
+   second private repo the workflow checks out, or make aggregation
+   incremental (merge new weeks into the committed aggregate).
+2. **Secrets.** `gmail_credentials.json`, `gmail_token.json`, and
+   `employee_roster.json` would become GitHub Actions secrets, written to
+   the runner at job start. The OAuth token refreshes itself; persist the
+   refreshed token back to the secret or it will eventually expire.
+3. **Repo must be private first** (it currently is not — see
+   CODEBASE_REVIEW.md §0) since secrets-adjacent automation and wage-related
+   data should never live in a public repo.
+
+Until then, the launchd job remains primary and the heartbeat workflow is the
+detector for missed runs.
