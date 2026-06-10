@@ -360,6 +360,84 @@ def build_latest_week_table_html(weekly: pd.DataFrame, cost_threshold: float = C
 
 
 # ---------------------------------------------------------------------------
+# Target performance RAG (red/amber/green) cards
+# ---------------------------------------------------------------------------
+
+RAG_LOOKBACK_WEEKS = 8
+# Misses out of the lookback window → status. <=1 green, <=3 amber, else red.
+RAG_THRESHOLDS = [(1, "#22c55e", "On target"), (3, "#f59e0b", "Needs attention")]
+RAG_RED = ("#ef4444", "Below target")
+
+
+def target_miss_counts(weekly: pd.DataFrame, lookback: int = RAG_LOOKBACK_WEEKS) -> dict[str, dict]:
+    """Per tracked machine: how many of the last `lookback` weeks missed target.
+
+    A week with no rows for the machine counts as a miss — the target is
+    weekly, so an idle week is a missed week, not missing data.
+    """
+    week_starts = sorted(weekly["Week Start"].unique())[-lookback:]
+    results: dict[str, dict] = {}
+    seen_machines = set(weekly["Machine Name"].unique())
+    for machine, target in sorted(MACHINE_WEEKLY_OUTPUT_TARGETS.items()):
+        if machine not in seen_machines:
+            continue
+        scope = weekly[(weekly["Machine Name"] == machine) & weekly["Week Start"].isin(week_starts)]
+        by_week = scope.groupby("Week Start")["Actual_Output"].sum()
+        weeks = [
+            {"week": pd.Timestamp(w), "output": float(by_week.get(w, 0.0)), "target": target,
+             "hit": bool(by_week.get(w, 0.0) >= target)}
+            for w in week_starts
+        ]
+        results[machine] = {
+            "target": target,
+            "weeks": weeks,
+            "misses": sum(1 for w in weeks if not w["hit"]),
+            "n_weeks": len(weeks),
+        }
+    return results
+
+
+def _rag_status(misses: int) -> tuple[str, str]:
+    for limit, color, label in RAG_THRESHOLDS:
+        if misses <= limit:
+            return color, label
+    return RAG_RED
+
+
+def build_target_rag_html(weekly: pd.DataFrame, lookback: int = RAG_LOOKBACK_WEEKS) -> str:
+    """KPI cards flagging machines below weekly output target, red/amber/green."""
+    counts = target_miss_counts(weekly, lookback)
+    if not counts:
+        return "<p class='muted'>No tracked machines in the data.</p>"
+
+    cards = []
+    for machine, info in counts.items():
+        color, status = _rag_status(info["misses"])
+        dots = "".join(
+            f'<span class="rag-dot" title="{w["week"].strftime("%b %d")}: '
+            f'{w["output"]:,.0f} / {w["target"]:,.0f} lbs" '
+            f'style="background:{"#22c55e" if w["hit"] else "#ef4444"};"></span>'
+            for w in info["weeks"]
+        )
+        cards.append(f"""
+        <div class="kpi-card rag-card" style="border-left:5px solid {color};">
+            <div class="kpi-label">{machine}</div>
+            <div class="kpi-value" style="color:{color};">{info['misses']} / {info['n_weeks']}
+                <span style="font-size:12px;font-weight:400;color:var(--muted);">weeks below target</span>
+            </div>
+            <div class="rag-dots">{dots}</div>
+            <div style="font-size:12px;font-weight:600;color:{color};margin-top:4px;">{status}</div>
+        </div>""")
+
+    return f"""
+    <p style="color:var(--muted);font-size:13px;margin:0 0 8px;">
+        Weeks below weekly output target, last {lookback} weeks (oldest dot first; hover a dot for the numbers).
+    </p>
+    <div class="kpi-grid">{''.join(cards)}</div>
+    """
+
+
+# ---------------------------------------------------------------------------
 # Plotly charts — all accept a recent-only dataframe
 # ---------------------------------------------------------------------------
 
@@ -713,6 +791,7 @@ def build_shift_comparison_fig(df_shift: pd.DataFrame) -> go.Figure:
 
 def render_dashboard(
     trends_std: str, trends_sup: str,
+    rag_std: str, rag_sup: str,
     fig_sections_std: list, fig_sections_sup: list,
     machine_options_html: str,
     metric_options_html: str,
@@ -800,6 +879,12 @@ def render_dashboard(
     .nav-link {{ display:inline-block; padding:8px 16px; background:#3b82f6; color:#fff;
                  text-decoration:none; border-radius:6px; font-size:14px; margin-bottom:16px; }}
     .nav-link:hover {{ background:#2563eb; }}
+    .rag-dots {{ margin-top:8px; line-height:1; }}
+    .rag-dot {{ display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:4px; }}
+    .date-input {{ padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:#fff;
+                   font-size:12px; min-width:unset; width:auto; }}
+    #clearCustomBtn {{ display:none; }}
+    #clearCustomBtn.visible {{ display:inline-block; }}
     @media (max-width:768px) {{
       body {{ padding:12px; }}
       .kpi-grid {{ grid-template-columns:repeat(2,1fr); }}
@@ -857,6 +942,13 @@ def render_dashboard(
           <button class="range-btn" data-weeks="{total_weeks}">All</button>
         </div>
       </div>
+      <div class="range-control">
+        <label for="rangeFrom">Custom:</label>
+        <input type="date" id="rangeFrom" class="date-input" title="Start date"/>
+        <span class="muted">to</span>
+        <input type="date" id="rangeTo" class="date-input" title="End date"/>
+        <button class="toggle-btn" id="clearCustomBtn" title="Clear custom date range">&#10005;</button>
+      </div>
       <div class="export-buttons">
         <button class="export-btn" onclick="exportChart(includeSupport ? 'fig-metrics-sup' : 'fig-metrics')">Export PNG</button>
         <button class="export-btn" onclick="window.print()">Print</button>
@@ -867,6 +959,10 @@ def render_dashboard(
       <section class="card">
         <h2 style="margin-top:0">Recent Trends</h2>
         {trends_std}
+      </section>
+      <section class="card">
+        <h2 style="margin-top:0">Target Performance</h2>
+        {rag_std}
       </section>
       {sections_std}
       {shift_section_std}
@@ -884,6 +980,10 @@ def render_dashboard(
       <section class="card">
         <h2 style="margin-top:0">Recent Trends <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
         {trends_sup}
+      </section>
+      <section class="card">
+        <h2 style="margin-top:0">Target Performance <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
+        {rag_sup}
       </section>
       {sections_sup}
       {shift_section_sup}
@@ -911,6 +1011,10 @@ def render_dashboard(
     let supportInitialized = false;
     let rangeWeeks = {DEFAULT_WEEKS};
     let shiftMetric = 'Output/Hr';
+    let customRange = null;  // [fromISO, toISO] — overrides preset weeks when set
+    const rangeFrom = document.getElementById('rangeFrom');
+    const rangeTo = document.getElementById('rangeTo');
+    const clearCustomBtn = document.getElementById('clearCustomBtn');
 
     function getMetricsFig() {{
       return document.getElementById(includeSupport ? 'fig-metrics-sup' : 'fig-metrics');
@@ -922,8 +1026,9 @@ def render_dashboard(
       return document.getElementById(includeSupport ? 'fig-shift-sup' : 'fig-shift');
     }}
 
-    // Compute x-axis date range from weeks setting
+    // Compute x-axis date range: custom from/to dates win over preset weeks
     function getXRange(fig) {{
+      if (customRange) return customRange;
       if (!fig || !fig.data) return null;
       // Collect all x dates across visible and hidden traces
       let allDates = [];
@@ -942,14 +1047,39 @@ def render_dashboard(
       return [padMin.toISOString().slice(0, 10), padMax.toISOString().slice(0, 10)];
     }}
 
-    // Range buttons
+    // Range buttons — a preset click clears any custom range
     rangeBtns.forEach(btn => {{
       btn.addEventListener('click', () => {{
+        clearCustom(false);
         rangeBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         rangeWeeks = parseInt(btn.dataset.weeks, 10);
         applyRange();
       }});
+    }});
+
+    // Custom date-range picker — both dates set (and ordered) activates it
+    function onCustomChange() {{
+      if (rangeFrom.value && rangeTo.value && rangeFrom.value <= rangeTo.value) {{
+        customRange = [rangeFrom.value, rangeTo.value];
+        rangeBtns.forEach(b => b.classList.remove('active'));
+        clearCustomBtn.classList.add('visible');
+        applyRange();
+      }}
+    }}
+    function clearCustom(reapply) {{
+      customRange = null;
+      rangeFrom.value = '';
+      rangeTo.value = '';
+      clearCustomBtn.classList.remove('visible');
+      if (reapply) applyRange();
+    }}
+    rangeFrom.addEventListener('change', onCustomChange);
+    rangeTo.addEventListener('change', onCustomChange);
+    clearCustomBtn.addEventListener('click', () => {{
+      clearCustom(true);
+      // Fall back to the default preset
+      rangeBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.weeks, 10) === rangeWeeks));
     }});
 
     function applyRange() {{
@@ -1127,15 +1257,18 @@ def render_dashboard(
 
 
 def _build_pipeline(df: pd.DataFrame):
-    """Run full aggregation + chart pipeline on a dataframe. Returns (weekly_all, df, trends, snapshot, monthly)."""
+    """Run full aggregation + chart pipeline on a dataframe.
+
+    Returns (weekly_all, df, trends, rag, snapshot, monthly)."""
     weekly_all = aggregate_weekly(df)
     weekly_all = add_running_averages(weekly_all, metrics=list(ALL_METRICS.keys()), window=RUNNING_AVG_WINDOW)
 
     trends_html = build_recent_trends_html(weekly_all)
+    rag_html = build_target_rag_html(weekly_all)
     snapshot_html = build_latest_week_table_html(weekly_all)
     monthly_html = build_monthly_summary_html(weekly_all)
 
-    return weekly_all, df, trends_html, snapshot_html, monthly_html
+    return weekly_all, df, trends_html, rag_html, snapshot_html, monthly_html
 
 
 def main(input_path: Path, output_path: Path) -> None:
@@ -1163,13 +1296,13 @@ def main(input_path: Path, output_path: Path) -> None:
 
     # Standard pipeline (profit-producing output only)
     df_std = df[(df["Total Man Hours"] > 0) & (df["Total Machine Hours"] > 0)]
-    weekly_std, df_std_full, trends_std, snapshot_std, monthly_std = _build_pipeline(df_std)
+    weekly_std, df_std_full, trends_std, rag_std, snapshot_std, monthly_std = _build_pipeline(df_std)
 
     # With Guillotine support work included
     df_sup = _apply_guillotine_support(df)
     df_sup = df_sup[(df_sup["Total Man Hours"] > 0) | (df_sup["Actual Output (Lbs)"] > 0)]
     df_sup = df_sup[(df_sup["Total Man Hours"] > 0) & (df_sup["Total Machine Hours"] > 0)]
-    weekly_sup, df_sup_full, trends_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
+    weekly_sup, df_sup_full, trends_sup, rag_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
 
     # Shift comparison charts
     shift_std = aggregate_weekly_by_shift(df_std)
@@ -1198,6 +1331,7 @@ def main(input_path: Path, output_path: Path) -> None:
         output_path,
         render_dashboard(
             trends_std, trends_sup,
+            rag_std, rag_sup,
             fig_sections_std, fig_sections_sup,
             machine_options_html, metric_options_html,
             snapshot_std, snapshot_sup,
