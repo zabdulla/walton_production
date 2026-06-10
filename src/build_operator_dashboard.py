@@ -26,7 +26,9 @@ from config import (
     CHART_PALETTE, DEFAULT_WEEKS, RUNNING_AVG_WINDOW,
 )
 from build_interactive_dashboard import load_data, clean_product_names
-from dashboard_common import BASE_CSS, CARD_CSS
+from dashboard_common import (
+    BASE_CSS, CARD_CSS, PLOTLY_CONFIG, MOBILE_MODEBAR_CSS, MOBILE_PLOTLY_JS,
+)
 
 DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
 DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "operator.html"
@@ -186,11 +188,14 @@ def render_operator_dashboard(
     total_weeks: int,
 ) -> str:
     oph_html = to_html(oph_fig, include_plotlyjs=False, full_html=False,
-                       default_width="100%", default_height="600px", div_id="fig-oph")
+                       default_width="100%", default_height="600px", div_id="fig-oph",
+                       config=PLOTLY_CONFIG)
     heatmap_html = to_html(heatmap_fig, include_plotlyjs=False, full_html=False,
-                           default_width="100%", default_height="600px", div_id="fig-op-heatmap")
+                           default_width="100%", default_height="600px", div_id="fig-op-heatmap",
+                           config=PLOTLY_CONFIG)
     trends_html = to_html(trends_fig, include_plotlyjs=False, full_html=False,
-                          default_width="100%", default_height="600px", div_id="fig-op-trends")
+                          default_width="100%", default_height="600px", div_id="fig-op-trends",
+                          config=PLOTLY_CONFIG)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -217,6 +222,7 @@ def render_operator_dashboard(
     .range-btn:hover:not(.active) {{ background:#f3f4f6; }}
     .internal-badge {{ display:inline-block; padding:4px 10px; background:#fef3c7; color:#92400e;
                        border-radius:6px; font-size:12px; font-weight:600; margin-left:12px; }}
+{MOBILE_MODEBAR_CSS}
   </style>
 </head>
 <body>
@@ -296,7 +302,9 @@ def render_operator_dashboard(
       applyRange();
     }});
 
-    setTimeout(applyRange, 500);
+{MOBILE_PLOTLY_JS}
+
+    setTimeout(() => {{ applyRange(); optimizePlotlyForMobile(); }}, 500);
   </script>
 </body>
 </html>"""

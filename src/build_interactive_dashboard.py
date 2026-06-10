@@ -31,7 +31,9 @@ from config import (
     DEFAULT_WEEKS, RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
     LABOR_RATE,
 )
-from dashboard_common import BASE_CSS, CARD_CSS
+from dashboard_common import (
+    BASE_CSS, CARD_CSS, PLOTLY_CONFIG, MOBILE_MODEBAR_CSS, MOBILE_PLOTLY_JS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -804,7 +806,8 @@ def render_dashboard(
     def _render_figs(fig_sections):
         rendered = [
             (title, to_html(fig, include_plotlyjs=False, full_html=False,
-                            default_width="100%", default_height="600px", div_id=fig_id))
+                            default_width="100%", default_height="600px", div_id=fig_id,
+                            config=PLOTLY_CONFIG))
             for title, fig_id, fig in fig_sections
         ]
         return "\n".join(
@@ -818,7 +821,8 @@ def render_dashboard(
         if fig is None or not fig.data:
             return ""
         html = to_html(fig, include_plotlyjs=False, full_html=False,
-                        default_width="100%", default_height="500px", div_id=div_id)
+                        default_width="100%", default_height="500px", div_id=div_id,
+                        config=PLOTLY_CONFIG)
         metric_btns = ''.join(
             f'<button class="range-btn shift-metric-btn{" active" if m == "Output/Hr" else ""}" data-metric="{m}">{m}</button>'
             for m in SHIFT_METRICS
@@ -895,6 +899,7 @@ def render_dashboard(
       .card {{ padding:12px; border-radius:12px; overflow-x:auto; }}
     }}
     @media (max-width:480px) {{ .kpi-grid {{ grid-template-columns:1fr; }} table {{ font-size:12px; }} }}
+{MOBILE_MODEBAR_CSS}
     @media print {{ .controls,.export-buttons,.toggle-btn {{ display:none; }}
       .card {{ break-inside:avoid; }} body {{ background:#fff; padding:0; }} }}
   </style>
@@ -1115,6 +1120,7 @@ def render_dashboard(
       }}
       updatePlots();
       applyRange();
+      optimizePlotlyForMobile();
     }});
 
     showRawBtn.addEventListener('click', () => {{
@@ -1161,7 +1167,9 @@ def render_dashboard(
         Plotly.restyle(metricsFig, 'visible', vis);
         const label = metricsFig.data.find((tr, idx) => vis[idx])?.meta?.label || selectedMetric;
         const range = getXRange(metricsFig);
-        const layoutUpdate = {{title: label + ' by Machine', yaxis: {{title: label}}}};
+        // Dotted keys: replacing the whole yaxis object would wipe settings
+        // applied elsewhere (e.g. mobile automargin).
+        const layoutUpdate = {{title: label + ' by Machine', 'yaxis.title': label}};
         if (range) {{
           layoutUpdate['xaxis.range'] = range;
           layoutUpdate['xaxis.autorange'] = false;
@@ -1200,7 +1208,7 @@ def render_dashboard(
         }});
         Plotly.restyle(shiftFig, 'visible', vis);
         const range = getXRange(shiftFig);
-        const layoutUpdate = {{title: 'Shift Comparison \\u2014 ' + shiftMetric + ' \\u2014 ' + selectedMachine, yaxis: {{title: shiftMetric}}}};
+        const layoutUpdate = {{title: 'Shift Comparison \\u2014 ' + shiftMetric + ' \\u2014 ' + selectedMachine, 'yaxis.title': shiftMetric}};
         if (range) {{
           layoutUpdate['xaxis.range'] = range;
           layoutUpdate['xaxis.autorange'] = false;
@@ -1243,14 +1251,16 @@ def render_dashboard(
       if (el) Plotly.downloadImage(el, {{format:'png', width:1200, height:800, filename:'dashboard-'+divId}});
     }}
 
+{MOBILE_PLOTLY_JS}
+
     machineSelect.addEventListener('change', updatePlots);
     metricSelect.addEventListener('change', updatePlots);
 
     // Initialize
     rebuildMetricDropdown();
     updatePlots();
-    // Apply default range after Plotly renders
-    setTimeout(applyRange, 500);
+    // Apply default range + mobile layout after Plotly renders
+    setTimeout(() => {{ applyRange(); optimizePlotlyForMobile(); }}, 500);
   </script>
 </body>
 </html>"""
