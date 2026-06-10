@@ -33,6 +33,50 @@ CARD_CSS = """\
              box-shadow:0 10px 50px rgba(15,23,42,.08); padding:20px; margin-bottom:20px; }"""
 
 # ---------------------------------------------------------------------------
+# Plotly mobile support
+# ---------------------------------------------------------------------------
+
+# Pass as ``config=`` to every plotly ``to_html`` call. Without responsive,
+# charts render once at load width and never reflow — rotating a phone leaves
+# a clipped or letterboxed chart.
+PLOTLY_CONFIG = {"responsive": True, "displaylogo": False}
+
+# The modebar is hover-oriented and eats vertical space on phones.
+MOBILE_MODEBAR_CSS = """\
+    @media (max-width:768px) { .modebar { display:none !important; } }"""
+
+# Phone-size fixes Plotly can't do via CSS (layout lives inside the figure):
+# move legends below the plot (the desktop right-side legend plus its reserved
+# margin eats most of a narrow screen), shrink margins/fonts, cap tall charts,
+# thin out x ticks, and disable dragmode so a touch-drag scrolls the page
+# instead of panning the chart — tapping still shows tooltips.
+MOBILE_PLOTLY_JS = """\
+    function optimizePlotlyForMobile() {
+      if (!window.matchMedia('(max-width: 768px)').matches) return;
+      document.querySelectorAll('.js-plotly-plot').forEach(el => {
+        if (!el.data || !el._fullLayout) return;
+        const update = {
+          'legend.orientation': 'h', 'legend.x': 0, 'legend.xanchor': 'left',
+          'legend.y': -0.22, 'legend.yanchor': 'top', 'legend.font.size': 10,
+          'margin.l': 45, 'margin.r': 12,
+          'font.size': 11,
+          'xaxis.nticks': 5,
+          'yaxis.automargin': true,
+          'dragmode': false
+        };
+        if (el._fullLayout.height >= 550) update['height'] = 420;
+        Plotly.relayout(el, update);
+      });
+    }
+    (function () {
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(optimizePlotlyForMobile, 250);
+      });
+    })();"""
+
+# ---------------------------------------------------------------------------
 # JS helpers
 # ---------------------------------------------------------------------------
 
