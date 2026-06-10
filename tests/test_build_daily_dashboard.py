@@ -95,3 +95,20 @@ def test_get_weeks_list_ranges() -> None:
     assert weeks[0]["start"] == "2026-01-05"
     assert weeks[0]["end"] == "2026-01-11"
     assert weeks[0]["days"] == 2
+
+
+def test_machine_baselines_median_of_producing_days() -> None:
+    from build_daily_dashboard import compute_machine_baselines
+    md = pd.DataFrame({
+        "Machine_Name": ["EXTRUDER"] * 4 + ["GRINDER"],
+        "Actual_Output": [1000.0, 2000.0, 3000.0, 0.0, 500.0],  # 0-day excluded
+    })
+    b = compute_machine_baselines(md)
+    assert b["EXTRUDER"] == 2000.0
+    assert b["GRINDER"] == 500.0
+
+
+def test_machine_baselines_empty() -> None:
+    from build_daily_dashboard import compute_machine_baselines
+    md = pd.DataFrame({"Machine_Name": [], "Actual_Output": []})
+    assert compute_machine_baselines(md) == {}

@@ -141,6 +141,20 @@ def get_months_list(daily_summary: pd.DataFrame) -> list[dict]:
     return months
 
 
+def compute_machine_baselines(machine_daily: pd.DataFrame) -> dict[str, float]:
+    """Median daily output per machine across days it actually produced.
+
+    Used by the Downtime Impact section as the 'typical day' to compare
+    downtime-noted days against. Median (not mean) so the baseline isn't
+    dragged by outliers or partial days.
+    """
+    active = machine_daily[machine_daily["Actual_Output"] > 0]
+    if active.empty:
+        return {}
+    med = active.groupby("Machine_Name")["Actual_Output"].median()
+    return {str(k): round(float(v), 1) for k, v in med.items()}
+
+
 def build_dashboard_html(
     daily_summary: pd.DataFrame,
     machine_daily: pd.DataFrame,
@@ -159,6 +173,7 @@ def build_dashboard_html(
     months_json = json.dumps(months_list)
     machines_json = json.dumps(machines)
     palette_json = json.dumps(CHART_PALETTE)
+    baselines_json = json.dumps(compute_machine_baselines(machine_daily))
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -568,6 +583,10 @@ def build_dashboard_html(
             .kpi-grid {{
                 grid-template-columns: repeat(2, 1fr);
             }}
+            select {{ width: 100%; }}
+            /* Wide machine-calendar table scrolls inside its container
+               instead of overflowing the viewport on phones. */
+            #machineCalendar {{ overflow-x: auto; }}
         }}
         @media (max-width: 480px) {{
             .kpi-grid {{
@@ -636,6 +655,16 @@ def build_dashboard_html(
         <div id="machineCalendar" style="overflow-x:auto;"></div>
     </div>
 
+    <div class="chart-section" id="downtimeSection" style="display:none;">
+        <h2>Downtime Impact</h2>
+        <p style="color:#6b7280;font-size:13px;margin-top:-4px;">
+            Days with downtime notes, compared against each machine's typical
+            daily output (median of producing days). Estimated loss is
+            indicative, not exact.
+        </p>
+        <div id="downtimeContent" style="overflow-x:auto;"></div>
+    </div>
+
     <!-- Day detail popup -->
     <div class="overlay" id="overlay"></div>
     <div class="day-detail" id="dayDetail">
@@ -655,6 +684,7 @@ def build_dashboard_html(
         const monthsList = {months_json};
         const machines = {machines_json};
         const palette = {palette_json};
+        const machineBaselines = {baselines_json};
 
         // Escape free-text fields (supervisor notes, operator names) before
         // inserting into innerHTML — they come straight from Excel cells.
@@ -775,6 +805,63 @@ def build_dashboard_html(
             renderOutputChart(filteredMachine);
             renderHoursChart(filteredMachine);
             renderMachineCalendar(period, filteredMachine);
+            renderDowntime(period, filteredMachine);
+        }}
+
+        function renderDowntime(period, machData) {{
+            const section = document.getElementById('downtimeSection');
+            const container = document.getElementById('downtimeContent');
+
+            // One row per (date, machine) with downtime notes in the period;
+            // multiple notes on the same machine-day are merged, not double-counted.
+            const byKey = {{}};
+            Object.keys(notesByDate).forEach(ds => {{
+                const d = new Date(ds + 'T00:00:00');
+                if (d < period.startDate || d > period.endDate) return;
+                notesByDate[ds].forEach(n => {{
+                    if (n.category !== 'downtime') return;
+                    const key = ds + '|' + n.machine;
+                    if (!byKey[key]) {{
+                        const row = machData.find(r => r.Date_Str === ds && r.Machine_Name === n.machine);
+                        const actual = row ? (row.Actual_Output || 0) : 0;
+                        const baseline = machineBaselines[n.machine] || 0;
+                        byKey[key] = {{
+                            date: ds, machine: n.machine, notes: [],
+                            actual: actual, baseline: baseline,
+                            lost: Math.max(0, baseline - actual),
+                        }};
+                    }}
+                    byKey[key].notes.push(n.note);
+                }});
+            }});
+
+            const rows = Object.values(byKey);
+            if (!rows.length) {{ section.style.display = 'none'; return; }}
+            section.style.display = '';
+
+            const totalLost = rows.reduce((s, r) => s + r.lost, 0);
+            let html = '<p style="font-weight:600;">Estimated output lost to downtime this period: ' +
+                Math.round(totalLost).toLocaleString() + ' lbs (' + rows.length + ' machine-day' +
+                (rows.length === 1 ? '' : 's') + ')</p>';
+            html += '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+            html += '<tr style="background:#f3f4f6;">' +
+                '<th style="padding:8px;text-align:left;">Date</th>' +
+                '<th style="padding:8px;text-align:left;">Machine</th>' +
+                '<th style="padding:8px;text-align:right;">Output</th>' +
+                '<th style="padding:8px;text-align:right;">Typical</th>' +
+                '<th style="padding:8px;text-align:right;">Est. Lost</th>' +
+                '<th style="padding:8px;text-align:left;">Notes</th></tr>';
+            rows.sort((a, b) => b.lost - a.lost).forEach(r => {{
+                html += '<tr style="border-bottom:1px solid #e5e7eb;">' +
+                    `<td style="padding:8px;white-space:nowrap;">${{r.date}}</td>` +
+                    `<td style="padding:8px;">${{escapeHtml(r.machine)}}</td>` +
+                    `<td style="padding:8px;text-align:right;">${{Math.round(r.actual).toLocaleString()}}</td>` +
+                    `<td style="padding:8px;text-align:right;">${{Math.round(r.baseline).toLocaleString()}}</td>` +
+                    `<td style="padding:8px;text-align:right;font-weight:600;color:${{r.lost > 0 ? '#b91c1c' : '#6b7280'}};">${{Math.round(r.lost).toLocaleString()}}</td>` +
+                    `<td style="padding:8px;color:#6b7280;">${{escapeHtml(r.notes.join(' • '))}}</td></tr>`;
+            }});
+            html += '</table>';
+            container.innerHTML = html;
         }}
 
         function renderKPIs(data) {{

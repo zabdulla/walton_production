@@ -109,8 +109,34 @@ def setup_file_logger() -> None:
     root.addHandler(fh)
 
 
+def _send_webhook(title: str, message: str, success: bool) -> None:
+    """POST to a Slack-compatible webhook if WALTON_WEBHOOK_URL is set.
+
+    Works with Slack incoming webhooks and anything else that accepts
+    ``{"text": ...}`` JSON (Discord via /slack suffix, Mattermost, etc.).
+    Reaches the team even when nobody is at the Mac. Never raises.
+    """
+    import json as _json
+    import os
+    import urllib.request
+
+    url = os.environ.get("WALTON_WEBHOOK_URL") or os.environ.get("SLACK_WEBHOOK_URL")
+    if not url:
+        return
+    icon = "✅" if success else "🚨"
+    payload = _json.dumps({"text": f"{icon} *{title}*\n{message}"}).encode("utf-8")
+    try:
+        req = urllib.request.Request(
+            url, data=payload, headers={"Content-Type": "application/json"}
+        )
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        logging.warning(f"Webhook notification failed (non-fatal): {e}")
+
+
 def send_notification(title: str, message: str, success: bool = True) -> None:
-    """Send a macOS desktop notification. No-op on other platforms; never raises."""
+    """Notify via webhook (if configured) and macOS desktop. Never raises."""
+    _send_webhook(title, message, success)
     if sys.platform != "darwin":
         return
     try:

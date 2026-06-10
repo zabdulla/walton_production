@@ -812,7 +812,7 @@ def render_dashboard(
       .controls {{ flex-direction:column; gap:8px; }}
       select {{ width:100%; min-width:unset; }}
       h1 {{ font-size:1.5rem; }}
-      .card {{ padding:12px; border-radius:12px; }}
+      .card {{ padding:12px; border-radius:12px; overflow-x:auto; }}
     }}
     @media (max-width:480px) {{ .kpi-grid {{ grid-template-columns:1fr; }} table {{ font-size:12px; }} }}
     @media print {{ .controls,.export-buttons,.toggle-btn {{ display:none; }}

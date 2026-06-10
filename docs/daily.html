@@ -406,6 +406,10 @@
             .kpi-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+            select { width: 100%; }
+            /* Wide machine-calendar table scrolls inside its container
+               instead of overflowing the viewport on phones. */
+            #machineCalendar { overflow-x: auto; }
         }
         @media (max-width: 480px) {
             .kpi-grid {
@@ -474,6 +478,16 @@
         <div id="machineCalendar" style="overflow-x:auto;"></div>
     </div>
 
+    <div class="chart-section" id="downtimeSection" style="display:none;">
+        <h2>Downtime Impact</h2>
+        <p style="color:#6b7280;font-size:13px;margin-top:-4px;">
+            Days with downtime notes, compared against each machine's typical
+            daily output (median of producing days). Estimated loss is
+            indicative, not exact.
+        </p>
+        <div id="downtimeContent" style="overflow-x:auto;"></div>
+    </div>
+
     <!-- Day detail popup -->
     <div class="overlay" id="overlay"></div>
     <div class="day-detail" id="dayDetail">
@@ -493,6 +507,7 @@
         const monthsList = [{"value": "2024-09", "label": "September 2024", "days": 1}, {"value": "2024-10", "label": "October 2024", "days": 24}, {"value": "2024-11", "label": "November 2024", "days": 20}, {"value": "2024-12", "label": "December 2024", "days": 23}, {"value": "2025-01", "label": "January 2025", "days": 22}, {"value": "2025-02", "label": "February 2025", "days": 21}, {"value": "2025-03", "label": "March 2025", "days": 24}, {"value": "2025-04", "label": "April 2025", "days": 22}, {"value": "2025-05", "label": "May 2025", "days": 21}, {"value": "2025-06", "label": "June 2025", "days": 21}, {"value": "2025-07", "label": "July 2025", "days": 22}, {"value": "2025-08", "label": "August 2025", "days": 21}, {"value": "2025-09", "label": "September 2025", "days": 18}, {"value": "2025-10", "label": "October 2025", "days": 23}, {"value": "2025-11", "label": "November 2025", "days": 13}, {"value": "2025-12", "label": "December 2025", "days": 21}, {"value": "2026-01", "label": "January 2026", "days": 21}, {"value": "2026-02", "label": "February 2026", "days": 20}, {"value": "2026-03", "label": "March 2026", "days": 22}, {"value": "2026-04", "label": "April 2026", "days": 21}, {"value": "2026-05", "label": "May 2026", "days": 20}, {"value": "2026-06", "label": "June 2026", "days": 5}];
         const machines = ["AUTO TIE BALER", "AVANGUARD DENSIFIER (OLD)", "BALER 1", "BALER 2", "EXTRUDER", "GREEN MAX DENSIFIER (NEW)", "GRINDER", "GUILLOTINE", "SHREDDER", "SMALL GRINDER"];
         const palette = ["#0B6E4F", "#2CA58D", "#84BCDA", "#33658A", "#F26419", "#FFAF87", "#3A3042", "#5BC0BE", "#C5283D", "#1f77b4", "#e377c2"];
+        const machineBaselines = {"AUTO TIE BALER": 8882.0, "AVANGUARD DENSIFIER (OLD)": 1491.0, "BALER 1": 4064.5, "BALER 2": 4412.0, "EXTRUDER": 13552.0, "GREEN MAX DENSIFIER (NEW)": 1370.0, "GRINDER": 8766.0, "GUILLOTINE": 5117.5, "SHREDDER": 5465.0, "SMALL GRINDER": 1179.0};
 
         // Escape free-text fields (supervisor notes, operator names) before
         // inserting into innerHTML — they come straight from Excel cells.
@@ -613,6 +628,63 @@
             renderOutputChart(filteredMachine);
             renderHoursChart(filteredMachine);
             renderMachineCalendar(period, filteredMachine);
+            renderDowntime(period, filteredMachine);
+        }
+
+        function renderDowntime(period, machData) {
+            const section = document.getElementById('downtimeSection');
+            const container = document.getElementById('downtimeContent');
+
+            // One row per (date, machine) with downtime notes in the period;
+            // multiple notes on the same machine-day are merged, not double-counted.
+            const byKey = {};
+            Object.keys(notesByDate).forEach(ds => {
+                const d = new Date(ds + 'T00:00:00');
+                if (d < period.startDate || d > period.endDate) return;
+                notesByDate[ds].forEach(n => {
+                    if (n.category !== 'downtime') return;
+                    const key = ds + '|' + n.machine;
+                    if (!byKey[key]) {
+                        const row = machData.find(r => r.Date_Str === ds && r.Machine_Name === n.machine);
+                        const actual = row ? (row.Actual_Output || 0) : 0;
+                        const baseline = machineBaselines[n.machine] || 0;
+                        byKey[key] = {
+                            date: ds, machine: n.machine, notes: [],
+                            actual: actual, baseline: baseline,
+                            lost: Math.max(0, baseline - actual),
+                        };
+                    }
+                    byKey[key].notes.push(n.note);
+                });
+            });
+
+            const rows = Object.values(byKey);
+            if (!rows.length) { section.style.display = 'none'; return; }
+            section.style.display = '';
+
+            const totalLost = rows.reduce((s, r) => s + r.lost, 0);
+            let html = '<p style="font-weight:600;">Estimated output lost to downtime this period: ' +
+                Math.round(totalLost).toLocaleString() + ' lbs (' + rows.length + ' machine-day' +
+                (rows.length === 1 ? '' : 's') + ')</p>';
+            html += '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+            html += '<tr style="background:#f3f4f6;">' +
+                '<th style="padding:8px;text-align:left;">Date</th>' +
+                '<th style="padding:8px;text-align:left;">Machine</th>' +
+                '<th style="padding:8px;text-align:right;">Output</th>' +
+                '<th style="padding:8px;text-align:right;">Typical</th>' +
+                '<th style="padding:8px;text-align:right;">Est. Lost</th>' +
+                '<th style="padding:8px;text-align:left;">Notes</th></tr>';
+            rows.sort((a, b) => b.lost - a.lost).forEach(r => {
+                html += '<tr style="border-bottom:1px solid #e5e7eb;">' +
+                    `<td style="padding:8px;white-space:nowrap;">${r.date}</td>` +
+                    `<td style="padding:8px;">${escapeHtml(r.machine)}</td>` +
+                    `<td style="padding:8px;text-align:right;">${Math.round(r.actual).toLocaleString()}</td>` +
+                    `<td style="padding:8px;text-align:right;">${Math.round(r.baseline).toLocaleString()}</td>` +
+                    `<td style="padding:8px;text-align:right;font-weight:600;color:${r.lost > 0 ? '#b91c1c' : '#6b7280'};">${Math.round(r.lost).toLocaleString()}</td>` +
+                    `<td style="padding:8px;color:#6b7280;">${escapeHtml(r.notes.join(' • '))}</td></tr>`;
+            });
+            html += '</table>';
+            container.innerHTML = html;
         }
 
         function renderKPIs(data) {
