@@ -308,6 +308,15 @@ def step_validate() -> dict[str, Any]:
     anomalies = results.get("anomalous_values") or []
     if anomalies:
         issues.append(f"{len(anomalies)} anomalous value(s)")
+    lws = results.get("latest_week_shifts") or {}
+    if lws.get("missing_shifts"):
+        issues.append(
+            f"latest week ({lws.get('week_start')}) missing shift(s): "
+            f"{', '.join(lws['missing_shifts'])} — report may not have been sent"
+        )
+    out_anom = results.get("output_anomalies") or []
+    if out_anom:
+        issues.append(f"{len(out_anom)} weekly output anomaly(ies) (>2σ)")
 
     blocked, reasons = gating_decision(results)
 

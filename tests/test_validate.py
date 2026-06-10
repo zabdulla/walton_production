@@ -232,3 +232,85 @@ def test_gating_does_not_block_on_warnings_only() -> None:
     }
     blocked, reasons = gating_decision(results)
     assert not blocked
+
+
+# ---------------------------------------------------------------------------
+# _check_latest_week_shifts — missed-report alarm
+# ---------------------------------------------------------------------------
+
+def _shift_df(rows: list[tuple[str, str]]) -> pd.DataFrame:
+    return pd.DataFrame({
+        "Date": [r[0] for r in rows],
+        "Shift": [r[1] for r in rows],
+        "Machine_Name": "EXTRUDER",
+        "Actual_Output": 1000.0,
+    })
+
+
+def test_latest_week_all_shifts_present() -> None:
+    from validate_data import _check_latest_week_shifts
+    df = _shift_df([("2026-06-01", "1st"), ("2026-06-02", "2nd"), ("2026-06-03", "3rd")])
+    res = _check_latest_week_shifts(df)
+    assert res["week_start"] == "2026-06-01"
+    assert res["missing_shifts"] == []
+
+
+def test_latest_week_missing_shift_detected() -> None:
+    from validate_data import _check_latest_week_shifts
+    df = _shift_df([
+        # prior week complete
+        ("2026-05-25", "1st"), ("2026-05-25", "2nd"), ("2026-05-25", "3rd"),
+        # latest week: 3rd shift report never arrived
+        ("2026-06-01", "1st"), ("2026-06-02", "2nd"),
+    ])
+    res = _check_latest_week_shifts(df)
+    assert res["week_start"] == "2026-06-01"
+    assert res["missing_shifts"] == ["3rd"]
+
+
+# ---------------------------------------------------------------------------
+# _check_weekly_output_anomalies — rolling 2-sigma per machine
+# ---------------------------------------------------------------------------
+
+def _weekly_df(outputs: list[float], machine: str = "EXTRUDER") -> pd.DataFrame:
+    """One row per week (Mondays), given weekly output totals."""
+    start = pd.Timestamp("2026-01-05")
+    return pd.DataFrame({
+        "Date": [start + pd.Timedelta(weeks=i) for i in range(len(outputs))],
+        "Shift": "1st",
+        "Machine_Name": machine,
+        "Actual_Output": outputs,
+    })
+
+
+def test_output_anomaly_flags_collapse() -> None:
+    from validate_data import _check_weekly_output_anomalies
+    # Stable ~10k/week with slight variation, then a collapse to 1k
+    df = _weekly_df([10_000, 10_500, 9_800, 10_200, 9_900, 10_100, 1_000])
+    anomalies = _check_weekly_output_anomalies(df)
+    assert len(anomalies) >= 1
+    worst = anomalies[-1]
+    assert worst["machine"] == "EXTRUDER"
+    assert worst["output"] == 1000.0
+    assert worst["deviation_sigma"] >= 2.0
+
+
+def test_output_anomaly_quiet_on_stable_data() -> None:
+    from validate_data import _check_weekly_output_anomalies
+    df = _weekly_df([10_000, 10_500, 9_800, 10_200, 9_900, 10_100, 10_300])
+    assert _check_weekly_output_anomalies(df) == []
+
+
+def test_output_anomaly_ignores_old_weeks() -> None:
+    from validate_data import _check_weekly_output_anomalies
+    # Anomaly at week 7 of 30 — far outside the recent window
+    outputs = [10_000, 10_500, 9_800, 10_200, 9_900, 10_100, 1_000] + [10_000] * 23
+    df = _weekly_df(outputs)
+    anomalies = _check_weekly_output_anomalies(df, recent_weeks=8)
+    assert all(a["week_start"] >= "2026-05-25" for a in anomalies)
+
+
+def test_output_anomaly_skips_short_history() -> None:
+    from validate_data import _check_weekly_output_anomalies
+    df = _weekly_df([10_000, 1_000])
+    assert _check_weekly_output_anomalies(df) == []

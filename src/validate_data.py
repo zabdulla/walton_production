@@ -99,6 +99,75 @@ def _check_missing_weeks(df: pd.DataFrame) -> list[str]:
     return missing
 
 
+def _check_latest_week_shifts(
+    df: pd.DataFrame,
+    expected_shifts: tuple[str, ...] = ("1st", "2nd", "3rd"),
+) -> dict[str, Any]:
+    """Missed-report alarm: expected shifts with zero rows in the latest week.
+
+    Each shift sends its own weekly report file; a missing shift here almost
+    always means one report was never emailed (or failed to download), and the
+    week would otherwise publish silently incomplete.
+    """
+    dates = pd.to_datetime(df["Date"])
+    if dates.isna().all():
+        return {"week_start": None, "missing_shifts": []}
+    week_start = (dates - pd.to_timedelta(dates.dt.weekday, unit="D")).dt.normalize()
+    latest = week_start.max()
+    present = set(df.loc[week_start == latest, "Shift"].astype(str).unique())
+    missing = [s for s in expected_shifts if s not in present]
+    return {
+        "week_start": str(pd.Timestamp(latest).date()),
+        "missing_shifts": missing,
+    }
+
+
+def _check_weekly_output_anomalies(
+    df: pd.DataFrame,
+    window: int = 4,
+    sigma: float = 2.0,
+    recent_weeks: int = 8,
+) -> list[dict[str, Any]]:
+    """Flag machine-weeks whose total output deviates > *sigma* standard
+    deviations from the rolling mean of the preceding *window* weeks.
+
+    Only weeks within the last *recent_weeks* of data are reported — old
+    anomalies would otherwise spam every run. Catches both data-entry errors
+    (extra zero) and real production collapses worth a look.
+    """
+    dates = pd.to_datetime(df["Date"])
+    d = df.copy()
+    d["_week"] = (dates - pd.to_timedelta(dates.dt.weekday, unit="D")).dt.normalize()
+    weekly = d.groupby(["Machine_Name", "_week"])["Actual_Output"].sum().reset_index()
+    cutoff = weekly["_week"].max() - pd.Timedelta(weeks=recent_weeks)
+
+    anomalies: list[dict[str, Any]] = []
+    for machine, grp in weekly.groupby("Machine_Name"):
+        grp = grp.sort_values("_week").reset_index(drop=True)
+        if len(grp) < window + 1:
+            continue
+        # Stats from the *preceding* weeks only, so the anomaly itself
+        # doesn't inflate the baseline it's compared against.
+        prior_mean = grp["Actual_Output"].shift(1).rolling(window).mean()
+        prior_std = grp["Actual_Output"].shift(1).rolling(window).std()
+        for i in range(len(grp)):
+            if grp["_week"].iloc[i] < cutoff:
+                continue
+            m, s = prior_mean.iloc[i], prior_std.iloc[i]
+            if pd.isna(m) or pd.isna(s) or s == 0:
+                continue
+            val = float(grp["Actual_Output"].iloc[i])
+            if abs(val - m) > sigma * s:
+                anomalies.append({
+                    "machine": str(machine),
+                    "week_start": str(pd.Timestamp(grp["_week"].iloc[i]).date()),
+                    "output": round(val, 1),
+                    "expected": round(float(m), 1),
+                    "deviation_sigma": round(abs(val - m) / float(s), 1),
+                })
+    return anomalies
+
+
 def _check_missing_operators(df: pd.DataFrame) -> dict[str, int]:
     """Return ``{machine_name: count}`` for rows with blank Operator."""
     mask = df["Operator"].isna() | (df["Operator"].astype(str).str.strip() == "")
@@ -279,6 +348,8 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
 
     unmapped = _check_unmapped_products(df)
     missing_weeks = _check_missing_weeks(df)
+    latest_week_shifts = _check_latest_week_shifts(df)
+    output_anomalies = _check_weekly_output_anomalies(df)
     missing_ops = _check_missing_operators(df)
     dup_info = _check_duplicates(df)
     anomalies = _check_anomalous_values(df)
@@ -289,6 +360,8 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
         "total_rows": len(df),
         "unmapped_products": unmapped,
         "missing_weeks": missing_weeks,
+        "latest_week_shifts": latest_week_shifts,
+        "output_anomalies": output_anomalies,
         "missing_operators": missing_ops,
         "duplicates_count": dup_info["count"],
         "duplicate_examples": dup_info["examples"],
@@ -344,6 +417,32 @@ def print_report(results: dict[str, Any]) -> None:
         _warn(f"{len(missing_w)} week(s) with zero records:")
         for w in missing_w:
             print(f"        Week of {w}")
+
+    # 2b. Latest-week shift coverage (missed-report alarm)
+    lws = results.get("latest_week_shifts") or {}
+    if lws.get("week_start"):
+        _header("2b. Latest Week Shift Coverage")
+        if not lws["missing_shifts"]:
+            _ok(f"All shifts reported for week of {lws['week_start']}.")
+        else:
+            _warn(
+                f"Week of {lws['week_start']} has NO data for shift(s): "
+                f"{', '.join(lws['missing_shifts'])} — a report may not have been sent."
+            )
+
+    # 2c. Weekly output anomalies (rolling 2-sigma per machine)
+    out_anom = results.get("output_anomalies") or []
+    _header("2c. Weekly Output Anomalies")
+    if not out_anom:
+        _ok("No machine-weeks deviate >2σ from their rolling average.")
+    else:
+        _warn(f"{len(out_anom)} machine-week(s) deviate >2σ from rolling average:")
+        for a in out_anom:
+            print(
+                f"        {a['machine']:<30s} week of {a['week_start']}: "
+                f"{a['output']:>12,.0f} lbs (expected ~{a['expected']:,.0f}, "
+                f"{a['deviation_sigma']}σ)"
+            )
 
     # 3. Missing operators
     _header("3. Missing Operators")
@@ -454,6 +553,13 @@ def print_report(results: dict[str, Any]) -> None:
         issues.append(f"{total_missing:,} missing operator(s)")
     if results["missing_weeks"]:
         issues.append(f"{len(results['missing_weeks'])} missing week(s)")
+    lws = results.get("latest_week_shifts") or {}
+    if lws.get("missing_shifts"):
+        issues.append(
+            f"latest week missing shift(s): {', '.join(lws['missing_shifts'])}"
+        )
+    if results.get("output_anomalies"):
+        issues.append(f"{len(results['output_anomalies'])} weekly output anomaly(ies)")
     payroll = results.get("payroll", {})
     if payroll.get("unrostered_employees"):
         issues.append(f"{len(payroll['unrostered_employees'])} unrostered payroll employee(s)")
