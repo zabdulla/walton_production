@@ -20,6 +20,7 @@ from typing import Any
 import pandas as pd
 
 from config import PROJECT_ROOT, DEFAULT_AGGREGATED_DATA, DEFAULT_AGGREGATED_NOTES, CHART_PALETTE
+from dashboard_common import ESCAPE_HTML_JS, LOCAL_DATE_JS
 
 DEFAULT_DAILY_INPUT = DEFAULT_AGGREGATED_DATA
 DEFAULT_NOTES_INPUT = DEFAULT_AGGREGATED_NOTES
@@ -688,19 +689,11 @@ def build_dashboard_html(
 
         // Escape free-text fields (supervisor notes, operator names) before
         // inserting into innerHTML — they come straight from Excel cells.
-        function escapeHtml(s) {{
-            return String(s ?? '').replace(/[&<>"']/g, c => ({{
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }}[c]));
-        }}
+{ESCAPE_HTML_JS}
 
         // Format a Date as YYYY-MM-DD in LOCAL time. toISOString() is UTC and
         // shifts entries to the wrong calendar day for viewers west of UTC.
-        function localDateStr(d) {{
-            return d.getFullYear() + '-' +
-                String(d.getMonth() + 1).padStart(2, '0') + '-' +
-                String(d.getDate()).padStart(2, '0');
-        }}
+{LOCAL_DATE_JS}
 
         // State
         let periodType = 'week'; // 'week' or 'month'

@@ -27,6 +27,7 @@ from config import (
     OT_MULTIPLIER_2,
 )
 from parse_payroll_pdf import compare_payroll_to_production, load_roster
+from dashboard_common import BASE_CSS, CARD_CSS, ESCAPE_HTML_JS_4SP
 
 DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "payroll.html"
 
@@ -160,16 +161,10 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
   <title>Payroll Analysis Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
   <style>
-    :root {{ --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; }}
-    * {{ box-sizing:border-box; }}
-    body {{ margin:0; padding:24px; font-family:"Helvetica Neue",Arial,sans-serif;
-            background:radial-gradient(circle at 20% 20%,#f9fafb 0,#eef2ff 40%,#f3f4f6 90%); color:var(--text); }}
-    h1 {{ margin:0 0 4px; font-weight:700; }}
-    .subtitle {{ margin:0 0 16px; color:var(--muted); font-size:14px; }}
+{BASE_CSS}
     .badge {{ display:inline-block; background:#fef2f2; color:#dc2626; font-size:11px; font-weight:600;
               padding:2px 8px; border-radius:6px; margin-left:8px; vertical-align:middle; }}
-    .card {{ background:var(--card); border:1px solid var(--border); border-radius:16px;
-             box-shadow:0 10px 50px rgba(15,23,42,.08); padding:20px; margin-bottom:20px; }}
+{CARD_CSS}
     .controls {{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }}
     .control-group {{ flex:1; min-width:220px; }}
     .control-group label {{ display:block; font-weight:600; color:var(--muted); font-size:13px; margin-bottom:6px; }}
@@ -302,6 +297,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     const anonymizeToggle = document.getElementById('anonymizeToggle');
     const anonBanner = document.getElementById('anonBanner');
     const printBtn = document.getElementById('printBtn');
+{ESCAPE_HTML_JS_4SP}
     // Anonymized view is the DEFAULT — names are hidden until the user toggles it off.
     let anonymized = true;
     anonymizeToggle.classList.add('active');
@@ -528,9 +524,9 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
       let html = '';
       const sorted = [...machines].sort((a, b) => b.production_hours - a.production_hours);
       sorted.forEach(m => {{
-        const workers = m.workers.map(w => displayName(w));
+        const workers = m.workers.map(w => escapeHtml(displayName(w)));
         html += `<tr>
-          <td>${{m.machine}}</td>
+          <td>${{escapeHtml(m.machine)}}</td>
           <td>${{fmt(m.production_hours)}}</td>
           <td style="text-align:left">${{workers.join(', ') || '&mdash;'}}</td>
           <td>${{fmt(m.clock_hours_allocated)}}</td>

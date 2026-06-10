@@ -12,9 +12,13 @@
 > **Still manual (repo admin):** make the repo private + Pages strategy (§6.3),
 > purge roster from git history (§0 step 3), enable branch protection on main
 > requiring the "CI / test" check.
-> **Remaining code work (do as separate PRs):** dashboard_common.py shared
-> template refactor (riskiest — migrate one dashboard per PR), target RAG KPIs,
-> custom date-range picker, incremental aggregation, Actions-cron migration.
+> **Remaining code work (do as separate PRs):** target RAG KPIs, custom
+> date-range picker, incremental aggregation, Actions-cron migration.
+> The dashboard_common.py refactor is DONE: shared CSS base + JS helpers
+> extracted, all five builders migrated, each verified byte-identical against
+> pre-refactor output (payroll via synthetic render snapshot; index modulo its
+> pre-existing random table ids). Further consolidation (controls/table CSS,
+> range-button styles) can continue incrementally in dashboard_common.py.
 
 > ⚠️ **Read section 0 first.** This repository is currently **public on GitHub**, and this
 > review discusses its weaknesses. Consider making the repo private before merging this

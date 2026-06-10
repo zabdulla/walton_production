@@ -31,6 +31,7 @@ from config import (
     DEFAULT_WEEKS, RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
     LABOR_RATE,
 )
+from dashboard_common import BASE_CSS, CARD_CSS
 
 logger = logging.getLogger(__name__)
 
@@ -759,14 +760,8 @@ def render_dashboard(
   <title>Processing Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
   <style>
-    :root {{ --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; }}
-    * {{ box-sizing:border-box; }}
-    body {{ margin:0; padding:24px; font-family:"Helvetica Neue",Arial,sans-serif;
-            background:radial-gradient(circle at 20% 20%,#f9fafb 0,#eef2ff 40%,#f3f4f6 90%); color:var(--text); }}
-    h1 {{ margin:0 0 4px; font-weight:700; }}
-    .subtitle {{ margin:0 0 16px; color:var(--muted); font-size:14px; }}
-    .card {{ background:var(--card); border:1px solid var(--border); border-radius:16px;
-             box-shadow:0 10px 50px rgba(15,23,42,.08); padding:20px; margin-bottom:20px; }}
+{BASE_CSS}
+{CARD_CSS}
     .kpi-grid {{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin:8px 0; }}
     .kpi-card {{ background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; }}
     .kpi-label {{ color:var(--muted); font-size:12px; }}
