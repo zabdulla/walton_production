@@ -290,13 +290,59 @@ def dedup_daily(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     return df, before - len(df)
 
 
+def merge_incremental(
+    existing: pd.DataFrame,
+    new: pd.DataFrame,
+    week_col: str = "Week_Start",
+    shift_col: str = "Shift",
+) -> pd.DataFrame:
+    """Merge newly parsed rows into an existing aggregate.
+
+    Each raw report file covers one (week, shift), so every (week, shift)
+    pair present in *new* REPLACES that slice of *existing* wholesale —
+    a corrected re-sent file supersedes the old rows, and re-running on the
+    same input is idempotent. Slices absent from *new* are kept untouched,
+    which is what lets a runner without the full raw-file archive update
+    the committed aggregate.
+    """
+    if existing is None or existing.empty:
+        return new.copy()
+
+    new_keys = set(zip(new[week_col].astype(str), new[shift_col].astype(str)))
+    keep_mask = [
+        (w, s) not in new_keys
+        for w, s in zip(existing[week_col].astype(str), existing[shift_col].astype(str))
+    ]
+    kept = existing.loc[keep_mask]
+    combined = pd.concat([kept, new], ignore_index=True)
+    # Rows from older aggregates may predate later-added columns (e.g.
+    # Date_Corrected); flag-like columns default to False, not NaN.
+    if "Date_Corrected" in combined.columns:
+        combined["Date_Corrected"] = combined["Date_Corrected"].fillna(False)
+    return combined
+
+
 def aggregate_daily_folder(
     folder_path: str | Path,
     hourly_rate: float = LABOR_RATE,
     overhead_multiplier: float = 1.0,
+    incremental: bool = False,
+    output_path: Path | None = None,
+    notes_path: Path | None = None,
 ) -> None:
-    """Aggregate all processing report files in folder to daily data files."""
+    """Aggregate all processing report files in folder to daily data files.
+
+    With ``incremental=True``, weeks parsed from the folder replace the
+    matching (Week_Start, Shift) slices of the existing aggregated file and
+    everything else is preserved — the folder does NOT need to contain the
+    full historical archive. Without it, the output is rebuilt purely from
+    the folder contents (original behavior; requires the full archive).
+    """
     folder = Path(folder_path)
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    output_path = output_path or data_dir / "aggregated_daily_data.xlsx"
+    notes_path = notes_path or data_dir / "aggregated_notes.xlsx"
+
     file_paths = sorted(p for p in folder.glob("*processing weights*.xlsx") if not p.name.startswith("~"))
 
     if not file_paths:
@@ -328,9 +374,19 @@ def aggregate_daily_folder(
     # Save daily data
     if daily_dataframes:
         aggregated_daily = pd.concat(daily_dataframes, ignore_index=True)
+
+        if incremental and output_path.exists():
+            existing = pd.read_excel(output_path)
+            n_before = len(existing)
+            aggregated_daily = merge_incremental(existing, aggregated_daily)
+            logger.info("Incremental merge: %d existing + %d new rows -> %d",
+                        n_before, sum(len(d) for d in daily_dataframes),
+                        len(aggregated_daily))
+
         aggregated_daily = aggregated_daily.sort_values(["Date", "Shift", "Machine_Name"])
 
-        # Apply product typo corrections
+        # Apply product typo corrections (re-applied to the whole frame so
+        # newly added typo mappings also fix historical rows).
         aggregated_daily["Output_Product"] = aggregated_daily["Output_Product"].replace(PRODUCT_TYPO_MAP)
 
         # Drop exact duplicate rows
@@ -338,7 +394,6 @@ def aggregate_daily_folder(
         if n_dropped:
             logger.warning("Dropped %d duplicate rows during aggregation", n_dropped)
 
-        output_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_daily_data.xlsx"
         snapshot_dir = output_path.parent / "snapshots"
         try:
             from atomic import write_with_snapshot, GrowthSanityError
@@ -360,8 +415,27 @@ def aggregate_daily_folder(
     # Save notes
     if notes_dataframes:
         aggregated_notes = pd.concat(notes_dataframes, ignore_index=True)
+
+        if incremental and notes_path.exists():
+            existing_notes = pd.read_excel(notes_path)
+            # Notes rows carry Date (not Week_Start); replacement is keyed on
+            # the same (week, shift) slices as the daily data.
+            def _with_week(df: pd.DataFrame) -> pd.DataFrame:
+                df = df.copy()
+                dates = pd.to_datetime(df["Date"])
+                df["_Week_Start"] = (
+                    (dates - pd.to_timedelta(dates.dt.weekday, unit="D"))
+                    .dt.strftime("%Y-%m-%d")
+                )
+                return df
+
+            merged = merge_incremental(
+                _with_week(existing_notes), _with_week(aggregated_notes),
+                week_col="_Week_Start",
+            )
+            aggregated_notes = merged.drop(columns=["_Week_Start"])
+
         aggregated_notes = aggregated_notes.sort_values(["Date", "Shift", "Machine_Name"])
-        notes_path = Path(__file__).resolve().parent.parent / "data" / "aggregated_notes.xlsx"
         snapshot_dir = notes_path.parent / "snapshots"
         from atomic import write_with_snapshot
         result = write_with_snapshot(
@@ -379,9 +453,28 @@ def aggregate_daily_folder(
 
 
 if __name__ == "__main__":
+    import argparse
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    folder_name = Path(__file__).resolve().parent.parent / "processing_reports"
-    aggregate_daily_folder(folder_name, hourly_rate=LABOR_RATE, overhead_multiplier=1.0)
+    parser = argparse.ArgumentParser(description="Aggregate processing reports into daily data files.")
+    parser.add_argument(
+        "--reports-dir", type=Path,
+        default=Path(__file__).resolve().parent.parent / "processing_reports",
+        help="Folder containing raw processing-weights xlsx files.",
+    )
+    parser.add_argument(
+        "--incremental", action="store_true",
+        help="Merge parsed weeks into the existing aggregate instead of "
+             "rebuilding from scratch. Use on runners that only have recent "
+             "report files, not the full archive.",
+    )
+    args = parser.parse_args()
+    aggregate_daily_folder(
+        args.reports_dir,
+        hourly_rate=LABOR_RATE,
+        overhead_multiplier=1.0,
+        incremental=args.incremental,
+    )

@@ -192,3 +192,69 @@ def test_dedup_preserves_distinct_hours() -> None:
     out, dropped = dedup_daily(df)
     assert len(out) == 2
     assert dropped == 0
+
+
+# ---------------------------------------------------------------------------
+# merge_incremental — replace (Week_Start, Shift) slices, keep the rest
+# ---------------------------------------------------------------------------
+
+def _agg_row(week: str, shift: str, machine: str = "EXTRUDER", output: float = 1000.0) -> dict:
+    return {
+        "Date": week, "Week_Start": week, "Shift": shift,
+        "Machine_Name": machine, "Output_Product": "PP resin",
+        "Actual_Output": output, "Operator": "Z",
+        "Machine_Hours": 8.0, "Man_Hours": 8.0,
+    }
+
+
+def test_merge_incremental_replaces_matching_slice() -> None:
+    from aggregate_daily_data import merge_incremental
+    existing = pd.DataFrame([
+        _agg_row("2026-01-05", "1st", output=1000),
+        _agg_row("2026-01-12", "1st", output=2000),
+    ])
+    new = pd.DataFrame([_agg_row("2026-01-12", "1st", output=2500)])
+    out = merge_incremental(existing, new)
+    assert len(out) == 2
+    week2 = out[out["Week_Start"] == "2026-01-12"]
+    assert week2["Actual_Output"].tolist() == [2500]
+    # untouched week preserved
+    assert out[out["Week_Start"] == "2026-01-05"]["Actual_Output"].tolist() == [1000]
+
+
+def test_merge_incremental_keeps_other_shifts_of_same_week() -> None:
+    from aggregate_daily_data import merge_incremental
+    existing = pd.DataFrame([
+        _agg_row("2026-01-12", "1st", output=1000),
+        _agg_row("2026-01-12", "2nd", output=2000),
+    ])
+    new = pd.DataFrame([_agg_row("2026-01-12", "1st", output=1500)])
+    out = merge_incremental(existing, new)
+    assert len(out) == 2
+    assert out[out["Shift"] == "2nd"]["Actual_Output"].tolist() == [2000]
+    assert out[out["Shift"] == "1st"]["Actual_Output"].tolist() == [1500]
+
+
+def test_merge_incremental_is_idempotent() -> None:
+    from aggregate_daily_data import merge_incremental
+    existing = pd.DataFrame([_agg_row("2026-01-05", "1st")])
+    new = pd.DataFrame([_agg_row("2026-01-12", "1st")])
+    once = merge_incremental(existing, new)
+    twice = merge_incremental(once, new)
+    assert len(once) == len(twice) == 2
+
+
+def test_merge_incremental_empty_existing_returns_new() -> None:
+    from aggregate_daily_data import merge_incremental
+    new = pd.DataFrame([_agg_row("2026-01-05", "1st")])
+    out = merge_incremental(pd.DataFrame(), new)
+    assert len(out) == 1
+
+
+def test_merge_incremental_backfills_date_corrected_flag() -> None:
+    from aggregate_daily_data import merge_incremental
+    existing = pd.DataFrame([_agg_row("2026-01-05", "1st")])  # no Date_Corrected col
+    new_row = _agg_row("2026-01-12", "1st")
+    new_row["Date_Corrected"] = True
+    out = merge_incremental(existing, pd.DataFrame([new_row]))
+    assert out["Date_Corrected"].tolist() == [False, True]
