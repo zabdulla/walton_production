@@ -178,13 +178,13 @@ The single-Mac dependency is the pipeline's biggest operational risk. Moving
 the schedule to GitHub Actions cron is possible but has real prerequisites —
 don't flip the switch without solving these:
 
-1. **Raw reports archive.** `processing_reports/` is gitignored and only
-   exists on the Mac. Aggregation rebuilds from ALL raw files, so a cloud
-   runner that only fetched the last 14 days would produce a tiny dataset
-   (the growth-sanity check in `atomic.py` would refuse to write it, which
-   is correct). Options: store raw reports in a private storage bucket or a
-   second private repo the workflow checks out, or make aggregation
-   incremental (merge new weeks into the committed aggregate).
+1. **Raw reports archive — SOLVED via incremental aggregation.** Run
+   `python3 src/aggregate_daily_data.py --incremental`: weeks parsed from
+   `processing_reports/` replace the matching (Week_Start, Shift) slices of
+   the committed `data/aggregated_daily_data.xlsx` and everything else is
+   preserved, so a cloud runner only needs the files it just fetched (the
+   default full rebuild on the Mac is unchanged). A corrected re-sent file
+   supersedes its old rows; re-runs are idempotent.
 2. **Secrets.** `gmail_credentials.json`, `gmail_token.json`, and
    `employee_roster.json` would become GitHub Actions secrets, written to
    the runner at job start. The OAuth token refreshes itself; persist the

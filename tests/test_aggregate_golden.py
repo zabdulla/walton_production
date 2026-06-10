@@ -307,3 +307,73 @@ def test_in_week_date_is_not_flagged(tmp_path: Path) -> None:
 
     df_daily, _ = extract_daily_data_from_file(tmp_path / fname)
     assert bool(df_daily.iloc[0]["Date_Corrected"]) is False
+
+
+def test_incremental_folder_run_updates_one_week_keeps_others(tmp_path: Path) -> None:
+    """End-to-end: full build from two weeks, then an incremental run on a
+    folder containing only a corrected week-2 file must update week 2 and
+    leave week 1 untouched."""
+    from aggregate_daily_data import aggregate_daily_folder
+
+    def _report(folder: Path, week: str, output: float) -> None:
+        sheet = _build_synthetic_sheet(
+            date_value=pd.Timestamp(week),
+            machine_rows={
+                "EXTRUDER": [
+                    {"machine_hours": 8.0, "man_hours": 8.0,
+                     "input_item": "x", "actual_input": 100,
+                     "output_product": "PP resin", "actual_output": output,
+                     "operator": "Z", "comment": "ran fine"},
+                ],
+            },
+        )
+        end = (pd.Timestamp(week) + pd.Timedelta(days=4)).strftime("%m-%d-%y")
+        start = pd.Timestamp(week).strftime("%m-%d-%y")
+        _write_synthetic_xlsx(folder / f"1st shift processing weights {start} to {end}.xlsx", sheet)
+
+    out_xlsx = tmp_path / "agg.xlsx"
+    notes_xlsx = tmp_path / "notes.xlsx"
+
+    # Full build: weeks of Jan 5 and Jan 12
+    full_dir = tmp_path / "full"
+    full_dir.mkdir()
+    _report(full_dir, "2026-01-05", 1000.0)
+    _report(full_dir, "2026-01-12", 2000.0)
+    aggregate_daily_folder(full_dir, output_path=out_xlsx, notes_path=notes_xlsx)
+    assert sorted(pd.read_excel(out_xlsx)["Actual_Output"]) == [1000.0, 2000.0]
+
+    # Incremental: folder contains ONLY a corrected week-2 file
+    incr_dir = tmp_path / "incr"
+    incr_dir.mkdir()
+    _report(incr_dir, "2026-01-12", 2500.0)
+    aggregate_daily_folder(incr_dir, incremental=True,
+                           output_path=out_xlsx, notes_path=notes_xlsx)
+
+    df = pd.read_excel(out_xlsx)
+    assert len(df) == 2
+    assert sorted(df["Actual_Output"]) == [1000.0, 2500.0]
+    # Notes merged the same way: one note per week survives
+    notes = pd.read_excel(notes_xlsx)
+    assert len(notes) == 2
+
+
+def test_non_incremental_full_rebuild_unchanged_behavior(tmp_path: Path) -> None:
+    """Without --incremental, output reflects only the folder contents."""
+    from aggregate_daily_data import aggregate_daily_folder
+
+    sheet = _build_synthetic_sheet(
+        date_value=pd.Timestamp("2026-01-05"),
+        machine_rows={
+            "EXTRUDER": [
+                {"machine_hours": 8.0, "man_hours": 8.0,
+                 "input_item": "x", "actual_input": 100,
+                 "output_product": "PP resin", "actual_output": 100, "operator": "Z"},
+            ],
+        },
+    )
+    folder = tmp_path / "reports"
+    folder.mkdir()
+    _write_synthetic_xlsx(folder / "1st shift processing weights 01-05-26 to 01-09-26.xlsx", sheet)
+    out_xlsx = tmp_path / "agg.xlsx"
+    aggregate_daily_folder(folder, output_path=out_xlsx, notes_path=tmp_path / "n.xlsx")
+    assert len(pd.read_excel(out_xlsx)) == 1
