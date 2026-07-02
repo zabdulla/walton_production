@@ -191,7 +191,7 @@ def build_recent_trends_html(weekly: pd.DataFrame) -> str:
     for i, val in enumerate(spark_data):
         h = max(val / spark_max * 40, 2)
         x = i * bar_width
-        spark_points.append(f'<rect x="{x:.1f}%" y="{40 - h:.1f}" width="{bar_width * 0.7:.1f}%" height="{h:.1f}" rx="2" fill="#3b82f6" opacity="0.7"/>')
+        spark_points.append(f'<rect x="{x:.1f}%" y="{40 - h:.1f}" width="{bar_width * 0.7:.1f}%" height="{h:.1f}" rx="2" fill="var(--brand)" opacity="0.75"/>')
     sparkline_svg = f'<svg viewBox="0 0 200 40" style="width:100%;height:40px;display:block;">{"".join(spark_points)}</svg>'
 
     cards = [

@@ -80,9 +80,9 @@ def render_dashboard(
     select {{ padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:#fff; min-width:160px; }}
     .toggle-btn {{ padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff;
                    cursor:pointer; font-size:13px; transition:all .2s; }}
-    .toggle-btn.active {{ background:#3b82f6; color:#fff; border-color:#3b82f6; }}
+    .toggle-btn.active {{ background:var(--brand); color:#fff; border-color:var(--brand); }}
     .toggle-btn:hover {{ background:#f3f4f6; }}
-    .toggle-btn.active:hover {{ background:#2563eb; }}
+    .toggle-btn.active:hover {{ background:var(--brand-strong); }}
     .range-control {{ display:flex; align-items:center; gap:6px; }}
     .range-control label {{ font-weight:600; color:var(--muted); }}
     .range-btns {{ display:flex; gap:0; }}
@@ -91,7 +91,7 @@ def render_dashboard(
     .range-btn:first-child {{ border-radius:8px 0 0 8px; }}
     .range-btn:last-child {{ border-radius:0 8px 8px 0; }}
     .range-btn:not(:first-child) {{ border-left:none; }}
-    .range-btn.active {{ background:#3b82f6; color:#fff; border-color:#3b82f6; }}
+    .range-btn.active {{ background:var(--brand); color:#fff; border-color:var(--brand); }}
     .range-btn:hover:not(.active) {{ background:#f3f4f6; }}
     .muted {{ color:var(--muted); }}
     .table-wrap {{ overflow-x:auto; }}
@@ -106,9 +106,9 @@ def render_dashboard(
     .export-btn {{ padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:#fff;
                    cursor:pointer; font-size:13px; }}
     .export-btn:hover {{ background:#f3f4f6; }}
-    .nav-link {{ display:inline-block; padding:8px 16px; background:#3b82f6; color:#fff;
+    .nav-link {{ display:inline-block; padding:8px 16px; background:var(--brand); color:#fff;
                  text-decoration:none; border-radius:6px; font-size:14px; margin-bottom:16px; }}
-    .nav-link:hover {{ background:#2563eb; }}
+    .nav-link:hover {{ background:var(--brand-strong); }}
     .rag-dots {{ margin-top:8px; line-height:1; }}
     .rag-dot {{ display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:4px; }}
     .date-input {{ padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:#fff;
@@ -132,6 +132,7 @@ def render_dashboard(
 </head>
 <body>
   <header>
+    <p class="eyebrow">Walton Logistics &mdash; Production</p>
     <h1>Processing Performance Dashboard</h1>
     <p class="subtitle">Use controls below to adjust view. {total_weeks} weeks of data available.</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>

@@ -8,19 +8,22 @@
     <style>
         :root {
             --primary: #111827;
-            --accent: #3b82f6;
+            --accent: #0b6e4f;          /* brand evergreen (= lead chart color) */
+            --accent-strong: #095c42;
             --border: #e5e7eb;
-            --bg: #f9fafc;
+            --bg: #f6f7f9;
             --complete: #10b981;
             --partial: #f59e0b;
             --missing: #ef4444;
+            --shadow-card: 0 1px 2px rgba(16,24,40,.05), 0 8px 24px rgba(16,24,40,.06);
+            --shadow-lift: 0 2px 4px rgba(16,24,40,.06), 0 12px 32px rgba(16,24,40,.10);
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
             padding: 24px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: var(--bg);
+            background: linear-gradient(180deg,#edf4f0 0,var(--bg) 360px) fixed;
             color: var(--primary);
         }
         header {
@@ -44,7 +47,7 @@
             font-size: 14px;
         }
         .nav-link:hover {
-            background: #2563eb;
+            background: var(--accent-strong);
         }
 
         /* Period selector */
@@ -419,12 +422,32 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+                   color: var(--accent); margin:0 0 6px; }
+        h1 { letter-spacing:-0.02em; }
+        .kpi-card { transition: transform .18s ease, box-shadow .18s ease; }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+        .kpi-value, .detail-stat-value { font-variant-numeric: tabular-nums; }
+        button { transition: background .15s ease, color .15s ease, border-color .15s ease,
+                 transform .1s ease; }
+        button:active { transform: scale(.97); }
+        @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+        .kpi-card { animation: rise .4s cubic-bezier(.2,.7,.3,1) backwards; }
+        .kpi-card:nth-child(1) { animation-delay:.02s } .kpi-card:nth-child(2) { animation-delay:.07s }
+        .kpi-card:nth-child(3) { animation-delay:.12s } .kpi-card:nth-child(4) { animation-delay:.17s }
+        .kpi-card:nth-child(n+5) { animation-delay:.22s }
+        .chart-section, .period-controls { animation: rise .45s cubic-bezier(.2,.7,.3,1) backwards; animation-delay:.05s; }
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
     </style>
 </head>
 <body>
     <header>
+        <p class="eyebrow">Walton Logistics &mdash; Production</p>
         <h1>Daily Processing Dashboard</h1>
-        <p class="subtitle">View production data by week or month. Click any day for details. Blue dots indicate supervisor notes.</p>
+        <p class="subtitle">View production data by week or month. Click any day for details. Dot markers indicate supervisor notes.</p>
         <a href="index.html" class="nav-link">← Weekly Summary</a>
     </header>
 

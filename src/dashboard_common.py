@@ -20,17 +20,45 @@ from __future__ import annotations
 
 # Base look shared by the interactive/profit/payroll/operator dashboards
 # (the daily dashboard has its own separate design).
+# Palette: "evergreen industrial" — the UI brand color IS the lead chart
+# color (CHART_PALETTE[0] = #0B6E4F) so page chrome and data read as one
+# system. Semantic colors (green=hit / red=miss / amber=warn) are defined
+# per-chart and deliberately NOT part of these tokens.
 BASE_CSS = """\
-    :root { --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; }
+    :root {
+      --brand:#0b6e4f; --brand-strong:#095c42; --brand-soft:#e7f3ee;
+      --bg:#f6f7f9; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
+      --shadow-card:0 1px 2px rgba(16,24,40,.05), 0 8px 24px rgba(16,24,40,.06);
+      --shadow-lift:0 2px 4px rgba(16,24,40,.06), 0 12px 32px rgba(16,24,40,.10);
+    }
     * { box-sizing:border-box; }
-    body { margin:0; padding:24px; font-family:"Helvetica Neue",Arial,sans-serif;
-            background:radial-gradient(circle at 20% 20%,#f9fafb 0,#eef2ff 40%,#f3f4f6 90%); color:var(--text); }
-    h1 { margin:0 0 4px; font-weight:700; }
-    .subtitle { margin:0 0 16px; color:var(--muted); font-size:14px; }"""
+    body { margin:0; padding:24px;
+            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+            background:linear-gradient(180deg,#edf4f0 0,var(--bg) 360px) fixed; color:var(--text); }
+    .eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+               color:var(--brand); margin:0 0 6px; }
+    h1 { margin:0 0 4px; font-weight:700; letter-spacing:-0.02em; }
+    .subtitle { margin:0 0 16px; color:var(--muted); font-size:14px; }
+    .kpi-card { transition:transform .18s ease, box-shadow .18s ease; }
+    .kpi-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lift); }
+    .kpi-value { font-variant-numeric:tabular-nums; }
+    button { transition:background .15s ease, color .15s ease, border-color .15s ease,
+             transform .1s ease, box-shadow .15s ease; }
+    button:active { transform:scale(.97); }
+    @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .kpi-grid > .kpi-card { animation:rise .4s cubic-bezier(.2,.7,.3,1) backwards; }
+    .kpi-grid > .kpi-card:nth-child(1){animation-delay:.02s} .kpi-grid > .kpi-card:nth-child(2){animation-delay:.07s}
+    .kpi-grid > .kpi-card:nth-child(3){animation-delay:.12s} .kpi-grid > .kpi-card:nth-child(4){animation-delay:.17s}
+    .kpi-grid > .kpi-card:nth-child(5){animation-delay:.22s} .kpi-grid > .kpi-card:nth-child(6){animation-delay:.27s}
+    .kpi-grid > .kpi-card:nth-child(n+7){animation-delay:.32s}
+    @media (prefers-reduced-motion: reduce) {
+      * { animation:none !important; transition:none !important; }
+    }"""
 
 CARD_CSS = """\
     .card { background:var(--card); border:1px solid var(--border); border-radius:16px;
-             box-shadow:0 10px 50px rgba(15,23,42,.08); padding:20px; margin-bottom:20px; }"""
+             box-shadow:var(--shadow-card); padding:20px; margin-bottom:20px;
+             animation:rise .45s cubic-bezier(.2,.7,.3,1) backwards; animation-delay:.05s; }"""
 
 # ---------------------------------------------------------------------------
 # Plotly mobile support
