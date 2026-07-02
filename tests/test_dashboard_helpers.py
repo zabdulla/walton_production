@@ -84,38 +84,38 @@ def test_pct_change_nan_returns_empty() -> None:
 
 def test_clean_product_names_applies_typo_map() -> None:
     df = pd.DataFrame({
-        "Output Product": ["PP Resin", "PP Shreds", "Tisue bales"],
+        "Output_Product": ["PP Resin", "PP Shreds", "Tisue bales"],
     })
     cleaned = clean_product_names(df)
     # Typos corrected: "PP Resin" → "PP resin", etc.
-    assert "PP resin" in cleaned["Output Product"].values
-    assert "PP shreds" in cleaned["Output Product"].values
-    assert "Tissue bales" in cleaned["Output Product"].values
+    assert "PP resin" in cleaned["Output_Product"].values
+    assert "PP shreds" in cleaned["Output_Product"].values
+    assert "Tissue bales" in cleaned["Output_Product"].values
 
 
 def test_clean_product_names_adds_category_column() -> None:
-    df = pd.DataFrame({"Output Product": ["PP resin", "LD Bales"]})
+    df = pd.DataFrame({"Output_Product": ["PP resin", "LD Bales"]})
     cleaned = clean_product_names(df)
-    assert "Product Category" in cleaned.columns
-    assert cleaned.loc[cleaned["Output Product"] == "PP resin", "Product Category"].iloc[0] == "PP - Resin"
-    assert cleaned.loc[cleaned["Output Product"] == "LD Bales", "Product Category"].iloc[0] == "LDPE - Bales"
+    assert "Product_Category" in cleaned.columns
+    assert cleaned.loc[cleaned["Output_Product"] == "PP resin", "Product_Category"].iloc[0] == "PP - Resin"
+    assert cleaned.loc[cleaned["Output_Product"] == "LD Bales", "Product_Category"].iloc[0] == "LDPE - Bales"
 
 
 def test_clean_product_names_other_for_unknown() -> None:
-    df = pd.DataFrame({"Output Product": ["Never Heard Of It"]})
+    df = pd.DataFrame({"Output_Product": ["Never Heard Of It"]})
     cleaned = clean_product_names(df)
-    assert cleaned["Product Category"].iloc[0] == "Other"
+    assert cleaned["Product_Category"].iloc[0] == "Other"
 
 
 def test_clean_product_names_no_op_when_column_absent() -> None:
     df = pd.DataFrame({"foo": [1, 2, 3]})
     cleaned = clean_product_names(df)
     # Same shape, no Product Category column
-    assert "Product Category" not in cleaned.columns
+    assert "Product_Category" not in cleaned.columns
 
 
 def test_clean_product_names_does_not_mutate_input() -> None:
-    df = pd.DataFrame({"Output Product": ["PP Resin"]})
+    df = pd.DataFrame({"Output_Product": ["PP Resin"]})
     original = df.copy()
     clean_product_names(df)
     pd.testing.assert_frame_equal(df, original)
@@ -127,8 +127,8 @@ def test_clean_product_names_does_not_mutate_input() -> None:
 
 def _weekly_frame(rows: list[tuple[str, str, float]]) -> pd.DataFrame:
     """rows: (machine, week_start, output)"""
-    df = pd.DataFrame(rows, columns=["Machine Name", "Week Start", "Actual_Output"])
-    df["Week Start"] = pd.to_datetime(df["Week Start"])
+    df = pd.DataFrame(rows, columns=["Machine_Name", "Week_Start", "Actual_Output"])
+    df["Week_Start"] = pd.to_datetime(df["Week_Start"])
     return df
 
 

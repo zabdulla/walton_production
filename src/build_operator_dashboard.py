@@ -59,8 +59,8 @@ def explode_operators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.explode("Operator_List")
     df["Individual_Operator"] = df["Operator_List"].str.title()
     # Split output and hours evenly among operators
-    for col in ["Actual Output (Lbs)", "Total Man Hours", "Total Machine Hours",
-                "Labor Cost", "Total Expense"]:
+    for col in ["Actual_Output", "Man_Hours", "Machine_Hours",
+                "Labor_Cost", "Total_Expense"]:
         if col in df.columns:
             df[col] = df[col] / df["Operator_Count"]
     return df
@@ -68,7 +68,7 @@ def explode_operators(df: pd.DataFrame) -> pd.DataFrame:
 
 def get_top_operators(df: pd.DataFrame, n: int = TOP_N) -> list[str]:
     """Get top N operators by total man hours worked."""
-    totals = df.groupby("Individual_Operator")["Total Man Hours"].sum()
+    totals = df.groupby("Individual_Operator")["Man_Hours"].sum()
     return totals.nlargest(n).index.tolist()
 
 
@@ -76,8 +76,8 @@ def build_oph_bar_chart(df: pd.DataFrame, top_ops: list[str]) -> go.Figure:
     """Horizontal bar chart: average output per man-hour by operator."""
     scope = df[df["Individual_Operator"].isin(top_ops)]
     agg = scope.groupby("Individual_Operator").agg(
-        Total_Output=("Actual Output (Lbs)", "sum"),
-        Total_Hours=("Total Man Hours", "sum"),
+        Total_Output=("Actual_Output", "sum"),
+        Total_Hours=("Man_Hours", "sum"),
     )
     agg["OPH"] = (agg["Total_Output"] / agg["Total_Hours"].replace(0, np.nan)).fillna(0)
     agg = agg.sort_values("OPH", ascending=True)
@@ -105,8 +105,8 @@ def build_operator_machine_heatmap(df: pd.DataFrame, top_ops: list[str]) -> go.F
     """Heatmap: operator × machine total output."""
     scope = df[df["Individual_Operator"].isin(top_ops)]
     pivot = scope.pivot_table(
-        index="Individual_Operator", columns="Machine Name",
-        values="Actual Output (Lbs)", aggfunc="sum", fill_value=0,
+        index="Individual_Operator", columns="Machine_Name",
+        values="Actual_Output", aggfunc="sum", fill_value=0,
     )
     # Sort operators by total output
     pivot = pivot.loc[pivot.sum(axis=1).sort_values(ascending=False).index]
@@ -133,14 +133,14 @@ def build_operator_trends_fig(df: pd.DataFrame, top_ops: list[str]) -> go.Figure
     """Weekly output/man-hour trends by operator (4-wk running avg)."""
     scope = df[df["Individual_Operator"].isin(top_ops)]
     weekly = (
-        scope.groupby(["Individual_Operator", "Start Date"])
-        .agg(Output=("Actual Output (Lbs)", "sum"), Hours=("Total Man Hours", "sum"))
+        scope.groupby(["Individual_Operator", "Week_Start"])
+        .agg(Output=("Actual_Output", "sum"), Hours=("Man_Hours", "sum"))
         .reset_index()
     )
-    weekly["Week Start"] = pd.to_datetime(weekly["Start Date"])
-    weekly["Week Label"] = weekly["Week Start"].dt.strftime("%Y-%m-%d")
+    weekly["Week_Start"] = pd.to_datetime(weekly["Week_Start"])
+    weekly["Week_Label"] = weekly["Week_Start"].dt.strftime("%Y-%m-%d")
     weekly["OPH"] = (weekly["Output"] / weekly["Hours"].replace(0, np.nan)).fillna(0)
-    weekly = weekly.sort_values(["Individual_Operator", "Week Start"])
+    weekly = weekly.sort_values(["Individual_Operator", "Week_Start"])
     weekly["OPH_RA"] = (
         weekly.groupby("Individual_Operator")["OPH"]
         .transform(lambda s: s.rolling(window=RUNNING_AVG_WINDOW, min_periods=1).mean())
@@ -150,10 +150,10 @@ def build_operator_trends_fig(df: pd.DataFrame, top_ops: list[str]) -> go.Figure
     for idx, op in enumerate(sorted(top_ops)):
         subset = weekly[weekly["Individual_Operator"] == op]
         traces.append(go.Scatter(
-            x=subset["Week Start"], y=subset["OPH_RA"],
+            x=subset["Week_Start"], y=subset["OPH_RA"],
             mode="lines+markers", name=op,
             hovertemplate=f"Operator: {op}<br>Week: %{{customdata[0]}}<br>Output/Man-Hr: %{{y:,.1f}}<extra></extra>",
-            customdata=subset[["Week Label"]],
+            customdata=subset[["Week_Label"]],
             visible=False,
             marker=dict(size=6, line=dict(width=1, color="white")),
             line=dict(width=2, color=CHART_PALETTE[idx % len(CHART_PALETTE)]),
@@ -313,11 +313,11 @@ def render_operator_dashboard(
 def main(input_path: Path, output_path: Path) -> None:
     df = load_data(input_path)
     df = clean_product_names(df)
-    df = df[(df["Total Man Hours"] > 0)]
+    df = df[(df["Man_Hours"] > 0)]
     df = explode_operators(df)
 
     top_ops = get_top_operators(df, TOP_N)
-    total_weeks = len(df["Start Date"].unique())
+    total_weeks = len(df["Week_Start"].unique())
 
     oph_fig = build_oph_bar_chart(df, top_ops)
     heatmap_fig = build_operator_machine_heatmap(df, top_ops)

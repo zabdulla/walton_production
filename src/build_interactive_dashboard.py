@@ -73,22 +73,10 @@ def _pct_change_html(current: float, previous: float) -> str:
 
 def load_data(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path)
-    if "Week_Start" in df.columns and "Start Date" not in df.columns:
-        df = df.rename(columns={
-            "Week_Start": "Start Date",
-            "Week_End": "End Date",
-            "Machine_Name": "Machine Name",
-            "Actual_Output": "Actual Output (Lbs)",
-            "Actual_Input": "Actual Input (Lbs)",
-            "Machine_Hours": "Total Machine Hours",
-            "Man_Hours": "Total Man Hours",
-            "Output_Product": "Output Product",
-            "Output_per_Hour": "Output per Hour",
-            "Labor_Cost": "Labor Cost",
-            "Total_Expense": "Total Expense",
-            "Cost_per_Pound": "Production Cost per Pound",
-        })
-    for col in ["Start Date", "End Date"]:
+    # Columns arrive in the pipeline's canonical snake_case (Machine_Name,
+    # Actual_Output, ...) and stay that way end-to-end. Display labels are
+    # applied at render time only (config.KEY_METRICS/ALL_METRICS, literals).
+    for col in ["Week_Start", "Week_End"]:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col])
     return df
@@ -97,10 +85,10 @@ def load_data(path: Path) -> pd.DataFrame:
 def clean_product_names(df: pd.DataFrame) -> pd.DataFrame:
     """Fix typos and map output products to categories."""
     df = df.copy()
-    if "Output Product" in df.columns:
-        df["Output Product"] = df["Output Product"].replace(PRODUCT_TYPO_MAP)
-        df["Product Category"] = df["Output Product"].map(PRODUCT_CATEGORY_MAP).fillna("Other")
-        unmapped = df.loc[df["Product Category"] == "Other", "Output Product"].dropna().unique()
+    if "Output_Product" in df.columns:
+        df["Output_Product"] = df["Output_Product"].replace(PRODUCT_TYPO_MAP)
+        df["Product_Category"] = df["Output_Product"].map(PRODUCT_CATEGORY_MAP).fillna("Other")
+        unmapped = df.loc[df["Product_Category"] == "Other", "Output_Product"].dropna().unique()
         for p in unmapped:
             logger.warning("Unmapped product: %s", p)
     return df
@@ -110,32 +98,32 @@ def _apply_guillotine_support(df: pd.DataFrame) -> pd.DataFrame:
     """Return a copy where Guillotine rows with output=0 use input as output."""
     df = df.copy()
     mask = (
-        df["Machine Name"].str.contains("GUILLOTINE", case=False, na=False)
-        & (df["Actual Output (Lbs)"] == 0)
-        & (df["Actual Input (Lbs)"] > 0)
+        df["Machine_Name"].str.contains("GUILLOTINE", case=False, na=False)
+        & (df["Actual_Output"] == 0)
+        & (df["Actual_Input"] > 0)
     )
-    df.loc[mask, "Actual Output (Lbs)"] = df.loc[mask, "Actual Input (Lbs)"]
+    df.loc[mask, "Actual_Output"] = df.loc[mask, "Actual_Input"]
     return df
 
 
 def aggregate_weekly(df: pd.DataFrame) -> pd.DataFrame:
     grouped = (
-        df.groupby(["Machine Name", "Start Date"])
+        df.groupby(["Machine_Name", "Week_Start"])
         .agg(
-            Actual_Output=("Actual Output (Lbs)", "sum"),
-            Total_Machine_Hours=("Total Machine Hours", "sum"),
-            Total_Man_Hours=("Total Man Hours", "sum"),
-            Labor_Cost=("Labor Cost", "sum"),
-            Total_Expense=("Total Expense", "sum"),
+            Actual_Output=("Actual_Output", "sum"),
+            Total_Machine_Hours=("Machine_Hours", "sum"),
+            Total_Man_Hours=("Man_Hours", "sum"),
+            Labor_Cost=("Labor_Cost", "sum"),
+            Total_Expense=("Total_Expense", "sum"),
         )
         .reset_index()
-        .rename(columns={"Start Date": "Week Start"})
+        .rename(columns={"Week_Start": "Week_Start"})
     )
     grouped["Output_per_Hour"] = grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, pd.NA)
     grouped["Output_per_Man_Hour"] = grouped["Actual_Output"] / grouped["Total_Man_Hours"].replace(0, pd.NA)
     grouped["Production_Cost_per_Pound"] = grouped["Total_Expense"] / grouped["Actual_Output"].replace(0, pd.NA)
-    grouped["Week Start"] = pd.to_datetime(grouped["Week Start"])
-    grouped["Week Label"] = grouped["Week Start"].dt.strftime("%Y-%m-%d")
+    grouped["Week_Start"] = pd.to_datetime(grouped["Week_Start"])
+    grouped["Week_Label"] = grouped["Week_Start"].dt.strftime("%Y-%m-%d")
     numeric_cols = [
         "Actual_Output", "Total_Machine_Hours", "Total_Man_Hours",
         "Labor_Cost", "Total_Expense", "Output_per_Hour",
@@ -146,21 +134,21 @@ def aggregate_weekly(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_running_averages(df: pd.DataFrame, metrics: list, window: int = RUNNING_AVG_WINDOW) -> pd.DataFrame:
-    df = df.sort_values(["Machine Name", "Week Start"]).copy()
+    df = df.sort_values(["Machine_Name", "Week_Start"]).copy()
     for col in metrics:
         ra_col = f"{col}_RA"
         numeric_series = pd.to_numeric(df[col], errors="coerce")
         df[ra_col] = (
             df.assign(_val=numeric_series)
-            .groupby("Machine Name")["_val"]
+            .groupby("Machine_Name")["_val"]
             .transform(lambda s: s.rolling(window=window, min_periods=1).mean())
         )
     return df
 
 
 def _recent_weeks(weekly: pd.DataFrame, n: int) -> pd.DataFrame:
-    cutoff_weeks = sorted(weekly["Week Start"].unique())[-n:]
-    return weekly[weekly["Week Start"].isin(cutoff_weeks)]
+    cutoff_weeks = sorted(weekly["Week_Start"].unique())[-n:]
+    return weekly[weekly["Week_Start"].isin(cutoff_weeks)]
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +158,7 @@ def _recent_weeks(weekly: pd.DataFrame, n: int) -> pd.DataFrame:
 def build_recent_trends_html(weekly: pd.DataFrame) -> str:
     """Build a 'Recent Trends' section: this month vs last month + mini sparkline data."""
     weekly = weekly.copy()
-    weekly["Month"] = weekly["Week Start"].dt.to_period("M")
+    weekly["Month"] = weekly["Week_Start"].dt.to_period("M")
     months = sorted(weekly["Month"].unique())
     if len(months) < 2:
         return "<p class='muted'>Not enough data for trend comparison.</p>"
@@ -193,7 +181,7 @@ def build_recent_trends_html(weekly: pd.DataFrame) -> str:
     # Sparkline: last 12 weeks of total output
     last_12 = _recent_weeks(weekly, 12)
     spark_data = (
-        last_12.groupby("Week Start")["Actual_Output"].sum()
+        last_12.groupby("Week_Start")["Actual_Output"].sum()
         .sort_index()
         .tolist()
     )
@@ -245,7 +233,7 @@ def build_monthly_summary_html(weekly: pd.DataFrame, visible_months: int = 6) ->
     table_id = f"monthly-{uuid.uuid4().hex[:8]}"
 
     weekly = weekly.copy()
-    weekly["Month"] = weekly["Week Start"].dt.to_period("M")
+    weekly["Month"] = weekly["Week_Start"].dt.to_period("M")
     months_asc = sorted(weekly["Month"].unique())
 
     # Build row data in ascending order so trends compare correctly to the
@@ -310,16 +298,16 @@ def build_monthly_summary_html(weekly: pd.DataFrame, visible_months: int = 6) ->
 # ---------------------------------------------------------------------------
 
 def build_latest_week_table_html(weekly: pd.DataFrame, cost_threshold: float = COST_PER_POUND_THRESHOLD) -> str:
-    latest_week = weekly["Week Start"].max()
-    last_4_weeks = sorted(weekly["Week Start"].unique())[-4:]
-    avg_4 = weekly[weekly["Week Start"].isin(last_4_weeks)]
+    latest_week = weekly["Week_Start"].max()
+    last_4_weeks = sorted(weekly["Week_Start"].unique())[-4:]
+    avg_4 = weekly[weekly["Week_Start"].isin(last_4_weeks)]
 
-    scope = weekly[weekly["Week Start"] == latest_week].copy().sort_values("Actual_Output", ascending=False)
+    scope = weekly[weekly["Week_Start"] == latest_week].copy().sort_values("Actual_Output", ascending=False)
     if scope.empty:
         return "<p class='muted'>No data for latest week.</p>"
 
     # 4-week averages per machine
-    avg_by_machine = avg_4.groupby("Machine Name").agg(
+    avg_by_machine = avg_4.groupby("Machine_Name").agg(
         Avg_Output=("Actual_Output", "mean"),
         Avg_OPH=("Output_per_Hour", "mean"),
         Avg_Cost=("Production_Cost_per_Pound", "mean"),
@@ -327,7 +315,7 @@ def build_latest_week_table_html(weekly: pd.DataFrame, cost_threshold: float = C
 
     rows = []
     for _, row in scope.iterrows():
-        machine = row["Machine Name"]
+        machine = row["Machine_Name"]
         output = row["Actual_Output"]
         oph = row["Output_per_Hour"]
         cost_lb = row["Production_Cost_per_Pound"]
@@ -379,14 +367,14 @@ def target_miss_counts(weekly: pd.DataFrame, lookback: int = RAG_LOOKBACK_WEEKS)
     A week with no rows for the machine counts as a miss — the target is
     weekly, so an idle week is a missed week, not missing data.
     """
-    week_starts = sorted(weekly["Week Start"].unique())[-lookback:]
+    week_starts = sorted(weekly["Week_Start"].unique())[-lookback:]
     results: dict[str, dict] = {}
-    seen_machines = set(weekly["Machine Name"].unique())
+    seen_machines = set(weekly["Machine_Name"].unique())
     for machine, target in sorted(MACHINE_WEEKLY_OUTPUT_TARGETS.items()):
         if machine not in seen_machines:
             continue
-        scope = weekly[(weekly["Machine Name"] == machine) & weekly["Week Start"].isin(week_starts)]
-        by_week = scope.groupby("Week Start")["Actual_Output"].sum()
+        scope = weekly[(weekly["Machine_Name"] == machine) & weekly["Week_Start"].isin(week_starts)]
+        by_week = scope.groupby("Week_Start")["Actual_Output"].sum()
         weeks = [
             {"week": pd.Timestamp(w), "output": float(by_week.get(w, 0.0)), "target": target,
              "hit": bool(by_week.get(w, 0.0) >= target)}
@@ -447,7 +435,7 @@ def build_target_rag_html(weekly: pd.DataFrame, lookback: int = RAG_LOOKBACK_WEE
 
 def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
     """Main metrics line chart. Only running averages of key metrics shown by default."""
-    machines = sorted(df["Machine Name"].unique())
+    machines = sorted(df["Machine_Name"].unique())
 
     # Build traces: running avg of key metrics (default visible) + all raw (hidden by default)
     traces = []
@@ -456,13 +444,13 @@ def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
     for key, (label, fmt_kind) in KEY_METRICS.items():
         ra_key = f"{key}_RA"
         for idx, machine in enumerate(machines):
-            subset = df[df["Machine Name"] == machine]
+            subset = df[df["Machine_Name"] == machine]
             fmt_str = ',.2f' if fmt_kind.startswith('float') else '$,.2f' if fmt_kind.startswith('currency') else ',.0f'
             traces.append(go.Scatter(
-                x=subset["Week Start"], y=subset[ra_key],
+                x=subset["Week_Start"], y=subset[ra_key],
                 mode="lines+markers", name=machine,
                 hovertemplate=f"Machine: %{{text}}<br>Week: %{{customdata[0]}}<br>{label}: %{{y:{fmt_str}}}<extra></extra>",
-                text=subset["Machine Name"], customdata=subset[["Week Label"]],
+                text=subset["Machine_Name"], customdata=subset[["Week_Label"]],
                 visible=False,
                 marker=dict(size=6, line=dict(width=1, color="white")),
                 line=dict(width=2, color=CHART_PALETTE[idx % len(CHART_PALETTE)]),
@@ -475,13 +463,13 @@ def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
             continue
         ra_key = f"{key}_RA"
         for idx, machine in enumerate(machines):
-            subset = df[df["Machine Name"] == machine]
+            subset = df[df["Machine_Name"] == machine]
             fmt_str = ',.2f' if fmt_kind.startswith('float') else '$,.2f' if fmt_kind.startswith('currency') else ',.0f'
             traces.append(go.Scatter(
-                x=subset["Week Start"], y=subset[ra_key],
+                x=subset["Week_Start"], y=subset[ra_key],
                 mode="lines+markers", name=machine,
                 hovertemplate=f"Machine: %{{text}}<br>Week: %{{customdata[0]}}<br>{label}: %{{y:{fmt_str}}}<extra></extra>",
-                text=subset["Machine Name"], customdata=subset[["Week Label"]],
+                text=subset["Machine_Name"], customdata=subset[["Week_Label"]],
                 visible=False,
                 marker=dict(size=6, line=dict(width=1, color="white")),
                 line=dict(width=2, color=CHART_PALETTE[idx % len(CHART_PALETTE)]),
@@ -491,13 +479,13 @@ def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
     # Raw values of all metrics
     for key, (label, fmt_kind) in ALL_METRICS.items():
         for idx, machine in enumerate(machines):
-            subset = df[df["Machine Name"] == machine]
+            subset = df[df["Machine_Name"] == machine]
             fmt_str = ',.2f' if fmt_kind.startswith('float') else '$,.2f' if fmt_kind.startswith('currency') else ',.0f'
             traces.append(go.Scatter(
-                x=subset["Week Start"], y=subset[key],
+                x=subset["Week_Start"], y=subset[key],
                 mode="lines+markers", name=machine,
                 hovertemplate=f"Machine: %{{text}}<br>Week: %{{customdata[0]}}<br>{label}: %{{y:{fmt_str}}}<extra></extra>",
-                text=subset["Machine Name"], customdata=subset[["Week Label"]],
+                text=subset["Machine_Name"], customdata=subset[["Week_Label"]],
                 visible=False,
                 marker=dict(size=6, line=dict(width=1, color="white")),
                 line=dict(width=2, color=CHART_PALETTE[idx % len(CHART_PALETTE)]),
@@ -529,17 +517,17 @@ def build_interactive_fig(df: pd.DataFrame) -> go.Figure:
 
 def build_utilization_bullet_fig(weekly: pd.DataFrame) -> go.Figure:
     """Horizontal bullet bars: latest week utilization % per machine with target line."""
-    latest_week = weekly["Week Start"].max()
-    latest = weekly[weekly["Week Start"] == latest_week]
-    week_label = latest["Week Label"].iloc[0] if not latest.empty else ""
+    latest_week = weekly["Week_Start"].max()
+    latest = weekly[weekly["Week_Start"] == latest_week]
+    week_label = latest["Week_Label"].iloc[0] if not latest.empty else ""
 
     # Only show machines with output targets
-    machines = sorted(m for m in latest["Machine Name"].unique() if m in MACHINE_WEEKLY_OUTPUT_TARGETS)
+    machines = sorted(m for m in latest["Machine_Name"].unique() if m in MACHINE_WEEKLY_OUTPUT_TARGETS)
     utils = []
     caps = []
     hours_vals = []
     for m in machines:
-        row = latest[latest["Machine Name"] == m]
+        row = latest[latest["Machine_Name"] == m]
         hrs = row["Total_Machine_Hours"].sum() if not row.empty else 0
         cap = MACHINE_WEEKLY_CAPACITY.get(m, DEFAULT_WEEKLY_CAPACITY)
         pct = (hrs / cap * 100) if cap > 0 else 0
@@ -599,29 +587,29 @@ def build_utilization_bullet_fig(weekly: pd.DataFrame) -> go.Figure:
 def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
     """Weekly output vs target per machine, with machine selector and WoW delta."""
     # Only include machines with targets
-    tracked_machines = sorted(m for m in weekly["Machine Name"].unique() if m in MACHINE_WEEKLY_OUTPUT_TARGETS)
-    weekly_tracked = weekly[weekly["Machine Name"].isin(tracked_machines)]
+    tracked_machines = sorted(m for m in weekly["Machine_Name"].unique() if m in MACHINE_WEEKLY_OUTPUT_TARGETS)
+    weekly_tracked = weekly[weekly["Machine_Name"].isin(tracked_machines)]
     machine_options = ["All Machines"] + tracked_machines
 
     traces = []
     for machine in machine_options:
         if machine == "All Machines":
-            scope = weekly_tracked.groupby("Week Start").agg(
+            scope = weekly_tracked.groupby("Week_Start").agg(
                 Actual_Output=("Actual_Output", "sum"),
-                Week_Label=("Week Label", "first"),
+                Week_Label=("Week_Label", "first"),
             ).reset_index()
             target = sum(MACHINE_WEEKLY_OUTPUT_TARGETS.values())
         else:
-            scope = weekly_tracked[weekly_tracked["Machine Name"] == machine].copy()
-            scope = scope.rename(columns={"Week Label": "Week_Label"})
+            scope = weekly_tracked[weekly_tracked["Machine_Name"] == machine].copy()
+            scope = scope.rename(columns={"Week_Label": "Week_Label"})
             target = MACHINE_WEEKLY_OUTPUT_TARGETS.get(machine, 0)
 
-        scope = scope.sort_values("Week Start")
+        scope = scope.sort_values("Week_Start")
 
         # Actual output bars
         bar_colors = ["#22c55e" if v >= target else "#ef4444" for v in scope["Actual_Output"]]
         traces.append(go.Bar(
-            x=scope["Week Start"], y=scope["Actual_Output"],
+            x=scope["Week_Start"], y=scope["Actual_Output"],
             name="Actual",
             marker_color=bar_colors,
             hovertemplate=[
@@ -634,7 +622,7 @@ def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
 
         # Target line
         traces.append(go.Scatter(
-            x=scope["Week Start"], y=[target] * len(scope),
+            x=scope["Week_Start"], y=[target] * len(scope),
             name="Target",
             mode="lines",
             line=dict(color="#6b7280", width=2, dash="dash"),
@@ -647,7 +635,7 @@ def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
         # Forecast projection (linear trend from last 8 weeks, projected 4 weeks ahead)
         if len(scope) >= 4:  # Need at least 4 data points
             recent = scope.tail(8).copy()
-            x_numeric = (recent["Week Start"] - recent["Week Start"].iloc[0]).dt.days.values.astype(float)
+            x_numeric = (recent["Week_Start"] - recent["Week_Start"].iloc[0]).dt.days.values.astype(float)
             y_vals = recent["Actual_Output"].values.astype(float)
 
             try:
@@ -655,9 +643,9 @@ def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
                 poly = np.poly1d(coeffs)
 
                 # Build forecast dates: from first point of regression window to 4 weeks ahead
-                last_date = recent["Week Start"].iloc[-1]
-                forecast_dates = pd.date_range(recent["Week Start"].iloc[0], periods=len(recent) + 4, freq="7D")
-                x_forecast = (forecast_dates - recent["Week Start"].iloc[0]).days.astype(float)
+                last_date = recent["Week_Start"].iloc[-1]
+                forecast_dates = pd.date_range(recent["Week_Start"].iloc[0], periods=len(recent) + 4, freq="7D")
+                x_forecast = (forecast_dates - recent["Week_Start"].iloc[0]).days.astype(float)
                 y_forecast = poly(x_forecast)
 
                 traces.append(go.Scatter(
@@ -708,22 +696,22 @@ def aggregate_weekly_by_shift(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     df = df[df["Shift"].isin(["1st", "2nd", "3rd"])]
     grouped = (
-        df.groupby(["Machine Name", "Start Date", "Shift"])
+        df.groupby(["Machine_Name", "Week_Start", "Shift"])
         .agg(
-            Actual_Output=("Actual Output (Lbs)", "sum"),
-            Total_Machine_Hours=("Total Machine Hours", "sum"),
-            Total_Man_Hours=("Total Man Hours", "sum"),
-            Total_Expense=("Total Expense", "sum"),
+            Actual_Output=("Actual_Output", "sum"),
+            Total_Machine_Hours=("Machine_Hours", "sum"),
+            Total_Man_Hours=("Man_Hours", "sum"),
+            Total_Expense=("Total_Expense", "sum"),
         )
         .reset_index()
-        .rename(columns={"Start Date": "Week Start"})
+        .rename(columns={"Week_Start": "Week_Start"})
     )
     # Leave NaN where the denominator is zero — Plotly omits the bar, which is
     # truthful; a 0 bar would read as "free production" / "zero rate".
     grouped["Output_per_Hour"] = grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, float("nan"))
     grouped["Cost_per_Pound"] = grouped["Total_Expense"] / grouped["Actual_Output"].replace(0, float("nan"))
-    grouped["Week Start"] = pd.to_datetime(grouped["Week Start"])
-    grouped["Week Label"] = grouped["Week Start"].dt.strftime("%Y-%m-%d")
+    grouped["Week_Start"] = pd.to_datetime(grouped["Week_Start"])
+    grouped["Week_Label"] = grouped["Week_Start"].dt.strftime("%Y-%m-%d")
     return grouped
 
 
@@ -733,15 +721,15 @@ def build_shift_comparison_fig(df_shift: pd.DataFrame) -> go.Figure:
         return go.Figure()
 
     shifts = sorted(df_shift["Shift"].unique())
-    machine_options = ["All Machines"] + sorted(df_shift["Machine Name"].unique())
+    machine_options = ["All Machines"] + sorted(df_shift["Machine_Name"].unique())
 
     traces = []
     for metric_label, (metric_col, fmt, unit) in SHIFT_METRICS.items():
         for machine in machine_options:
-            scope = df_shift if machine == "All Machines" else df_shift[df_shift["Machine Name"] == machine]
+            scope = df_shift if machine == "All Machines" else df_shift[df_shift["Machine_Name"] == machine]
             if machine == "All Machines":
                 # Aggregate across machines per week+shift
-                agg = scope.groupby(["Week Start", "Week Label", "Shift"]).agg(
+                agg = scope.groupby(["Week_Start", "Week_Label", "Shift"]).agg(
                     Actual_Output=("Actual_Output", "sum"),
                     Total_Machine_Hours=("Total_Machine_Hours", "sum"),
                     Total_Expense=("Total_Expense", "sum"),
@@ -751,13 +739,13 @@ def build_shift_comparison_fig(df_shift: pd.DataFrame) -> go.Figure:
                 scope = agg
 
             for shift in shifts:
-                subset = scope[scope["Shift"] == shift].sort_values("Week Start")
+                subset = scope[scope["Shift"] == shift].sort_values("Week_Start")
                 traces.append(go.Bar(
-                    x=subset["Week Start"],
+                    x=subset["Week_Start"],
                     y=subset[metric_col],
                     name=f"{shift} Shift",
                     hovertemplate=f"{shift} Shift<br>Week: %{{customdata[0]}}<br>{metric_label}: %{{y:{fmt}}} {unit}<extra></extra>",
-                    customdata=subset[["Week Label"]],
+                    customdata=subset[["Week_Label"]],
                     visible=False,
                     marker_color=SHIFT_COLORS.get(shift, "#999"),
                     meta={"machine": machine, "shift_metric": metric_label, "shift": shift},
@@ -803,9 +791,9 @@ def _build_pipeline(df: pd.DataFrame):
 def main(input_path: Path, output_path: Path) -> None:
     df = load_data(input_path)
     df = clean_product_names(df)
-    df = df[(df["Total Man Hours"] > 0) | (df["Actual Input (Lbs)"] > 0)]
+    df = df[(df["Man_Hours"] > 0) | (df["Actual_Input"] > 0)]
 
-    machine_options = ["All Machines"] + sorted(df["Machine Name"].unique())
+    machine_options = ["All Machines"] + sorted(df["Machine_Name"].unique())
     machine_options_html = "\n".join(f'<option value="{m}">{m}</option>' for m in machine_options)
 
     # Metric dropdown
@@ -824,13 +812,13 @@ def main(input_path: Path, output_path: Path) -> None:
     )
 
     # Standard pipeline (profit-producing output only)
-    df_std = df[(df["Total Man Hours"] > 0) & (df["Total Machine Hours"] > 0)]
+    df_std = df[(df["Man_Hours"] > 0) & (df["Machine_Hours"] > 0)]
     weekly_std, df_std_full, trends_std, rag_std, snapshot_std, monthly_std = _build_pipeline(df_std)
 
     # With Guillotine support work included
     df_sup = _apply_guillotine_support(df)
-    df_sup = df_sup[(df_sup["Total Man Hours"] > 0) | (df_sup["Actual Output (Lbs)"] > 0)]
-    df_sup = df_sup[(df_sup["Total Man Hours"] > 0) & (df_sup["Total Machine Hours"] > 0)]
+    df_sup = df_sup[(df_sup["Man_Hours"] > 0) | (df_sup["Actual_Output"] > 0)]
+    df_sup = df_sup[(df_sup["Man_Hours"] > 0) & (df_sup["Machine_Hours"] > 0)]
     weekly_sup, df_sup_full, trends_sup, rag_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
 
     # Shift comparison charts
@@ -840,7 +828,7 @@ def main(input_path: Path, output_path: Path) -> None:
     shift_fig_sup = build_shift_comparison_fig(shift_sup)
 
     # Total weeks available (for range control)
-    total_weeks = len(weekly_std["Week Start"].unique())
+    total_weeks = len(weekly_std["Week_Start"].unique())
 
     # Charts for both modes — pass ALL data, JS controls visible range
     fig_sections_std = [
@@ -867,7 +855,7 @@ def main(input_path: Path, output_path: Path) -> None:
             monthly_std, monthly_sup,
             shift_fig_std=shift_fig_std, shift_fig_sup=shift_fig_sup,
             total_weeks=total_weeks,
-            latest_data_date=weekly_std["Week Start"].max().strftime("%Y-%m-%d"),
+            latest_data_date=weekly_std["Week_Start"].max().strftime("%Y-%m-%d"),
         ),
     )
     print(f"Wrote interactive dashboard to {output_path}")
