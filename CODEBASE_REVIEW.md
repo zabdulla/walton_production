@@ -8,7 +8,7 @@
 > heartbeat.yml, requirements.lock, hardened push logic, content-asserting smoke
 > tests, stale-data banners, missed-report alarm, weekly output anomaly
 > detection, webhook (Slack) notifications, downtime impact report, mobile
-> table scrolling. Cloud migration path documented in docs/WEEKLY_AUTOMATION.md.
+> table scrolling. Cloud migration path documented in setup/WEEKLY_AUTOMATION.md.
 > **Still manual (repo admin):** make the repo private + Pages strategy (§6.3),
 > purge roster from git history (§0 step 3), enable branch protection on main
 > requiring the "CI / test" check.
@@ -224,7 +224,7 @@ not surfaced:
    one Gmail account (`carl@plusmaterials.com` hardcoded in `fetch_emails.py:77`), and
    one person who understands the pipeline. Mitigation is cheap: move the schedule to
    GitHub Actions cron (§6 Phase 3) and document runbooks (partially done in
-   `docs/WEEKLY_AUTOMATION.md` — good start).
+   `setup/WEEKLY_AUTOMATION.md` — good start).
 3. **Decision risk from data quality.** If we're setting prices or staffing from
    cost-per-pound, bugs D3/D4 bias that number. The validation framework is the right
    instinct — fund the two days it takes to close the gaps.

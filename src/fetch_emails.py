@@ -4,7 +4,7 @@ Fetch production data attachments from Gmail via the Gmail API.
 Replaces the brittle Chrome-MCP click-through workflow with a stable,
 scriptable, runs-without-a-browser approach.
 
-ONE-TIME SETUP (see README at bottom of this file or docs/GMAIL_API_SETUP.md):
+ONE-TIME SETUP (see README at bottom of this file or setup/GMAIL_API_SETUP.md):
     1. Create a Google Cloud project, enable Gmail API
     2. Create OAuth 2.0 client credentials (Desktop app type)
     3. Download credentials JSON to ~/.config/walton/gmail_credentials.json
