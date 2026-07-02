@@ -47,10 +47,14 @@ def test_unmapped_products_applies_typo_map() -> None:
 # ---------------------------------------------------------------------------
 
 def _make_row(date="2026-01-01", shift="1st", machine="EXTRUDER",
-              product="PP resin", output=1000):
+              product="PP resin", output=1000,
+              operator="Alice", machine_hours=8.0, man_hours=8.0):
     return {
         "Date": pd.Timestamp(date), "Shift": shift, "Machine_Name": machine,
         "Output_Product": product, "Actual_Output": output,
+        # The dedup key now includes operator + hours so different operators
+        # who happen to post identical output aren't collapsed.
+        "Operator": operator, "Machine_Hours": machine_hours, "Man_Hours": man_hours,
     }
 
 
@@ -75,6 +79,28 @@ def test_check_duplicates_triplet() -> None:
     result = _check_duplicates(df)
     # Three identical rows: 2 "extras"
     assert result["count"] == 2
+
+
+def test_check_duplicates_different_operators_not_duplicates() -> None:
+    """Regression for 2025-02-14 BOPP rolls case: two operators posting
+    identical output on the same machine/shift/day are distinct events,
+    NOT duplicates. The dedup key must include Operator."""
+    df = pd.DataFrame([
+        _make_row(operator="Bernard, Tremaine"),
+        _make_row(operator="Chris J"),
+    ])
+    result = _check_duplicates(df)
+    assert result["count"] == 0
+
+
+def test_check_duplicates_different_hours_not_duplicates() -> None:
+    """Distinct Machine_Hours / Man_Hours mean distinct observations."""
+    df = pd.DataFrame([
+        _make_row(machine_hours=8.0),
+        _make_row(machine_hours=4.0),
+    ])
+    result = _check_duplicates(df)
+    assert result["count"] == 0
 
 
 # ---------------------------------------------------------------------------

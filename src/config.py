@@ -192,6 +192,16 @@ COL_DATE = 9
 
 DAILY_SHEETS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+# Columns that identify a genuinely duplicated row (same report ingested
+# twice). Operator and hours are included so that two operators who happen
+# to post identical output on the same machine/shift/day are NOT collapsed.
+# Used by BOTH aggregate_daily_data (drops dupes) and validate_data (asserts
+# none remain), so the keys MUST stay in sync.
+DEDUP_SUBSET = [
+    "Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output",
+    "Operator", "Machine_Hours", "Man_Hours",
+]
+
 NOTE_CATEGORIES: dict[str, list[str]] = {
     "downtime": ["down", "stopped", "broken", "repair", "fix", "belt", "chiller", "filter"],
     "material": ["no material", "waiting for material", "material shortage", "ran out"],

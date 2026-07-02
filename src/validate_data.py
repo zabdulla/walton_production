@@ -180,7 +180,10 @@ def _check_missing_operators(df: pd.DataFrame) -> dict[str, int]:
 
 def _check_duplicates(df: pd.DataFrame) -> dict[str, Any]:
     """Detect exact duplicates on key columns.  Returns count + examples."""
-    dup_cols = ["Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output"]
+    # Use the same dedup key the aggregation step writes with so we never
+    # disagree on what counts as a duplicate.
+    from config import DEDUP_SUBSET
+    dup_cols = DEDUP_SUBSET
     duped = df[df.duplicated(subset=dup_cols, keep=False)]
     count = len(duped) - len(duped.drop_duplicates(subset=dup_cols))  # extra copies
     examples: list[dict[str, Any]] = []

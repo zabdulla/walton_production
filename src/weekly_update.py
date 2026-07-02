@@ -369,7 +369,18 @@ def step_build_dashboards() -> dict[str, Any]:
         ("Profit", "build_profit_dashboard.py"),
         ("Payroll", "build_payroll_dashboard.py"),
     ]
-    results = {"ok": True, "built": [], "failed": []}
+    results = {"ok": True, "built": [], "failed": [], "skipped": []}
+
+    # The payroll dashboard needs the local (gitignored, PII) roster file.
+    # A missing roster is an expected local-setup gap, not a pipeline
+    # failure — skip with a warning rather than failing the whole run.
+    roster_path = PROJECT_ROOT / "data" / "employee_roster.json"
+    if not roster_path.exists():
+        builds = [(l, s) for l, s in builds if l != "Payroll"]
+        results["skipped"].append("Payroll")
+        log_warn("Payroll skipped: data/employee_roster.json missing "
+                 "(copy data/employee_roster.example.json and fill in)")
+
     for label, script in builds:
         rc, out, err = run_cmd(["python3", str(SRC_DIR / script)], timeout=600)
         if rc == 0:
@@ -447,7 +458,10 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
         # Common: GH Actions auto-commit pushed first → fast-forward rejected
         if "fast-forward" in err or "rejected" in err:
             log_warn(f"Push rejected (attempt {attempt}); rebasing...")
-            run_cmd(["git", "pull", "--rebase", "origin", "main"],
+            # --autostash: uncommitted working-tree edits (e.g. a fix someone
+            # left unstaged) must not wedge the automated publish — this
+            # exact failure silently blocked pushes for two weeks in June.
+            run_cmd(["git", "pull", "--rebase", "--autostash", "origin", "main"],
                     capture=True, timeout=60, extra_env=no_editor)
             # Resolve any conflicts on generated dashboard HTML files.
             # Pattern: `UU docs/<name>.html` means both modified. Take remote,

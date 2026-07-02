@@ -274,13 +274,8 @@ def extract_daily_data_from_file(
     return pd.DataFrame(daily_records), pd.DataFrame(notes_records)
 
 
-# Columns that identify a genuinely duplicated row (same report ingested
-# twice). Operator and hours are included so that two operators who happen to
-# post identical output on the same machine/shift/day are NOT collapsed.
-DEDUP_SUBSET = [
-    "Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output",
-    "Operator", "Machine_Hours", "Man_Hours",
-]
+# DEDUP_SUBSET lives in config.py so validate_data can use the same key.
+from config import DEDUP_SUBSET  # noqa: E402  (kept near use site for clarity)
 
 
 def dedup_daily(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
