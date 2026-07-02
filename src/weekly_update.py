@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import re
 import subprocess
 import sys
 import time
@@ -185,27 +184,45 @@ def run_cmd(cmd: list[str], capture: bool = True, timeout: int = 600,
 # Pipeline steps
 # ---------------------------------------------------------------------------
 
-def step_fetch_emails(dry_run: bool = False) -> dict[str, Any]:
-    """Run fetch_emails.py --all and parse the result counts."""
-    args = ["python3", str(SRC_DIR / "fetch_emails.py"), "--all"]
-    if dry_run:
-        args.append("--list")
-    rc, out, err = run_cmd(args, timeout=300)
+def _ensure_src_importable() -> None:
+    """Sibling modules import by bare name; make that work from any cwd."""
+    if str(SRC_DIR) not in sys.path:
+        sys.path.insert(0, str(SRC_DIR))
 
-    result = {"ok": rc == 0, "processing": 0, "payroll": 0, "raw": out + err}
-    if rc != 0:
-        log_err(f"Fetch failed (exit {rc})")
-        if err:
-            log_err(err.splitlines()[-1] if err else "no stderr")
+
+def step_fetch_emails(dry_run: bool = False) -> dict[str, Any]:
+    """Fetch new attachments via the Gmail API (in-process).
+
+    Calling fetch_emails' functions directly (instead of shelling out and
+    regex-scraping its stdout) gives structured counts and real tracebacks.
+    """
+    result: dict[str, Any] = {"ok": False, "processing": 0, "payroll": 0}
+    _ensure_src_importable()
+    try:
+        # fetch_emails calls sys.exit(1) at import time if the Google libs
+        # are missing; check_dependencies() runs before this step, but keep
+        # the guard so a partial environment degrades to a step failure.
+        import fetch_emails as fe
+    except SystemExit:
+        log_err("Fetch unavailable: Google API libraries missing")
         return result
 
-    # Parse "  N new file(s) downloaded"
-    for kind, pat in [("processing", r"Processing weights.*?(\d+) new file"),
-                      ("payroll", r"Payroll.*?(\d+) new file")]:
-        m = re.search(pat, out, re.DOTALL)
-        if m:
-            result[kind] = int(m.group(1))
+    try:
+        service = fe.get_service()
+        saved_pw = fe.fetch_processing_weights(service, dry_run=dry_run)
+        saved_pr = fe.fetch_payroll_pdfs(service, dry_run=dry_run)
+    except FileNotFoundError as e:
+        # Missing OAuth credentials — actionable, not a crash.
+        log_err(f"Fetch failed: {e}")
+        return result
+    except Exception as e:
+        logging.exception("Fetch failed")
+        log_err(f"Fetch failed: {e.__class__.__name__}: {e}")
+        return result
 
+    result.update(ok=True,
+                  processing=len(saved_pw or []),
+                  payroll=len(saved_pr or []))
     log_ok(f"Processing weights: {result['processing']} new file(s)")
     log_ok(f"Payroll PDFs: {result['payroll']} new file(s)")
     return result
@@ -226,27 +243,23 @@ def step_aggregate() -> dict[str, Any]:
         pre_snapshot = snap_dir / f"{agg_path.stem}_prerun_{ts}{agg_path.suffix}"
         shutil.copy2(agg_path, pre_snapshot)
 
-    rc, out, err = run_cmd(["python3", str(SRC_DIR / "aggregate_daily_data.py")], timeout=300)
     result: dict[str, Any] = {
-        "ok": rc == 0, "records": 0, "duplicates": 0,
+        "ok": False, "records": 0, "duplicates": 0,
         "pre_snapshot": pre_snapshot,
     }
-    if rc != 0:
-        log_err(f"Aggregation FAILED (exit {rc})")
-        # If the aggregation script bailed out (e.g., growth sanity check
-        # rejected an unexpectedly small new file), preserve the snapshot
-        # for inspection but don't restore yet — atomic writes mean the
-        # on-disk file is still the previous good one.
+    _ensure_src_importable()
+    from aggregate_daily_data import run_aggregation
+    try:
+        agg = run_aggregation()
+    except Exception as e:
+        # Includes GrowthSanityError: the write was refused, so the on-disk
+        # file is still the previous good one (atomic writes). Preserve the
+        # snapshot for inspection; don't restore.
+        logging.exception("Aggregation failed")
+        log_err(f"Aggregation FAILED: {e.__class__.__name__}: {e}")
         return result
-    combined = out + err
-    # Strip any thousands-separator commas before int() — supports either
-    # "(3,904 records)" or "(3904 records)".
-    m = re.search(r"saved.*?\(([\d,]+) records\)", combined)
-    if m:
-        result["records"] = int(m.group(1).replace(",", ""))
-    m = re.search(r"Dropped (\d+) duplicate", combined)
-    if m:
-        result["duplicates"] = int(m.group(1))
+
+    result.update(ok=True, records=agg["records"], duplicates=agg["duplicates"])
     log_ok(f"{result['records']:,} records ({result['duplicates']} duplicate{'s' if result['duplicates'] != 1 else ''} dropped)")
     return result
 
@@ -268,22 +281,25 @@ def step_parse_payroll() -> dict[str, Any]:
         pre_snapshot = snap_dir / f"{payroll_path.stem}_prerun_{ts}{payroll_path.suffix}"
         shutil.copy2(payroll_path, pre_snapshot)
 
-    rc, out, err = run_cmd(
-        ["python3", str(SRC_DIR / "parse_payroll_pdf.py"),
-         "--pdf-dir", str(PROJECT_ROOT / "data" / "payroll_pdfs")],
-        timeout=300,
-    )
-    result: dict[str, Any] = {"ok": rc == 0, "processed": 0, "skipped": 0,
+    result: dict[str, Any] = {"ok": False, "processed": 0, "skipped": 0,
                               "failed": 0, "pre_snapshot": pre_snapshot}
-    if rc != 0:
-        log_err(f"Payroll parse exited with {rc}")
-    combined = out + err
-    m = re.search(r"Processed:\s*(\d+)", combined)
-    if m: result["processed"] = int(m.group(1))
-    m = re.search(r"Skipped.*?(\d+)", combined)
-    if m: result["skipped"] = int(m.group(1))
-    m = re.search(r"Failed:\s*(\d+)", combined)
-    if m: result["failed"] = int(m.group(1))
+    _ensure_src_importable()
+    try:
+        from parse_payroll_pdf import parse_pdf_directory
+        summary = parse_pdf_directory(PROJECT_ROOT / "data" / "payroll_pdfs")
+    except Exception as e:
+        logging.exception("Payroll parse failed")
+        log_err(f"Payroll parse failed: {e.__class__.__name__}: {e}")
+        return result
+
+    result.update(
+        ok=True,
+        processed=len(summary.get("processed", [])),
+        skipped=len(summary.get("skipped", [])),
+        failed=len(summary.get("failed", [])),
+    )
+    for name, err_msg in summary.get("failed", [])[:3]:
+        log_warn(f"  failed: {name}: {err_msg}")
     log_ok(f"{result['processed']} period(s) processed, {result['skipped']} skipped, {result['failed']} failed")
     return result
 
@@ -360,44 +376,76 @@ def step_validate() -> dict[str, Any]:
     return {"ok": True, "issues": issues, "blocked": blocked, "reasons": reasons}
 
 
-def step_build_dashboards() -> dict[str, Any]:
-    """Build all 5 dashboards. Each runs independently — one failure doesn't stop others."""
-    builds = [
-        ("Interactive", "build_interactive_dashboard.py"),
-        ("Daily", "build_daily_dashboard.py"),
-        ("Operator", "build_operator_dashboard.py"),
-        ("Profit", "build_profit_dashboard.py"),
-        ("Payroll", "build_payroll_dashboard.py"),
+def _dashboard_builders() -> list[tuple[str, Any]]:
+    """(label, zero-arg callable) for each dashboard build, module defaults.
+
+    Import happens here (not module top) so one broken builder can't take
+    the orchestrator down with it at import time.
+    """
+    _ensure_src_importable()
+    import build_interactive_dashboard as bi
+    import build_daily_dashboard as bd
+    import build_operator_dashboard as bo
+    import build_profit_dashboard as bp
+    import build_payroll_dashboard as bpay
+    return [
+        ("Interactive", lambda: bi.main(bi.DEFAULT_INPUT, bi.DEFAULT_OUTPUT)),
+        ("Daily", lambda: bd.main(bd.DEFAULT_DAILY_INPUT, bd.DEFAULT_NOTES_INPUT, bd.DEFAULT_OUTPUT)),
+        ("Operator", lambda: bo.main(bo.DEFAULT_INPUT, bo.DEFAULT_OUTPUT)),
+        ("Profit", lambda: bp.main(bp.DEFAULT_INPUT, bp.DEFAULT_OUTPUT)),
+        ("Payroll", lambda: bpay.main(bpay.DEFAULT_OUTPUT)),
     ]
+
+
+def step_build_dashboards() -> dict[str, Any]:
+    """Build all 5 dashboards in-process. One failure doesn't stop the others,
+    and failures log the real traceback instead of a subprocess exit code."""
+    import io
+    from contextlib import redirect_stdout
+
     results = {"ok": True, "built": [], "failed": [], "skipped": []}
+
+    try:
+        builds = _dashboard_builders()
+    except Exception as e:
+        logging.exception("Could not import dashboard builders")
+        log_err(f"Builder import failed: {e.__class__.__name__}: {e}")
+        results["ok"] = False
+        return results
 
     # The payroll dashboard needs the local (gitignored, PII) roster file.
     # A missing roster is an expected local-setup gap, not a pipeline
     # failure — skip with a warning rather than failing the whole run.
     roster_path = PROJECT_ROOT / "data" / "employee_roster.json"
     if not roster_path.exists():
-        builds = [(l, s) for l, s in builds if l != "Payroll"]
+        builds = [(l, fn) for l, fn in builds if l != "Payroll"]
         results["skipped"].append("Payroll")
         log_warn("Payroll skipped: data/employee_roster.json missing "
                  "(copy data/employee_roster.example.json and fill in)")
 
-    for label, script in builds:
-        rc, out, err = run_cmd(["python3", str(SRC_DIR / script)], timeout=600)
-        if rc == 0:
-            results["built"].append(label)
-            # Pull a notable line from output if present
-            extra = ""
-            for line in out.splitlines():
-                if "uplift" in line.lower():
-                    extra = f" ({line.strip()})"
-                    break
-            log_ok(f"{label}{extra}")
-        else:
+    for label, build_fn in builds:
+        buf = io.StringIO()
+        try:
+            with redirect_stdout(buf):
+                build_fn()
+        except Exception as e:
             results["failed"].append(label)
             results["ok"] = False
-            log_err(f"{label} failed (exit {rc})")
-            if err:
-                log_err(f"   {err.splitlines()[-1] if err.splitlines() else ''}")
+            logging.exception(f"{label} dashboard build failed")
+            log_err(f"{label} failed: {e.__class__.__name__}: {e}")
+            tail = buf.getvalue().strip().splitlines()[-2:]
+            for line in tail:
+                log_err(f"   {line}")
+            continue
+
+        results["built"].append(label)
+        # Surface a notable line from the builder's output if present
+        extra = ""
+        for line in buf.getvalue().splitlines():
+            if "uplift" in line.lower():
+                extra = f" ({line.strip()})"
+                break
+        log_ok(f"{label}{extra}")
     return results
 
 

@@ -324,7 +324,7 @@ def aggregate_daily_folder(
     incremental: bool = False,
     output_path: Path | None = None,
     notes_path: Path | None = None,
-) -> None:
+) -> dict:
     """Aggregate all processing report files in folder to daily data files.
 
     With ``incremental=True``, weeks parsed from the folder replace the
@@ -332,7 +332,17 @@ def aggregate_daily_folder(
     everything else is preserved — the folder does NOT need to contain the
     full historical archive. Without it, the output is rebuilt purely from
     the folder contents (original behavior; requires the full archive).
+
+    Returns a summary dict for callers (the orchestrator uses it directly
+    instead of scraping log output):
+        records      total rows in the written daily file
+        duplicates   duplicate rows dropped this run
+        notes        total rows in the written notes file
+        parsed_files number of workbooks parsed this run
+        changed      False when nothing needed to be written
     """
+    summary: dict = {"records": 0, "duplicates": 0, "notes": 0,
+                     "parsed_files": 0, "changed": False}
     folder = Path(folder_path)
     data_dir = Path(__file__).resolve().parent.parent / "data"
     output_path = output_path or data_dir / "aggregated_daily_data.xlsx"
@@ -355,16 +365,17 @@ def aggregate_daily_folder(
         logger.info("Incremental: parsing %d recently-modified file(s), "
                     "skipping %d unchanged", len(file_paths), len(skipped))
         if not file_paths:
-            # Log the standing count so the orchestrator's summary regex
-            # ("saved ... (N records)") still reports the real total.
             n_existing = len(pd.read_excel(output_path))
             logger.info("No new or modified reports — aggregated data unchanged. "
                         "Daily data saved to %s (%d records)", output_path, n_existing)
-            return
+            summary["records"] = n_existing
+            if notes_path.exists():
+                summary["notes"] = len(pd.read_excel(notes_path))
+            return summary
 
     if not file_paths:
         logger.info("No processing report files found in %s", folder_path)
-        return
+        return summary
 
     daily_dataframes: list[pd.DataFrame] = []
     notes_dataframes: list[pd.DataFrame] = []
@@ -410,6 +421,7 @@ def aggregate_daily_folder(
         aggregated_daily, n_dropped = dedup_daily(aggregated_daily)
         if n_dropped:
             logger.warning("Dropped %d duplicate rows during aggregation", n_dropped)
+        summary["duplicates"] = n_dropped
 
         snapshot_dir = output_path.parent / "snapshots"
         try:
@@ -422,6 +434,8 @@ def aggregate_daily_folder(
             )
             logger.info("Daily data saved to %s (%d records) [%s]",
                         output_path, len(aggregated_daily), result["growth_msg"])
+            summary["records"] = len(aggregated_daily)
+            summary["changed"] = True
         except GrowthSanityError as e:
             logger.error("REFUSING to overwrite %s: %s", output_path, e)
             logger.error("If this drop is legitimate, delete the existing file or run with manual override.")
@@ -465,8 +479,31 @@ def aggregate_daily_folder(
         )
         logger.info("Notes saved to %s (%d records) [%s]",
                     notes_path, len(aggregated_notes), result["growth_msg"])
+        summary["notes"] = len(aggregated_notes)
     else:
         logger.info("No supervisor notes found.")
+
+    summary["parsed_files"] = len(file_paths)
+    return summary
+
+
+def run_aggregation(reports_dir: Path | None = None, full: bool = False) -> dict:
+    """Aggregate with the standard mode selection (shared by CLI + orchestrator).
+
+    Incremental when an aggregate already exists, full rebuild otherwise or
+    when ``full=True``. Returns the summary dict from aggregate_daily_folder.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    reports_dir = reports_dir or project_root / "processing_reports"
+    agg_exists = (project_root / "data" / "aggregated_daily_data.xlsx").exists()
+    use_incremental = agg_exists and not full
+    logger.info("Mode: %s", "incremental" if use_incremental else "full rebuild")
+    return aggregate_daily_folder(
+        reports_dir,
+        hourly_rate=LABOR_RATE,
+        overhead_multiplier=1.0,
+        incremental=use_incremental,
+    )
 
 
 if __name__ == "__main__":
@@ -494,20 +531,7 @@ if __name__ == "__main__":
         help=argparse.SUPPRESS,  # legacy alias; incremental is now the default
     )
     args = parser.parse_args()
-
-    data_dir = Path(__file__).resolve().parent.parent / "data"
-    agg_exists = (data_dir / "aggregated_daily_data.xlsx").exists()
-    # Incremental by default when there is an existing aggregate to merge
-    # into; first-ever run (or --full) rebuilds from the whole folder.
-    use_incremental = agg_exists and not args.full
     if args.full and args.incremental:
         parser.error("--full and --incremental are mutually exclusive")
-    logging.getLogger(__name__).info(
-        "Mode: %s", "incremental" if use_incremental else "full rebuild")
 
-    aggregate_daily_folder(
-        args.reports_dir,
-        hourly_rate=LABOR_RATE,
-        overhead_multiplier=1.0,
-        incremental=use_incremental,
-    )
+    run_aggregation(reports_dir=args.reports_dir, full=args.full)
