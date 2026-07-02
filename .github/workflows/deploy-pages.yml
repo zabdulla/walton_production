@@ -1,0 +1,48 @@
+name: Deploy Pages
+
+# Deploys docs/ to GitHub Pages via the Actions-based deployment path.
+#
+# Replaces the legacy "deploy from branch" mechanism, whose opaque build
+# queue stalled twice on 2026-07-02 (deployment_queued -> 10-min timeout,
+# no diagnostics). The Actions path uses the official upload/deploy
+# actions, surfaces failures in our own logs, and keeps working if the
+# repository is later made private (with GitHub Pro/Team).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never queue more than one deploy; the newest content wins.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs/ artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
