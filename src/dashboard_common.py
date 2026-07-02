@@ -106,3 +106,15 @@ LOCAL_DATE_JS = """\
                 String(d.getMonth() + 1).padStart(2, '0') + '-' +
                 String(d.getDate()).padStart(2, '0');
         }"""
+
+
+# ---------------------------------------------------------------------------
+# Shift-comparison chart config (shared by the figure builder in
+# build_interactive_dashboard and the page JS in interactive_template)
+# ---------------------------------------------------------------------------
+SHIFT_METRICS = {
+    "Output": ("Actual_Output", ",.0f", "lbs"),
+    "Output/Hr": ("Output_per_Hour", ",.1f", "lbs/hr"),
+    "Cost/Lb": ("Cost_per_Pound", "$.4f", ""),
+}
+SHIFT_COLORS = {"1st": "#3b82f6", "2nd": "#f59e0b", "3rd": "#8b5cf6"}
