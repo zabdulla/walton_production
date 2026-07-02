@@ -1,0 +1,97 @@
+name: Weekly Cloud Fallback
+
+# Remediation counterpart to heartbeat.yml (which only *detects* a missed
+# Monday run). The primary weekly update runs on a Mac via launchd at noon
+# ET. If that machine is asleep or broken, THIS workflow runs the same
+# pipeline in Actions two hours later and publishes, so the dashboards
+# never go stale because of a single machine.
+#
+# Details that make this work headless:
+#   - Gmail OAuth credentials/token come from repo secrets, written to
+#     ~/.config/walton/ where fetch_emails.py expects them.
+#   - Aggregation is incremental by default: the fresh checkout has an
+#     EMPTY processing_reports/ folder; only newly fetched workbooks are
+#     parsed and merged into the tracked aggregate.
+#   - The payroll dashboard is skipped automatically (PII roster is a
+#     local-only file, never in the repo).
+#   - Pushes made with GITHUB_TOKEN do not trigger `push` workflows, so
+#     the final step dispatches deploy-pages.yml explicitly.
+
+on:
+  schedule:
+    - cron: '0 18 * * 1'   # Mondays 18:00 UTC = 2pm EDT / 1pm EST
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run even if the local job already published today"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write   # to dispatch deploy-pages.yml after pushing
+
+concurrency:
+  group: weekly-update
+  cancel-in-progress: false
+
+jobs:
+  fallback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Skip if the local run already published today
+        id: guard
+        run: |
+          last=$(git log -1 --format=%ct -- data/aggregated_daily_data.xlsx)
+          age_h=$(( ( $(date +%s) - last ) / 3600 ))
+          echo "Last data commit: ${age_h}h ago"
+          if [ "${{ inputs.force }}" != "true" ] && [ "$age_h" -lt 20 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Local job already published — nothing to do."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.guard.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies (locked)
+        if: steps.guard.outputs.skip != 'true'
+        run: pip install -r requirements.lock
+
+      - name: Write Gmail credentials from secrets
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          mkdir -p ~/.config/walton
+          printf '%s' '${{ secrets.GMAIL_CREDENTIALS_JSON }}' > ~/.config/walton/gmail_credentials.json
+          printf '%s' '${{ secrets.GMAIL_TOKEN_JSON }}' > ~/.config/walton/gmail_token.json
+          chmod 600 ~/.config/walton/gmail_*.json
+
+      - name: Configure git identity
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          git config user.name "walton-cloud-fallback[bot]"
+          git config user.email "walton-cloud-fallback@users.noreply.github.com"
+
+      - name: Run weekly update pipeline
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
+        run: python3 src/weekly_update.py
+
+      - name: Deploy Pages (GITHUB_TOKEN pushes don't auto-trigger it)
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-pages.yml --repo "$GITHUB_REPOSITORY"

@@ -340,6 +340,28 @@ def aggregate_daily_folder(
 
     file_paths = sorted(p for p in folder.glob("*processing weights*.xlsx") if not p.name.startswith("~"))
 
+    if incremental and output_path.exists():
+        # Only parse workbooks touched since the last aggregation (with a
+        # 3-day cushion so a re-sent correction for an older week is still
+        # picked up). This is the actual speed win — the corpus is ~170
+        # workbooks and growing, and merge_incremental() only needs the
+        # weeks that changed. It also means a fresh checkout with an empty
+        # processing_reports/ folder (e.g. CI) can aggregate: newly fetched
+        # files are parsed, everything else is preserved from the existing
+        # aggregated file.
+        cutoff = output_path.stat().st_mtime - 3 * 24 * 3600
+        skipped = [p for p in file_paths if p.stat().st_mtime <= cutoff]
+        file_paths = [p for p in file_paths if p.stat().st_mtime > cutoff]
+        logger.info("Incremental: parsing %d recently-modified file(s), "
+                    "skipping %d unchanged", len(file_paths), len(skipped))
+        if not file_paths:
+            # Log the standing count so the orchestrator's summary regex
+            # ("saved ... (N records)") still reports the real total.
+            n_existing = len(pd.read_excel(output_path))
+            logger.info("No new or modified reports — aggregated data unchanged. "
+                        "Daily data saved to %s (%d records)", output_path, n_existing)
+            return
+
     if not file_paths:
         logger.info("No processing report files found in %s", folder_path)
         return
@@ -461,15 +483,31 @@ if __name__ == "__main__":
         help="Folder containing raw processing-weights xlsx files.",
     )
     parser.add_argument(
+        "--full", action="store_true",
+        help="Force a full rebuild from every workbook in the folder "
+             "(requires the complete archive). Default is incremental: only "
+             "recently-modified workbooks are parsed and merged into the "
+             "existing aggregate.",
+    )
+    parser.add_argument(
         "--incremental", action="store_true",
-        help="Merge parsed weeks into the existing aggregate instead of "
-             "rebuilding from scratch. Use on runners that only have recent "
-             "report files, not the full archive.",
+        help=argparse.SUPPRESS,  # legacy alias; incremental is now the default
     )
     args = parser.parse_args()
+
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    agg_exists = (data_dir / "aggregated_daily_data.xlsx").exists()
+    # Incremental by default when there is an existing aggregate to merge
+    # into; first-ever run (or --full) rebuilds from the whole folder.
+    use_incremental = agg_exists and not args.full
+    if args.full and args.incremental:
+        parser.error("--full and --incremental are mutually exclusive")
+    logging.getLogger(__name__).info(
+        "Mode: %s", "incremental" if use_incremental else "full rebuild")
+
     aggregate_daily_folder(
         args.reports_dir,
         hourly_rate=LABOR_RATE,
         overhead_multiplier=1.0,
-        incremental=args.incremental,
+        incremental=use_incremental,
     )
