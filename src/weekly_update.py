@@ -94,9 +94,21 @@ def check_dependencies() -> list[str]:
     return missing
 
 
+LOG_ROTATE_BYTES = 1_000_000  # rotate the structured log at ~1 MB
+
+
 def setup_file_logger() -> None:
-    """Tee output to logs/weekly_update.log (rotated by date in the line prefix)."""
+    """Tee output to logs/weekly_update.log, rotating at LOG_ROTATE_BYTES.
+
+    Rotation keeps exactly one previous generation (weekly_update.log.old);
+    at ~5 KB per run that's years of history without unbounded growth.
+    """
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    try:
+        if LOG_FILE.exists() and LOG_FILE.stat().st_size > LOG_ROTATE_BYTES:
+            LOG_FILE.replace(LOG_FILE.with_suffix(".log.old"))
+    except OSError:
+        pass  # rotation is best-effort; never block a run over it
     # datefmt is pinned because last_run_status.py regex-parses these
     # timestamps as "YYYY-MM-DD HH:MM:SS" — do not change one without the other.
     fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",

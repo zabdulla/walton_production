@@ -2,6 +2,17 @@
 
 **Date:** 2026-06-09 · **Scope:** full repo (src/, tests/, scripts/, .github/, data/, docs/) · **Test baseline:** 141 passed, 3 skipped
 
+> **Execution status (2026-07-02):** Everything below §0 is now DONE — the
+> June phases plus: incremental aggregation by default, cloud-fallback weekly
+> run (weekly-cloud.yml), workflow-based Pages deploys, in-process orchestrator,
+> template extraction from both god files, canonical snake_case schema, the
+> evergreen design system with dark mode, obsolete-file sweep, rewritten README
+> with runbook, and setup/DATA_DICTIONARY.md. Test suite: 202 passing.
+> **Still open — §0 admin actions only the repo owner can take** (repo is
+> still PUBLIC as of this stamp): make repo private + pick a Pages plan,
+> purge data/employee_roster.json from git history, optional ruleset/branch
+> protection with a pipeline bypass.
+
 > **Execution status (2026-06-09, this branch):** Phases 0–3 and most of Phase 4
 > are IMPLEMENTED here (test suite now: 176 passed, 4 skipped).
 > Fixed: bugs D1–D12; roster untracked from git; ci.yml (PR/branch test gate),
