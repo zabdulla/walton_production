@@ -5,6 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Processing Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('walton-theme');
+        if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* default = light */ }
+    })();
+    function waltonPlotColors() {
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return dark
+        ? { font: '#cbd5d1', grid: '#2a333a', zero: '#3b464e' }
+        : { font: '#1f2937', grid: '#e5e7eb', zero: '#cbd5e1' };
+    }
+    function waltonThemePlots() {
+      if (!window.Plotly) return;
+      var c = waltonPlotColors();
+      document.querySelectorAll('.js-plotly-plot').forEach(function (el) {
+        try {
+          Plotly.relayout(el, {
+            'font.color': c.font,
+            'xaxis.gridcolor': c.grid, 'yaxis.gridcolor': c.grid,
+            'xaxis.zerolinecolor': c.zero, 'yaxis.zerolinecolor': c.zero,
+            'yaxis2.gridcolor': c.grid, 'legend.bgcolor': 'rgba(0,0,0,0)'
+          });
+        } catch (e) { /* figure without those axes */ }
+      });
+    }
+  </script>
     <style>
         :root {
             --primary: #111827;
@@ -12,6 +41,7 @@
             --accent-strong: #095c42;
             --border: #e5e7eb;
             --bg: #f6f7f9;
+            --card: #ffffff;
             --complete: #10b981;
             --partial: #f59e0b;
             --missing: #ef4444;
@@ -57,7 +87,7 @@
             gap: 12px;
             margin-bottom: 20px;
             flex-wrap: wrap;
-            background: white;
+            background: var(--card);
             padding: 16px;
             border-radius: 12px;
             border: 1px solid var(--border);
@@ -69,7 +99,7 @@
         .period-type-btn {
             padding: 8px 16px;
             border: 1px solid var(--border);
-            background: white;
+            background: var(--card);
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
@@ -90,7 +120,7 @@
             width: 36px;
             height: 36px;
             border: 1px solid var(--border);
-            background: white;
+            background: var(--card);
             border-radius: 6px;
             cursor: pointer;
             font-size: 18px;
@@ -115,7 +145,7 @@
             border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 14px;
-            background: white;
+            background: var(--card);
         }
 
         /* Status legend */
@@ -139,13 +169,13 @@
         .legend-dot.partial { background: var(--partial); }
         .legend-dot.missing { background: var(--missing); }
         .legend-dot.has-note {
-            background: white;
+            background: var(--card);
             border: 2px solid var(--accent);
         }
 
         /* Calendar grid */
         .calendar-section {
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
@@ -216,7 +246,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: white;
+            background: var(--card);
             padding: 24px;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -323,7 +353,7 @@
             margin-bottom: 20px;
         }
         .kpi-card {
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             padding: 16px;
             text-align: center;
@@ -345,7 +375,7 @@
 
         /* Chart section */
         .chart-section {
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
@@ -364,7 +394,7 @@
         .chart-toggle {
             padding: 6px 14px;
             border: 1px solid var(--border);
-            background: white;
+            background: var(--card);
             cursor: pointer;
             font-size: 13px;
             transition: all 0.2s;
@@ -441,6 +471,43 @@
         @media (prefers-reduced-motion: reduce) {
             * { animation: none !important; transition: none !important; }
         }
+
+        html[data-theme="dark"] {
+            --primary: #e5e9ec;
+            --accent: #34a882;
+            --accent-strong: #2c8f6f;
+            --border: #2a333a;
+            --bg: #0f1417;
+            --card: #161d23;
+            --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+            --shadow-lift: 0 2px 4px rgba(0,0,0,.45), 0 12px 32px rgba(0,0,0,.5);
+        }
+        html[data-theme="dark"] body {
+            background: linear-gradient(180deg,#111c17 0,var(--bg) 360px) fixed;
+        }
+        html[data-theme="dark"] .calendar-day.complete { background: rgba(16,185,129,.14); }
+        html[data-theme="dark"] .calendar-day.partial { background: rgba(245,158,11,.14); }
+        html[data-theme="dark"] .calendar-day.missing { background: rgba(239,68,68,.14); }
+        html[data-theme="dark"] .calendar-day.empty { background: #1b242b; }
+        html[data-theme="dark"] .machine-cal .cal-active { background: rgba(16,185,129,.16); color: #6ee7b7; }
+        html[data-theme="dark"] .machine-cal .cal-idle { background: rgba(245,158,11,.14); color: #fcd34d; }
+        html[data-theme="dark"] .machine-cal .cal-off { background: #1b242b; color: #6b7680; }
+        html[data-theme="dark"] select, html[data-theme="dark"] input,
+        html[data-theme="dark"] .nav-btn, html[data-theme="dark"] .period-type-btn,
+        html[data-theme="dark"] .chart-toggle {
+            background: var(--card); color: var(--primary); border-color: var(--border);
+        }
+        html[data-theme="dark"] .period-type-btn.active {
+            background: var(--accent); color: #08110d; border-color: var(--accent);
+        }
+        html[data-theme="dark"] input[type="date"] { color-scheme: dark; }
+        html[data-theme="dark"] .day-output { color: #b7c2c9; }
+        html[data-theme="dark"] .day-output.zero { color: #7d8891; }
+    .theme-toggle { position:fixed; top:14px; right:14px; z-index:60;
+      width:38px; height:38px; border-radius:999px; border:1px solid var(--border);
+      background:var(--card); box-shadow:var(--shadow-card); cursor:pointer;
+      font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; }
+    .theme-toggle:hover { box-shadow:var(--shadow-lift); }
     </style>
 </head>
 <body>
@@ -1058,5 +1125,26 @@
         // Initialize on load
         init();
     </script>
+  <button id="themeToggle" class="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">&#127769;</button>
+  <script>
+    (function () {
+      var btn = document.getElementById('themeToggle');
+      function icon() {
+        btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '\u2600\ufe0f' : '\ud83c\udf19';
+      }
+      btn.addEventListener('click', function () {
+        var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('walton-theme', next); } catch (e) {}
+        icon();
+        waltonThemePlots();
+      });
+      icon();
+      // Server-rendered figures are baked light; fix them once they exist.
+      if (document.documentElement.getAttribute('data-theme') === 'dark') {
+        setTimeout(waltonThemePlots, 600);
+      }
+    })();
+  </script>
 </body>
 </html>

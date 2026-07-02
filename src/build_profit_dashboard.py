@@ -26,7 +26,9 @@ from config import (
     MACHINE_PRESETS,
     DEFAULT_PRESET,
 )
-from dashboard_common import BASE_CSS, CARD_CSS
+from dashboard_common import (
+    BASE_CSS, CARD_CSS, DARK_CSS, THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,
+)
 
 DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
 DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "profit.html"
@@ -130,15 +132,18 @@ def render_html(
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Profit Margin Simulator</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+{THEME_INIT_JS}
   <style>
 {BASE_CSS}
+{DARK_CSS}
+{THEME_TOGGLE_CSS}
     .badge {{ display:inline-block; background:#fef3c7; color:#92400e; font-size:11px; font-weight:600;
               padding:2px 8px; border-radius:6px; margin-left:8px; vertical-align:middle; }}
 {CARD_CSS}
     .controls {{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }}
     .control-group {{ flex:1; min-width:220px; }}
     .control-group label {{ display:block; font-weight:600; color:var(--muted); font-size:13px; margin-bottom:6px; }}
-    select {{ padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:#fff;
+    select {{ padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card);
               min-width:200px; font-size:14px; }}
     .slider-row {{ display:flex; align-items:center; gap:12px; margin-bottom:4px; }}
     .slider-row input[type=range] {{
@@ -150,25 +155,25 @@ def render_html(
     .slider-row input[type=range]::-webkit-slider-thumb {{
       -webkit-appearance:none; appearance:none;
       width:22px; height:22px; border-radius:50%;
-      background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      border:3px solid #fff; box-shadow:0 2px 6px rgba(37,99,235,.35);
+      background:linear-gradient(135deg, #12885f 0%, #0b6e4f 100%);
+      border:3px solid #fff; box-shadow:0 2px 6px rgba(11,110,79,.35);
       cursor:grab; transition:transform .15s, box-shadow .15s;
     }}
     .slider-row input[type=range]::-webkit-slider-thumb:hover {{
-      transform:scale(1.15); box-shadow:0 3px 10px rgba(37,99,235,.45);
+      transform:scale(1.15); box-shadow:0 3px 10px rgba(11,110,79,.45);
     }}
     .slider-row input[type=range]::-webkit-slider-thumb:active {{
       cursor:grabbing; transform:scale(1.05);
-      background:linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      background:linear-gradient(135deg, #0b6e4f 0%, #095c42 100%);
     }}
     .slider-row input[type=range]::-moz-range-thumb {{
       width:22px; height:22px; border-radius:50%;
-      background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      border:3px solid #fff; box-shadow:0 2px 6px rgba(37,99,235,.35);
+      background:linear-gradient(135deg, #12885f 0%, #0b6e4f 100%);
+      border:3px solid #fff; box-shadow:0 2px 6px rgba(11,110,79,.35);
       cursor:grab; transition:transform .15s, box-shadow .15s;
     }}
     .slider-row input[type=range]::-moz-range-thumb:hover {{
-      transform:scale(1.15); box-shadow:0 3px 10px rgba(37,99,235,.45);
+      transform:scale(1.15); box-shadow:0 3px 10px rgba(11,110,79,.45);
     }}
     .slider-row input[type=range]::-moz-range-track {{
       height:8px; border-radius:4px; background:#e2e8f0;
@@ -178,7 +183,7 @@ def render_html(
       border:1px solid var(--border); border-radius:8px;
       padding:4px 8px; transition:background .25s, color .25s, border-color .25s;
     }}
-    .slider-val.val-ok {{ background:#f1f5f9; color:#1e40af; border-color:var(--border); }}
+    .slider-val.val-ok {{ background:var(--brand-soft); color:var(--brand-strong); border-color:var(--border); }}
     .slider-val.val-warn {{ background:#fef2f2; color:#dc2626; border-color:#fca5a5; }}
     .slider-bounds {{ display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; margin-top:-2px; padding:0 2px; }}
     .range-control {{ display:flex; align-items:center; gap:6px; margin-left:auto; }}
@@ -188,7 +193,7 @@ def render_html(
                   font-size:12px; transition:all .2s; }}
     .range-btn:first-child {{ border-radius:8px 0 0 8px; }}
     .range-btn:last-child {{ border-radius:0 8px 8px 0; }}
-    .range-btn.active {{ background:#3b82f6; color:#fff; border-color:#3b82f6; }}
+    .range-btn.active {{ background:var(--brand); color:#fff; border-color:var(--brand); }}
     .range-btn:hover:not(.active) {{ background:#f3f4f6; }}
     .kpi-grid {{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin:16px 0; }}
     .kpi-card {{ background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center; }}
@@ -210,6 +215,7 @@ def render_html(
   </style>
 </head>
 <body>
+  <p class="eyebrow">Walton Logistics &mdash; Production</p>
   <h1>Profit Margin Simulator <span class="badge">INTERNAL ONLY</span></h1>
   <p class="subtitle">Adjust pricing assumptions to explore profit scenarios per machine. Labor rate: ${LABOR_RATE}/hr.</p>
 
@@ -492,8 +498,8 @@ def render_html(
           xanchor: 'right', yanchor: 'bottom', yshift: 2,
         }}],
         template: 'plotly_white',
-        plot_bgcolor: '#f9fafc', paper_bgcolor: '#fdfdff',
-        font: {{ family: 'Helvetica, Arial, sans-serif', size: 13, color: '#1f2937' }},
+        plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {{ family: 'Helvetica, Arial, sans-serif', size: 13, color: waltonPlotColors().font }},
         legend: {{ orientation: 'h', x: 0.5, xanchor: 'center', y: 1.12 }},
         margin: {{ t: 80, r: 60, b: 100, l: 80 }},
         hovermode: 'x unified',
@@ -527,8 +533,8 @@ def render_html(
       const donutLayout = {{
         title: 'Cost Breakdown',
         showlegend: false,
-        template: 'plotly_white', paper_bgcolor: '#fdfdff',
-        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: '#1f2937' }},
+        template: 'plotly_white', paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: waltonPlotColors().font }},
         margin: {{ t: 60, r: 20, b: 20, l: 20 }},
         annotations: [{{
           text: fmtD(donutTotal),
@@ -575,8 +581,8 @@ def render_html(
             type: 'line', xref: 'paper', x0: 0, x1: 1, yref: 'y', y0: 0, y1: 0,
             line: {{ color: '#ef4444', width: 1.5, dash: 'dash' }},
           }}],
-          template: 'plotly_white', plot_bgcolor: '#f9fafc', paper_bgcolor: '#fdfdff',
-          font: {{ family: 'Helvetica, Arial, sans-serif', size: 13, color: '#1f2937' }},
+          template: 'plotly_white', plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+          font: {{ family: 'Helvetica, Arial, sans-serif', size: 13, color: waltonPlotColors().font }},
           margin: {{ t: 60, r: 20, b: 80, l: 80 }},
           showlegend: false,
         }};
@@ -593,6 +599,7 @@ def render_html(
 
     update();
   </script>
+{THEME_TOGGLE_HTML}
 </body>
 </html>"""
 

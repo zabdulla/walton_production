@@ -27,7 +27,10 @@ from config import (
     OT_MULTIPLIER_2,
 )
 from parse_payroll_pdf import compare_payroll_to_production, load_roster
-from dashboard_common import BASE_CSS, CARD_CSS, ESCAPE_HTML_JS_4SP
+from dashboard_common import (
+    BASE_CSS, CARD_CSS, ESCAPE_HTML_JS_4SP,
+    DARK_CSS, THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,
+)
 
 DEFAULT_OUTPUT = PROJECT_ROOT / "reports" / "payroll.html"
 
@@ -160,15 +163,27 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Payroll Analysis Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+{THEME_INIT_JS}
   <style>
 {BASE_CSS}
+{DARK_CSS}
+    html[data-theme="dark"] .kpi-card.green {{ background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35); }}
+    html[data-theme="dark"] .kpi-card.blue {{ background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.35); }}
+    html[data-theme="dark"] .kpi-card.red {{ background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35); }}
+    html[data-theme="dark"] .kpi-card.yellow {{ background:rgba(234,179,8,.12); border-color:rgba(234,179,8,.35); }}
+    .kpi-card.purple {{ background:#faf5ff; border-color:#e9d5ff; }}
+    html[data-theme="dark"] .kpi-card.purple {{ background:rgba(139,92,246,.12); border-color:rgba(139,92,246,.35); }}
+    html[data-theme="dark"] .anon-banner {{ background:rgba(139,92,246,.14); border-color:rgba(139,92,246,.35); color:#c4b5fd; }}
+    html[data-theme="dark"] th {{ background:#1b242b; }}
+    html[data-theme="dark"] td {{ border-bottom-color:var(--border); }}
+{THEME_TOGGLE_CSS}
     .badge {{ display:inline-block; background:#fef2f2; color:#dc2626; font-size:11px; font-weight:600;
               padding:2px 8px; border-radius:6px; margin-left:8px; vertical-align:middle; }}
 {CARD_CSS}
     .controls {{ display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }}
     .control-group {{ flex:1; min-width:220px; }}
     .control-group label {{ display:block; font-weight:600; color:var(--muted); font-size:13px; margin-bottom:6px; }}
-    select {{ padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:#fff;
+    select {{ padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card);
               min-width:280px; font-size:14px; }}
     .kpi-grid {{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin:16px 0; }}
     .kpi-card {{ background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center; }}
@@ -217,6 +232,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
   </style>
 </head>
 <body>
+  <p class="eyebrow">Walton Logistics &mdash; Production</p>
   <h1>Payroll Analysis <span class="badge">INTERNAL ONLY &mdash; Payroll Analysis</span></h1>
   <p class="subtitle">
     Clock hours vs production-reported hours per pay period.
@@ -405,7 +421,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
           <div class="kpi-label">Maintenance Hours</div>
           <div class="kpi-value warning">${{fmt(s.maintTotal)}}</div>
         </div>
-        <div class="kpi-card" style="background:#faf5ff;border-color:#e9d5ff;">
+        <div class="kpi-card purple">
           <div class="kpi-label">Supervisor Hours</div>
           <div class="kpi-value" style="color:#7c3aed;">${{fmt(s.supTotal)}}</div>
         </div>
@@ -452,8 +468,8 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
         title: 'Hour Flow: Clock to Unaccounted',
         yaxis: {{ title: 'Hours' }},
         template: 'plotly_white',
-        plot_bgcolor: '#f9fafc', paper_bgcolor: '#fdfdff',
-        font: {{ family: 'Helvetica, Arial, sans-serif', size: 13, color: '#1f2937' }},
+        plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {{ family: 'Helvetica, Arial, sans-serif', size: 13, color: waltonPlotColors().font }},
         margin: {{ t: 60, r: 40, b: 60, l: 60 }},
         showlegend: false,
       }};
@@ -509,8 +525,8 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
         xaxis: {{ title: 'Hours' }},
         yaxis: {{ autorange: 'reversed', dtick: 1 }},
         template: 'plotly_white',
-        plot_bgcolor: '#f9fafc', paper_bgcolor: '#fdfdff',
-        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: '#1f2937' }},
+        plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: waltonPlotColors().font }},
         legend: {{ orientation: 'h', x: 0.5, xanchor: 'center', y: 1.05 }},
         margin: {{ t: 60, r: 40, b: 60, l: 180 }},
         height: chartHeight,
@@ -580,8 +596,8 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
              showarrow: false, font: {{ color: '#ca8a04', size: 10 }}, xanchor: 'right', yshift: 8 }},
         ],
         template: 'plotly_white',
-        plot_bgcolor: '#f9fafc', paper_bgcolor: '#fdfdff',
-        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: '#1f2937' }},
+        plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: waltonPlotColors().font }},
         margin: {{ t: 60, r: 40, b: 100, l: 60 }},
         showlegend: false,
       }};
@@ -601,8 +617,8 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
         xaxis: {{ tickangle: 45 }},
         yaxis: {{ title: 'Hours' }},
         template: 'plotly_white',
-        plot_bgcolor: '#f9fafc', paper_bgcolor: '#fdfdff',
-        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: '#1f2937' }},
+        plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
+        font: {{ family: 'Helvetica, Arial, sans-serif', size: 12, color: waltonPlotColors().font }},
         margin: {{ t: 60, r: 40, b: 100, l: 60 }},
         showlegend: false,
       }};
@@ -626,6 +642,7 @@ def render_html(periods_json: str, period_labels_json: str, roster_json: str) ->
     periodSelect.addEventListener('change', update);
     update();
   </script>
+{THEME_TOGGLE_HTML}
 </body>
 </html>"""
 

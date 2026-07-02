@@ -61,6 +61,108 @@ CARD_CSS = """\
              animation:rise .45s cubic-bezier(.2,.7,.3,1) backwards; animation-delay:.05s; }"""
 
 # ---------------------------------------------------------------------------
+# Dark mode
+# ---------------------------------------------------------------------------
+
+# Dark token overrides + generic control fixes. Scoped to html[data-theme=
+# "dark"], set by THEME_INIT_JS before first paint (no flash). Brand shifts
+# one step brighter for contrast on dark surfaces. Semantic chart colors
+# (green/red/amber) are used on both themes unchanged.
+DARK_CSS = """\
+    html[data-theme="dark"] {
+      --brand:#34a882; --brand-strong:#2c8f6f; --brand-soft:#12261f;
+      --bg:#0f1417; --card:#161d23; --text:#e5e9ec; --muted:#9aa4ad; --border:#2a333a;
+      --shadow-card:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+      --shadow-lift:0 2px 4px rgba(0,0,0,.45), 0 12px 32px rgba(0,0,0,.5);
+    }
+    html[data-theme="dark"] body {
+      background:linear-gradient(180deg,#111c17 0,var(--bg) 360px) fixed; color:var(--text);
+    }
+    html[data-theme="dark"] select, html[data-theme="dark"] input,
+    html[data-theme="dark"] .toggle-btn, html[data-theme="dark"] .range-btn,
+    html[data-theme="dark"] .export-btn, html[data-theme="dark"] .nav-btn,
+    html[data-theme="dark"] .period-select, html[data-theme="dark"] .period-type-btn {
+      background:var(--card); color:var(--text); border-color:var(--border);
+    }
+    html[data-theme="dark"] .toggle-btn:hover:not(.active),
+    html[data-theme="dark"] .range-btn:hover:not(.active),
+    html[data-theme="dark"] .export-btn:hover,
+    html[data-theme="dark"] .nav-btn:hover { background:#1e2830; }
+    html[data-theme="dark"] .toggle-btn.active, html[data-theme="dark"] .range-btn.active,
+    html[data-theme="dark"] .period-type-btn.active {
+      background:var(--brand); color:#08110d; border-color:var(--brand);
+    }
+    html[data-theme="dark"] .kpi-card { background:#1b242b; border-color:var(--border); }
+    html[data-theme="dark"] tr:hover td { background:#1b242b; }
+    html[data-theme="dark"] input[type="date"] { color-scheme:dark; }"""
+
+# Runs in <head> BEFORE stylesheets apply: resolves the saved (or OS) theme
+# so the first paint is already correct, and defines the color helpers the
+# per-page chart scripts read at every render.
+THEME_INIT_JS = """\
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('walton-theme');
+        if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* default = light */ }
+    })();
+    function waltonPlotColors() {
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      return dark
+        ? { font: '#cbd5d1', grid: '#2a333a', zero: '#3b464e' }
+        : { font: '#1f2937', grid: '#e5e7eb', zero: '#cbd5e1' };
+    }
+    function waltonThemePlots() {
+      if (!window.Plotly) return;
+      var c = waltonPlotColors();
+      document.querySelectorAll('.js-plotly-plot').forEach(function (el) {
+        try {
+          Plotly.relayout(el, {
+            'font.color': c.font,
+            'xaxis.gridcolor': c.grid, 'yaxis.gridcolor': c.grid,
+            'xaxis.zerolinecolor': c.zero, 'yaxis.zerolinecolor': c.zero,
+            'yaxis2.gridcolor': c.grid, 'legend.bgcolor': 'rgba(0,0,0,0)'
+          });
+        } catch (e) { /* figure without those axes */ }
+      });
+    }
+  </script>"""
+
+# Floating theme toggle. Include once per page (before </body> is fine —
+# the button is position:fixed).
+THEME_TOGGLE_HTML = """\
+  <button id="themeToggle" class="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">&#127769;</button>
+  <script>
+    (function () {
+      var btn = document.getElementById('themeToggle');
+      function icon() {
+        btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '\\u2600\\ufe0f' : '\\ud83c\\udf19';
+      }
+      btn.addEventListener('click', function () {
+        var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('walton-theme', next); } catch (e) {}
+        icon();
+        waltonThemePlots();
+      });
+      icon();
+      // Server-rendered figures are baked light; fix them once they exist.
+      if (document.documentElement.getAttribute('data-theme') === 'dark') {
+        setTimeout(waltonThemePlots, 600);
+      }
+    })();
+  </script>"""
+
+THEME_TOGGLE_CSS = """\
+    .theme-toggle { position:fixed; top:14px; right:14px; z-index:60;
+      width:38px; height:38px; border-radius:999px; border:1px solid var(--border);
+      background:var(--card); box-shadow:var(--shadow-card); cursor:pointer;
+      font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; }
+    .theme-toggle:hover { box-shadow:var(--shadow-lift); }"""
+
+# ---------------------------------------------------------------------------
 # Plotly mobile support
 # ---------------------------------------------------------------------------
 

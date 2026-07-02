@@ -28,6 +28,7 @@ from config import (
 from build_interactive_dashboard import load_data, clean_product_names
 from dashboard_common import (
     BASE_CSS, CARD_CSS, PLOTLY_CONFIG, MOBILE_MODEBAR_CSS, MOBILE_PLOTLY_JS,
+    DARK_CSS, THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,
 )
 
 DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
@@ -93,7 +94,7 @@ def build_oph_bar_chart(df: pd.DataFrame, top_ops: list[str]) -> go.Figure:
         title=f"Average Output per Man-Hour — Top {len(top_ops)} Operators",
         xaxis_title="Output per Man-Hour (lbs)",
         yaxis_title="",
-        template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
+        template="plotly_white", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
         margin=dict(t=80, r=40, b=60, l=160),
         height=max(400, len(top_ops) * 28 + 100),
@@ -120,7 +121,7 @@ def build_operator_machine_heatmap(df: pd.DataFrame, top_ops: list[str]) -> go.F
     fig.update_layout(
         title="Operator-Machine Output Matrix",
         xaxis_title="Machine", yaxis_title="",
-        template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
+        template="plotly_white", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
         margin=dict(t=80, r=40, b=120, l=160),
         xaxis=dict(tickangle=45),
@@ -170,7 +171,7 @@ def build_operator_trends_fig(df: pd.DataFrame, top_ops: list[str]) -> go.Figure
         yaxis_title="Output per Man-Hour (lbs)",
         xaxis_title="Week",
         hovermode="x unified",
-        template="plotly_white", plot_bgcolor="#f9fafc", paper_bgcolor="#fdfdff",
+        template="plotly_white", plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Helvetica, Arial, sans-serif", size=13, color="#1f2937"),
         margin=dict(t=80, r=220, b=60, l=70),
         legend=dict(title="Operator", orientation="v", x=1.08, y=0.5, bgcolor="#ffffff", bordercolor="#e5e7eb"),
@@ -204,8 +205,11 @@ def render_operator_dashboard(
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Operator Productivity (Internal)</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+{THEME_INIT_JS}
   <style>
 {BASE_CSS}
+{DARK_CSS}
+{THEME_TOGGLE_CSS}
 {CARD_CSS}
     .controls {{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }}
     .controls label {{ font-weight:600; color:var(--muted); margin-right:4px; }}
@@ -227,7 +231,8 @@ def render_operator_dashboard(
 </head>
 <body>
   <header>
-    <h1>Operator Productivity Dashboard <span class="internal-badge">INTERNAL ONLY</span></h1>
+    <p class="eyebrow">Walton Logistics &mdash; Production</p>
+  <h1>Operator Productivity Dashboard <span class="internal-badge">INTERNAL ONLY</span></h1>
     <p class="subtitle">Top {TOP_N} operators by total hours worked. {total_weeks} weeks of data available.</p>
   </header>
   <main>
@@ -306,6 +311,7 @@ def render_operator_dashboard(
 
     setTimeout(() => {{ applyRange(); optimizePlotlyForMobile(); }}, 500);
   </script>
+{THEME_TOGGLE_HTML}
 </body>
 </html>"""
 

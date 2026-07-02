@@ -13,7 +13,7 @@ from plotly.io import to_html
 from config import ALL_METRICS, DEFAULT_WEEKS, RUNNING_AVG_WINDOW
 from dashboard_common import (
     BASE_CSS, CARD_CSS, PLOTLY_CONFIG, MOBILE_MODEBAR_CSS, MOBILE_PLOTLY_JS,
-    SHIFT_METRICS,
+    SHIFT_METRICS, DARK_CSS, THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,
 )
 
 
@@ -68,8 +68,11 @@ def render_dashboard(
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Processing Dashboard</title>
   <script src="https://cdn.plot.ly/plotly-2.35.3.min.js"></script>
+{THEME_INIT_JS}
   <style>
 {BASE_CSS}
+{DARK_CSS}
+{THEME_TOGGLE_CSS}
 {CARD_CSS}
     .kpi-grid {{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin:8px 0; }}
     .kpi-card {{ background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; }}
@@ -489,5 +492,6 @@ def render_dashboard(
     // Apply default range + mobile layout after Plotly renders
     setTimeout(() => {{ applyRange(); optimizePlotlyForMobile(); }}, 500);
   </script>
+{THEME_TOGGLE_HTML}
 </body>
 </html>"""

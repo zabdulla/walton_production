@@ -13,7 +13,10 @@ import json
 import pandas as pd
 
 from config import CHART_PALETTE
-from dashboard_common import ESCAPE_HTML_JS, LOCAL_DATE_JS
+from dashboard_common import (
+    ESCAPE_HTML_JS, LOCAL_DATE_JS,
+    THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,
+)
 
 
 def compute_machine_baselines(machine_daily: pd.DataFrame) -> dict[str, float]:
@@ -57,6 +60,7 @@ def build_dashboard_html(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Processing Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{THEME_INIT_JS}
     <style>
         :root {{
             --primary: #111827;
@@ -64,6 +68,7 @@ def build_dashboard_html(
             --accent-strong: #095c42;
             --border: #e5e7eb;
             --bg: #f6f7f9;
+            --card: #ffffff;
             --complete: #10b981;
             --partial: #f59e0b;
             --missing: #ef4444;
@@ -109,7 +114,7 @@ def build_dashboard_html(
             gap: 12px;
             margin-bottom: 20px;
             flex-wrap: wrap;
-            background: white;
+            background: var(--card);
             padding: 16px;
             border-radius: 12px;
             border: 1px solid var(--border);
@@ -121,7 +126,7 @@ def build_dashboard_html(
         .period-type-btn {{
             padding: 8px 16px;
             border: 1px solid var(--border);
-            background: white;
+            background: var(--card);
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
@@ -142,7 +147,7 @@ def build_dashboard_html(
             width: 36px;
             height: 36px;
             border: 1px solid var(--border);
-            background: white;
+            background: var(--card);
             border-radius: 6px;
             cursor: pointer;
             font-size: 18px;
@@ -167,7 +172,7 @@ def build_dashboard_html(
             border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 14px;
-            background: white;
+            background: var(--card);
         }}
 
         /* Status legend */
@@ -191,13 +196,13 @@ def build_dashboard_html(
         .legend-dot.partial {{ background: var(--partial); }}
         .legend-dot.missing {{ background: var(--missing); }}
         .legend-dot.has-note {{
-            background: white;
+            background: var(--card);
             border: 2px solid var(--accent);
         }}
 
         /* Calendar grid */
         .calendar-section {{
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
@@ -268,7 +273,7 @@ def build_dashboard_html(
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: white;
+            background: var(--card);
             padding: 24px;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -375,7 +380,7 @@ def build_dashboard_html(
             margin-bottom: 20px;
         }}
         .kpi-card {{
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             padding: 16px;
             text-align: center;
@@ -397,7 +402,7 @@ def build_dashboard_html(
 
         /* Chart section */
         .chart-section {{
-            background: white;
+            background: var(--card);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
@@ -416,7 +421,7 @@ def build_dashboard_html(
         .chart-toggle {{
             padding: 6px 14px;
             border: 1px solid var(--border);
-            background: white;
+            background: var(--card);
             cursor: pointer;
             font-size: 13px;
             transition: all 0.2s;
@@ -493,6 +498,39 @@ def build_dashboard_html(
         @media (prefers-reduced-motion: reduce) {{
             * {{ animation: none !important; transition: none !important; }}
         }}
+
+        html[data-theme="dark"] {{
+            --primary: #e5e9ec;
+            --accent: #34a882;
+            --accent-strong: #2c8f6f;
+            --border: #2a333a;
+            --bg: #0f1417;
+            --card: #161d23;
+            --shadow-card: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+            --shadow-lift: 0 2px 4px rgba(0,0,0,.45), 0 12px 32px rgba(0,0,0,.5);
+        }}
+        html[data-theme="dark"] body {{
+            background: linear-gradient(180deg,#111c17 0,var(--bg) 360px) fixed;
+        }}
+        html[data-theme="dark"] .calendar-day.complete {{ background: rgba(16,185,129,.14); }}
+        html[data-theme="dark"] .calendar-day.partial {{ background: rgba(245,158,11,.14); }}
+        html[data-theme="dark"] .calendar-day.missing {{ background: rgba(239,68,68,.14); }}
+        html[data-theme="dark"] .calendar-day.empty {{ background: #1b242b; }}
+        html[data-theme="dark"] .machine-cal .cal-active {{ background: rgba(16,185,129,.16); color: #6ee7b7; }}
+        html[data-theme="dark"] .machine-cal .cal-idle {{ background: rgba(245,158,11,.14); color: #fcd34d; }}
+        html[data-theme="dark"] .machine-cal .cal-off {{ background: #1b242b; color: #6b7680; }}
+        html[data-theme="dark"] select, html[data-theme="dark"] input,
+        html[data-theme="dark"] .nav-btn, html[data-theme="dark"] .period-type-btn,
+        html[data-theme="dark"] .chart-toggle {{
+            background: var(--card); color: var(--primary); border-color: var(--border);
+        }}
+        html[data-theme="dark"] .period-type-btn.active {{
+            background: var(--accent); color: #08110d; border-color: var(--accent);
+        }}
+        html[data-theme="dark"] input[type="date"] {{ color-scheme: dark; }}
+        html[data-theme="dark"] .day-output {{ color: #b7c2c9; }}
+        html[data-theme="dark"] .day-output.zero {{ color: #7d8891; }}
+{THEME_TOGGLE_CSS}
     </style>
 </head>
 <body>
@@ -1102,6 +1140,7 @@ def build_dashboard_html(
         // Initialize on load
         init();
     </script>
+{THEME_TOGGLE_HTML}
 </body>
 </html>
 """
