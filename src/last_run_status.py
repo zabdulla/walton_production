@@ -38,7 +38,10 @@ def cyan(t): return _c("36", t)
 # Parsing
 # ---------------------------------------------------------------------------
 
-_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ \[INFO\]")
+# Milliseconds are optional: logs before 2026-07-02 use "12:00:04,532",
+# the current logger format writes "12:00:04". Both must parse or every
+# newer run silently disappears from the status report.
+_TS_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:,\d+)? \[INFO\]")
 
 
 def parse_runs() -> list[dict]:
@@ -131,17 +134,27 @@ def parse_stdout_for_run(run_start_ts: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def human_age(when: datetime) -> str:
-    delta = datetime.now() - when
-    days = delta.days
-    hours = delta.seconds // 3600
-    minutes = (delta.seconds % 3600) // 60
+    """Relative time, past ("2 days ago") or future ("in 6 days").
+
+    timedelta normalizes negative deltas into (negative days, positive
+    seconds), so naive `.days`/`.seconds` math on a future datetime
+    produces nonsense like "1 hour ago" for next Monday.
+    """
+    seconds_total = (datetime.now() - when).total_seconds()
+    future = seconds_total < 0
+    seconds_total = abs(seconds_total)
+    days = int(seconds_total // 86400)
+    hours = int((seconds_total % 86400) // 3600)
+    minutes = int((seconds_total % 3600) // 60)
     if days >= 1:
-        return f"{days} day{'s' if days != 1 else ''} ago"
-    if hours >= 1:
-        return f"{hours} hour{'s' if hours != 1 else ''} ago"
-    if minutes >= 1:
-        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-    return "just now"
+        text = f"{days} day{'s' if days != 1 else ''}"
+    elif hours >= 1:
+        text = f"{hours} hour{'s' if hours != 1 else ''}"
+    elif minutes >= 1:
+        text = f"{minutes} minute{'s' if minutes != 1 else ''}"
+    else:
+        return "shortly" if future else "just now"
+    return f"in {text}" if future else f"{text} ago"
 
 
 def format_runtime(seconds: float | None) -> str:
@@ -231,7 +244,7 @@ def show_next_scheduled() -> None:
             if days_ahead == 0 and next_run <= now:
                 days_ahead = 7
             next_run = next_run + timedelta(days=days_ahead)
-            print(f"\n{cyan('Next scheduled run:')} {wd_names[wd]} {next_run.strftime('%Y-%m-%d %H:%M')} ({human_age(next_run).replace(' ago', '').replace('just now', 'now').strip()} from now)")
+            print(f"\n{cyan('Next scheduled run:')} {wd_names[wd]} {next_run.strftime('%Y-%m-%d %H:%M')} ({human_age(next_run)})")
     except Exception:
         pass
 

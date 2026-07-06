@@ -43,6 +43,18 @@ jobs:
         with:
           path: docs/
 
+      # The Pages API intermittently returns "Deployment failed, try again
+      # later" (seen 2026-07-02 and 2026-07-06). One delayed retry absorbs
+      # these transient failures instead of leaving the site stale all week.
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 90
+
+      - name: Deploy to GitHub Pages (retry)
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
