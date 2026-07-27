@@ -17,11 +17,9 @@ from typing import Any
 import pandas as pd
 
 from config import (
-    ALL_MACHINES,
     DEFAULT_AGGREGATED_DATA,
     DEFAULT_PAYROLL_DATA,
     EMPLOYEE_ROSTER_PATH,
-    MACHINE_WEEKLY_CAPACITY,
     PRODUCT_CATEGORY_MAP,
     PRODUCT_TYPO_MAP,
 )
@@ -91,10 +89,11 @@ def _check_missing_weeks(df: pd.DataFrame) -> list[str]:
     present_mondays = set(
         (dates - pd.to_timedelta(dates.dt.weekday, unit="D")).dt.normalize().unique()
     )
+    from config import KNOWN_DATA_GAPS
     missing = sorted(
         m.strftime("%Y-%m-%d")
         for m in all_mondays
-        if m not in present_mondays
+        if m not in present_mondays and m.strftime("%Y-%m-%d") not in KNOWN_DATA_GAPS
     )
     return missing
 
@@ -124,8 +123,8 @@ def _check_latest_week_shifts(
 
 def _check_weekly_output_anomalies(
     df: pd.DataFrame,
-    window: int = 4,
-    sigma: float = 2.0,
+    window: int = 8,
+    sigma: float = 3.0,
     recent_weeks: int = 8,
 ) -> list[dict[str, Any]]:
     """Flag machine-weeks whose total output deviates > *sigma* standard
@@ -134,6 +133,13 @@ def _check_weekly_output_anomalies(
     Only weeks within the last *recent_weeks* of data are reported — old
     anomalies would otherwise spam every run. Catches both data-entry errors
     (extra zero) and real production collapses worth a look.
+
+    sigma is 3.0, not the conventional 2.0, because sigma here is estimated
+    from only *window* observations. The reference distribution is therefore
+    t(df=window-1), whose two-sided 2-sigma tail is ~13.9% — not the normal's
+    4.6%. At 2.0 this check flagged ~19% of all machine-weeks in history and
+    fired on 8-10 every week regardless of conditions, which carries almost
+    no information. At 3.0 it flags roughly one, and the one it flags is real.
     """
     dates = pd.to_datetime(df["Date"])
     d = df.copy()
@@ -178,12 +184,114 @@ def _check_missing_operators(df: pd.DataFrame) -> dict[str, int]:
     return {str(machine): int(cnt) for machine, cnt in counts.items()}
 
 
+def _check_weekday_mismatches(df: pd.DataFrame) -> list[dict[str, Any]]:
+    """Rows whose Date lands on a different weekday than their sheet label.
+
+    A sheet named "Tue" must carry a Tuesday date. A mismatch means a
+    date-correction heuristic moved production onto the wrong day, merging
+    two days into one and leaving the real day empty. This is silent in
+    every weekly total, so it needs its own check.
+    """
+    if "Day_of_Week" not in df.columns:
+        return []
+    actual = df["Date"].dt.day_name().str[:3]
+    mask = actual != df["Day_of_Week"].astype(str).str.strip()
+    bad = df.loc[mask]
+    if bad.empty:
+        return []
+    out: list[dict[str, Any]] = []
+    for (date, label), grp in bad.groupby([bad["Date"].dt.date, "Day_of_Week"]):
+        out.append({
+            "date": str(date),
+            "sheet_label": str(label),
+            "actual_weekday": pd.Timestamp(date).day_name()[:3],
+            "rows": int(len(grp)),
+            "output": float(grp["Actual_Output"].sum()),
+        })
+    return sorted(out, key=lambda d: d["date"], reverse=True)
+
+
+def _check_payroll_freshness(max_age_days: int = 21) -> dict[str, Any]:
+    """How stale is the newest pay period relative to today?
+
+    Pay periods are bi-weekly, so the newest should never be more than a
+    few weeks behind. Payroll feeds the profit dashboard's labor-overhead
+    uplift; when the PDFs stop arriving nothing else notices, and the
+    uplift silently keeps quoting months-old labor.
+    """
+    from config import DEFAULT_PAYROLL_DATA as path
+    if not path.exists():
+        return {"status": "missing_data"}
+    try:
+        pay = pd.read_excel(path)
+        ends = pd.to_datetime(pay["period_end"], format="%m/%d/%Y", errors="coerce")
+        latest = ends.max()
+        if pd.isna(latest):
+            return {"status": "unparseable"}
+        age = (pd.Timestamp.today().normalize() - latest.normalize()).days
+        return {
+            "status": "stale" if age > max_age_days else "ok",
+            "latest_period_end": str(latest.date()),
+            "age_days": int(age),
+            "max_age_days": max_age_days,
+            "periods": int(pay[["period_start", "period_end"]].drop_duplicates().shape[0]),
+        }
+    except Exception as exc:  # pragma: no cover - defensive
+        return {"status": "error", "error": str(exc)}
+
+
+def _check_unattributed_output(df: pd.DataFrame, recent_weeks: int = 12) -> dict[str, Any]:
+    """How much production is recorded with no labor attached to it.
+
+    The blank-Operator row count is a cumulative total dominated by two
+    years of history, so it moves too slowly to notice a regression. What
+    matters is the share of recent output whose labor is unrecorded, per
+    shift: that number feeds cost-per-pound and output-per-man-hour, both
+    of which are computed on a short denominator when labor is missing.
+    """
+    if "Actual_Output" not in df.columns:
+        return {}
+    d = df.copy()
+    d["Date"] = pd.to_datetime(d["Date"])
+    cutoff = d["Date"].max() - pd.Timedelta(weeks=recent_weeks)
+    recent = d[d["Date"] >= cutoff]
+    if recent.empty:
+        return {}
+
+    blank = recent["Operator"].isna() | (recent["Operator"].astype(str).str.strip() == "")
+    total_out = float(recent["Actual_Output"].sum())
+    unattributed = float(recent.loc[blank, "Actual_Output"].sum())
+
+    by_shift: list[dict[str, Any]] = []
+    for shift, grp in recent.groupby("Shift"):
+        g_blank = grp["Operator"].isna() | (grp["Operator"].astype(str).str.strip() == "")
+        g_total = float(grp["Actual_Output"].sum())
+        if g_total <= 0:
+            continue
+        by_shift.append({
+            "shift": str(shift),
+            "pct_output_unattributed": round(
+                100.0 * float(grp.loc[g_blank, "Actual_Output"].sum()) / g_total, 1
+            ),
+            "rows_missing": int(g_blank.sum()),
+            "rows": int(len(grp)),
+        })
+    by_shift.sort(key=lambda s: s["pct_output_unattributed"], reverse=True)
+
+    return {
+        "recent_weeks": recent_weeks,
+        "pct_output_unattributed": round(100.0 * unattributed / total_out, 1) if total_out else 0.0,
+        "lbs_unattributed": round(unattributed),
+        "by_shift": by_shift,
+    }
+
+
 def _check_duplicates(df: pd.DataFrame) -> dict[str, Any]:
     """Detect exact duplicates on key columns.  Returns count + examples."""
     # Use the same dedup key the aggregation step writes with so we never
     # disagree on what counts as a duplicate.
-    from config import DEDUP_SUBSET
-    dup_cols = DEDUP_SUBSET
+    from aggregate_daily_data import dedup_key_for
+    dup_cols = dedup_key_for(df)
     duped = df[df.duplicated(subset=dup_cols, keep=False)]
     count = len(duped) - len(duped.drop_duplicates(subset=dup_cols))  # extra copies
     examples: list[dict[str, Any]] = []
@@ -200,33 +308,69 @@ def _check_duplicates(df: pd.DataFrame) -> dict[str, Any]:
     return {"count": count, "examples": examples}
 
 
+def _operator_count(value: Any) -> int:
+    """How many people are named in an Operator cell (crews are comma-separated)."""
+    if pd.isna(value):
+        return 0
+    names = [n.strip() for n in str(value).split(",") if n.strip()]
+    return len(names)
+
+
 def _check_anomalous_values(df: pd.DataFrame) -> list[dict[str, Any]]:
-    """Flag rows with values that likely indicate data-entry errors."""
+    """Flag rows with values that likely indicate data-entry errors.
+
+    Man_Hours is a CREW total, not one person's shift — a 4-person crew
+    legitimately books 32 hours in a day. A flat "> 24" rule therefore
+    flagged 61 rows of normal 3-to-6-person crews (median 7.0 hours per
+    person, max 9.67) and zero real errors, so it is applied per person.
+
+    Output_per_Hour is a ratio, so tiny denominators dominate it: every
+    flagged row had Machine_Hours of 0.5 or 1.0, where a single ordinary
+    load divides out to thousands of lbs/hr. The rule needs a minimum
+    denominator to mean anything.
+    """
     flags: list[dict[str, Any]] = []
-    rules: list[tuple[str, str, float]] = [
+
+    def _flag(rule: str, value: Any, row: pd.Series) -> None:
+        flags.append({
+            "rule": rule,
+            "value": value,
+            "Date": str(row["Date"].date()) if hasattr(row["Date"], "date") else str(row["Date"]),
+            "Machine_Name": row.get("Machine_Name", ""),
+            "Shift": row.get("Shift", ""),
+        })
+
+    simple_rules: list[tuple[str, str, float]] = [
         ("Actual_Output", "> 50,000", 50_000),
         ("Machine_Hours", "> 24", 24),
-        ("Man_Hours", "> 24", 24),
-        ("Output_per_Hour", "> 5,000", 5_000),
     ]
-    for col, label, threshold in rules:
+    for col, label, threshold in simple_rules:
         if col not in df.columns:
             continue
-        bad = df[pd.to_numeric(df[col], errors="coerce") > threshold]
-        for _, row in bad.iterrows():
-            flags.append({
-                "rule": f"{col} {label}",
-                "value": row[col],
-                "Date": str(row["Date"].date()) if hasattr(row["Date"], "date") else str(row["Date"]),
-                "Machine_Name": row.get("Machine_Name", ""),
-                "Shift": row.get("Shift", ""),
-            })
+        for _, row in df[pd.to_numeric(df[col], errors="coerce") > threshold].iterrows():
+            _flag(f"{col} {label}", row[col], row)
+
+    if {"Man_Hours", "Operator"} <= set(df.columns):
+        crew = df["Operator"].map(_operator_count).clip(lower=1)
+        per_person = pd.to_numeric(df["Man_Hours"], errors="coerce") / crew
+        for idx, row in df[per_person > 16].iterrows():
+            _flag("Man_Hours per person > 16", round(float(per_person.loc[idx]), 1), row)
+
+    if {"Output_per_Hour", "Machine_Hours"} <= set(df.columns):
+        rate = pd.to_numeric(df["Output_per_Hour"], errors="coerce")
+        hours = pd.to_numeric(df["Machine_Hours"], errors="coerce")
+        for _, row in df[(rate > 5_000) & (hours >= 2)].iterrows():
+            _flag("Output_per_Hour > 5,000 (over >=2 machine-hours)",
+                  row["Output_per_Hour"], row)
+
     return flags
 
 
 def _check_payroll_roster(
     payroll_path: Path = DEFAULT_PAYROLL_DATA,
     roster_path: Path = EMPLOYEE_ROSTER_PATH,
+    production_df: pd.DataFrame | None = None,
+    active_days: int = 90,
 ) -> dict[str, Any]:
     """Check that every payroll employee is in the roster, and flag unmatched production operators.
 
@@ -235,6 +379,7 @@ def _check_payroll_roster(
         unrostered_employees: list[str] — employees in payroll but not roster
         unclassified_aliases: list[str] — payroll employees with no role set
         unmatched_production_ops: list[str] — production operators no payroll employee claims
+        unmatched_active: list[str] — subset of the above seen in the last *active_days*
         latest_period: dict with capture rate summary for the most recent period
     """
     result: dict[str, Any] = {
@@ -242,6 +387,7 @@ def _check_payroll_roster(
         "unrostered_employees": [],
         "unclassified_aliases": [],
         "unmatched_production_ops": [],
+        "unmatched_active": [],
         "latest_period": None,
     }
 
@@ -268,16 +414,43 @@ def _check_payroll_roster(
         elif role in ("machine_operator", "hybrid_sr", "supervisor") and not aliases:
             result["unclassified_aliases"].append(f"{name} ({role}, no aliases)")
 
-    # Unmatched production operators: in production data but not in any roster alias
+    # Unmatched production operators: in production data but not in any roster alias.
+    #
+    # This used to read a static list cached in the roster's _meta block,
+    # which was only regenerated by the manual --init-roster flag. It had
+    # not been refreshed since 2026-07-02, so the check was structurally
+    # blind to every operator hired after that date — precisely the people
+    # it exists to surface. Compute it from the live data instead.
     all_aliases = set()
     for info in employees_map.values():
         for alias in info.get("production_aliases", []):
             all_aliases.add(alias)
-    meta_unmatched = roster.get("_meta", {}).get("unmatched_production_operators", [])
-    # Filter meta list to exclude any that have since been added to aliases
-    result["unmatched_production_ops"] = [
-        op for op in meta_unmatched if op not in all_aliases
-    ]
+
+    if production_df is not None and "Operator" in production_df.columns:
+        prod = production_df
+        atoms: dict[str, pd.Timestamp] = {}
+        for value, date in zip(prod["Operator"], prod["Date"]):
+            if pd.isna(value):
+                continue
+            for name in str(value).split(","):
+                name = name.strip()
+                if not name:
+                    continue
+                prev = atoms.get(name)
+                if prev is None or date > prev:
+                    atoms[name] = date
+        unmatched = {n: d for n, d in atoms.items() if n not in all_aliases}
+        result["unmatched_production_ops"] = sorted(unmatched)
+        if unmatched:
+            cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=active_days)
+            result["unmatched_active"] = sorted(
+                n for n, d in unmatched.items() if pd.notna(d) and d >= cutoff
+            )
+    else:
+        meta_unmatched = roster.get("_meta", {}).get("unmatched_production_operators", [])
+        result["unmatched_production_ops"] = [
+            op for op in meta_unmatched if op not in all_aliases
+        ]
 
     # Latest period capture rate
     if len(df_pay):
@@ -357,7 +530,10 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
     dup_info = _check_duplicates(df)
     anomalies = _check_anomalous_values(df)
     completeness = _check_completeness(df)
-    payroll = _check_payroll_roster()
+    payroll = _check_payroll_roster(production_df=df)
+    weekday_mismatches = _check_weekday_mismatches(df)
+    payroll_freshness = _check_payroll_freshness()
+    unattributed = _check_unattributed_output(df)
 
     return {
         "total_rows": len(df),
@@ -371,6 +547,9 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
         "anomalous_values": anomalies,
         "completeness": completeness,
         "payroll": payroll,
+        "weekday_mismatches": weekday_mismatches,
+        "payroll_freshness": payroll_freshness,
+        "unattributed_output": unattributed,
     }
 
 
@@ -553,7 +732,18 @@ def print_report(results: dict[str, Any]) -> None:
         issues.append(f"{len(results['anomalous_values'])} anomalous value(s)")
     if results["missing_operators"]:
         total_missing = sum(results["missing_operators"].values())
-        issues.append(f"{total_missing:,} missing operator(s)")
+        unatt = results.get("unattributed_output") or {}
+        if unatt.get("pct_output_unattributed"):
+            worst = (unatt.get("by_shift") or [{}])[0]
+            issues.append(
+                f"{unatt['pct_output_unattributed']}% of the last {unatt['recent_weeks']} weeks' "
+                f"output has no operator recorded "
+                f"(worst: {worst.get('shift', '?')} shift at "
+                f"{worst.get('pct_output_unattributed', 0)}%); "
+                f"{total_missing:,} blank rows all-time"
+            )
+        else:
+            issues.append(f"{total_missing:,} missing operator(s)")
     if results["missing_weeks"]:
         issues.append(f"{len(results['missing_weeks'])} missing week(s)")
     lws = results.get("latest_week_shifts") or {}
@@ -567,7 +757,29 @@ def print_report(results: dict[str, Any]) -> None:
     if payroll.get("unrostered_employees"):
         issues.append(f"{len(payroll['unrostered_employees'])} unrostered payroll employee(s)")
     if payroll.get("unmatched_production_ops"):
-        issues.append(f"{len(payroll['unmatched_production_ops'])} unmapped production operator(s)")
+        active = payroll.get("unmatched_active") or []
+        total = len(payroll["unmatched_production_ops"])
+        if active:
+            issues.append(
+                f"{len(active)} unmapped production operator(s) active in the last 90 days "
+                f"({total} all-time)"
+            )
+        else:
+            issues.append(f"{total} unmapped production operator(s), none recently active")
+    mismatches = results.get("weekday_mismatches") or []
+    if mismatches:
+        rows = sum(m["rows"] for m in mismatches)
+        issues.append(
+            f"{rows} row(s) on {len(mismatches)} date(s) stamped with the wrong weekday "
+            f"(e.g. {mismatches[0]['date']}: '{mismatches[0]['sheet_label']}' sheet on a "
+            f"{mismatches[0]['actual_weekday']})"
+        )
+    fresh = results.get("payroll_freshness") or {}
+    if fresh.get("status") == "stale":
+        issues.append(
+            f"payroll {fresh['age_days']} days stale "
+            f"(newest period ends {fresh['latest_period_end']})"
+        )
 
     if not issues:
         _ok("All checks passed. Data looks healthy.")
@@ -597,12 +809,18 @@ def gating_decision(results: dict[str, Any]) -> tuple[bool, list[str]]:
         dedups, so duplicates here mean the dedup key is missing a column.
       • Excessive growth-sanity failure — handled at write time by atomic.py.
       • Any payroll employee unrostered (only if payroll data is present).
+      • Weekday mismatches in recently-ingested data — aggregation guarantees
+        a "Tue" sheet lands on a Tuesday, so a fresh mismatch means the date
+        logic regressed and a day of production got merged into another.
+        Scoped to the last 30 days so an unfixable historical quirk can
+        never wedge publication permanently.
 
     Non-blocking (warn-only):
       • Missing weeks (Carl sometimes ships late; missing 1 week is normal).
       • Missing operators (data-quality issue but not pipeline-blocking).
       • Anomalous values (often legitimate; per-machine thresholds would help).
       • New unmapped product with <5 rows (typo, single-occurrence).
+      • Stale payroll — a side feed; production dashboards stay correct.
     """
     reasons: list[str] = []
 
@@ -628,6 +846,20 @@ def gating_decision(results: dict[str, Any]) -> tuple[bool, list[str]]:
                 f"{len(unrostered)} payroll employee(s) not in roster: "
                 f"{', '.join(unrostered[:3])}. Edit data/employee_roster.json."
             )
+
+    cutoff = pd.Timestamp.today().normalize() - pd.Timedelta(days=30)
+    recent_mismatches = [
+        m for m in (results.get("weekday_mismatches") or [])
+        if pd.Timestamp(m["date"]) >= cutoff
+    ]
+    if recent_mismatches:
+        first = recent_mismatches[0]
+        reasons.append(
+            f"{len(recent_mismatches)} recent date(s) stamped with the wrong weekday "
+            f"({first['date']}: '{first['sheet_label']}' sheet landed on a "
+            f"{first['actual_weekday']}). Date correction in "
+            f"aggregate_daily_data.py is misassigning days."
+        )
 
     return (len(reasons) > 0, reasons)
 

@@ -24,7 +24,6 @@ from config import (
     EMPLOYEE_ROSTER_PATH,
     LABOR_RATE,
     MACHINE_PRESETS,
-    DEFAULT_PRESET,
 )
 from dashboard_common import (
     BASE_CSS, CARD_CSS, DARK_CSS, THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,

@@ -48,14 +48,27 @@ def test_unmapped_products_applies_typo_map() -> None:
 
 def _make_row(date="2026-01-01", shift="1st", machine="EXTRUDER",
               product="PP resin", output=1000,
-              operator="Alice", machine_hours=8.0, man_hours=8.0):
+              operator="Alice", machine_hours=8.0, man_hours=8.0,
+              input_item="PP Film", actual_input=1200.0):
     return {
         "Date": pd.Timestamp(date), "Shift": shift, "Machine_Name": machine,
         "Output_Product": product, "Actual_Output": output,
-        # The dedup key now includes operator + hours so different operators
-        # who happen to post identical output aren't collapsed.
+        # The dedup key includes operator + hours so different operators who
+        # happen to post identical output aren't collapsed, and the input
+        # fields so two unweighed runs (Actual_Output == 0) stay distinct.
         "Operator": operator, "Machine_Hours": machine_hours, "Man_Hours": man_hours,
+        "Input_Item": input_item, "Actual_Input": actual_input,
     }
+
+
+def test_check_duplicates_different_inputs_not_duplicates() -> None:
+    """Guillotine output is often unweighed (0), so two genuinely different
+    runs can match on every column except what went in."""
+    df = pd.DataFrame([
+        _make_row(machine="GUILLOTINE", output=0, input_item="BOPP rolls", actual_input=6220.0),
+        _make_row(machine="GUILLOTINE", output=0, input_item="BOPP rolls", actual_input=9416.0),
+    ])
+    assert _check_duplicates(df)["count"] == 0
 
 
 def test_check_duplicates_no_duplicates() -> None:
@@ -295,7 +308,10 @@ def test_latest_week_missing_shift_detected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _check_weekly_output_anomalies — rolling 2-sigma per machine
+# _check_weekly_output_anomalies — rolling sigma per machine
+#
+# The baseline window is 8 weeks, so fixtures need at least 9 weeks of
+# history before any week can be evaluated.
 # ---------------------------------------------------------------------------
 
 def _weekly_df(outputs: list[float], machine: str = "EXTRUDER") -> pd.DataFrame:
@@ -309,31 +325,49 @@ def _weekly_df(outputs: list[float], machine: str = "EXTRUDER") -> pd.DataFrame:
     })
 
 
+# Week-to-week spread here is deliberately realistic (~15% CV, matching the
+# real machines). A near-constant baseline would make sigma tiny and flag
+# every ordinary swing, which is not what this check faces in production.
+_BASELINE_8 = [8_000, 12_000, 9_000, 11_500, 10_000, 8_500, 11_000, 10_000]
+
+
 def test_output_anomaly_flags_collapse() -> None:
     from validate_data import _check_weekly_output_anomalies
-    # Stable ~10k/week with slight variation, then a collapse to 1k
-    df = _weekly_df([10_000, 10_500, 9_800, 10_200, 9_900, 10_100, 1_000])
+    # Normal production for the full baseline, then a collapse to 1k
+    df = _weekly_df(_BASELINE_8 + [1_000])
     anomalies = _check_weekly_output_anomalies(df)
     assert len(anomalies) >= 1
     worst = anomalies[-1]
     assert worst["machine"] == "EXTRUDER"
     assert worst["output"] == 1000.0
-    assert worst["deviation_sigma"] >= 2.0
+    assert worst["deviation_sigma"] >= 3.0
 
 
 def test_output_anomaly_quiet_on_stable_data() -> None:
     from validate_data import _check_weekly_output_anomalies
-    df = _weekly_df([10_000, 10_500, 9_800, 10_200, 9_900, 10_100, 10_300])
+    df = _weekly_df(_BASELINE_8 + [10_300])
+    assert _check_weekly_output_anomalies(df) == []
+
+
+def test_output_anomaly_tolerates_ordinary_swings() -> None:
+    """A 25% good week is normal variation, not an anomaly worth a human.
+
+    At sigma=2 this fired constantly; the threshold exists so the check
+    reports roughly one thing a week instead of ten.
+    """
+    from validate_data import _check_weekly_output_anomalies
+    df = _weekly_df(_BASELINE_8 + [12_500])
     assert _check_weekly_output_anomalies(df) == []
 
 
 def test_output_anomaly_ignores_old_weeks() -> None:
     from validate_data import _check_weekly_output_anomalies
-    # Anomaly at week 7 of 30 — far outside the recent window
-    outputs = [10_000, 10_500, 9_800, 10_200, 9_900, 10_100, 1_000] + [10_000] * 23
+    # Anomaly immediately after the baseline — far outside the recent window
+    outputs = _BASELINE_8 + [1_000] + [10_000] * 23
     df = _weekly_df(outputs)
     anomalies = _check_weekly_output_anomalies(df, recent_weeks=8)
-    assert all(a["week_start"] >= "2026-05-25" for a in anomalies)
+    collapse_week = str((pd.Timestamp("2026-01-05") + pd.Timedelta(weeks=8)).date())
+    assert all(a["week_start"] > collapse_week for a in anomalies)
 
 
 def test_output_anomaly_skips_short_history() -> None:

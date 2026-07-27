@@ -13,15 +13,19 @@ Schedule it to run automatically every Monday at noon with `scripts/install_sche
 ## What it does
 
 ```
-Step 1/6: Fetch new emails (src/fetch_emails.py --all)
-Step 2/6: Aggregate daily data (src/aggregate_daily_data.py)
-Step 3/6: Parse payroll PDFs (src/parse_payroll_pdf.py --pdf-dir ...)
-Step 4/6: Validate data quality (src/validate_data.py)
-Step 5/6: Build all 5 dashboards
-Step 6/6: Commit + push to GitHub (with rebase retry on GH Actions conflict)
+Step 1/6: Fetch new emails         fetch_emails.fetch_*()
+Step 2/6: Aggregate daily data     aggregate_daily_data.run_aggregation()
+Step 3/6: Parse payroll PDFs       parse_payroll_pdf.parse_pdf_directory()
+Step 4/6: Validate data quality    validate_data.run_validation() + gating_decision()
+Step 5/6: Build all 5 dashboards   the build_*_dashboard modules
+Step 6/6: Commit + push to GitHub  (with rebase retry on conflict)
 ```
 
-Each step prints structured progress. A summary at the end shows totals.
+The orchestrator imports these modules and calls them **in process** rather
+than shelling out to their CLIs, so each step returns a structured result and
+one failing dashboard doesn't take down the rest of the run. Git is the only
+thing still invoked as a subprocess. Each step prints structured progress; a
+summary at the end shows totals.
 
 ---
 

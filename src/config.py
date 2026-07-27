@@ -46,8 +46,6 @@ MACHINE_DATA_RANGES: dict[str, tuple[int, int]] = {
     "SMALL GRINDER": (77, 79),
 }
 
-ALL_MACHINES = list(MACHINE_DATA_RANGES.keys())
-
 # Weekly capacity (hours) per machine — for utilization % calculation
 MACHINE_WEEKLY_CAPACITY: dict[str, int] = {
     "EXTRUDER": 120,                    # 24h/day × 5 days
@@ -88,7 +86,6 @@ MACHINE_PRESETS: dict[str, tuple[float, float, float]] = {
     "AVANGUARD DENSIFIER (OLD)":   (0.20, 0.02, 0.04),
     "GREEN MAX DENSIFIER (NEW)":   (0.20, 0.02, 0.04),
 }
-DEFAULT_PRESET: tuple[float, float, float] = (0.20, 0.05, 0.03)
 
 # ---------------------------------------------------------------------------
 # Product name normalization
@@ -103,6 +100,7 @@ PRODUCT_TYPO_MAP: dict[str, str] = {
     "LD Bales / HD bales": "LD Bales/HD bales",
     "LD Bales/HDPE bales": "LD Bales/HD bales",
     "PET slab": "PET slabs",
+    "PET sheds": "PET shreds",
     "PP Resin": "PP resin",
     "PP Shreds": "PP shreds",
     "HDPE bales": "HD Bales",
@@ -197,10 +195,24 @@ DAILY_SHEETS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 # to post identical output on the same machine/shift/day are NOT collapsed.
 # Used by BOTH aggregate_daily_data (drops dupes) and validate_data (asserts
 # none remain), so the keys MUST stay in sync.
+# Input_Item/Actual_Input are included because Guillotine output is routinely
+# left unweighed (Actual_Output == 0), so two genuinely different runs on one
+# machine/day/shift can be identical in every other column and differ only in
+# what went in. Without them the second run is silently deleted.
 DEDUP_SUBSET = [
     "Date", "Shift", "Machine_Name", "Output_Product", "Actual_Output",
     "Operator", "Machine_Hours", "Man_Hours",
+    "Input_Item", "Actual_Input",
 ]
+
+# Weeks (Monday, ISO) with no production report for any shift, confirmed
+# absent at the source rather than lost in parsing. Acknowledged here so the
+# missing-week check reports only NEW gaps — a permanent one-line warning
+# trains people to ignore the whole block.
+#   2025-11-10: no workbook was ever sent for any of the three shifts.
+KNOWN_DATA_GAPS: set[str] = {
+    "2025-11-10",
+}
 
 NOTE_CATEGORIES: dict[str, list[str]] = {
     "downtime": ["down", "stopped", "broken", "repair", "fix", "belt", "chiller", "filter"],

@@ -20,7 +20,7 @@ processing_reports/*.xlsx          (gitignored, raw shift workbooks)
   │  src/aggregate_daily_data.py  incremental parse → merge → dedup →
   ▼                                atomic write + rolling snapshots
 data/aggregated_daily_data.xlsx    (tracked; canonical snake_case schema)
-  │  src/validate_data.py         7 checks; gating_decision() can BLOCK
+  │  src/validate_data.py        11 checks; gating_decision() can BLOCK
   ▼                                publication (restores from snapshot)
 5 dashboard builders               templates in *_template.py + dashboard_common.py
   ▼
@@ -56,7 +56,7 @@ python3 src/weekly_update.py --no-fetch --no-push   # rebuild only
 python3 src/aggregate_daily_data.py --full          # full re-parse of all workbooks
 gh workflow run deploy-pages.yml          # re-deploy Pages manually
 gh workflow run weekly-cloud.yml -f force=true      # force a cloud run
-python3 -m pytest tests/ -q               # 200+ tests
+python3 -m pytest tests/ -q               # 222 tests
 ```
 
 **When the validation gate blocks publication** (run exits 3, notification says
@@ -67,9 +67,17 @@ BLOCKED), it's almost always one of:
 | Unmapped product (≥5 rows) | Add to `PRODUCT_CATEGORY_MAP` (or `PRODUCT_TYPO_MAP`) in `src/config.py` |
 | Unrostered payroll employee | Add them to `data/employee_roster.json` (see example file for schema/roles) |
 | Duplicate rows | Dedup key drift — compare `DEDUP_SUBSET` usage in aggregate vs validate |
+| Wrong-weekday rows (last 30 days) | A "Tue" sheet landed on a Monday. The date logic in `aggregate_daily_data.py` regressed — weekly totals hide it, so it blocks rather than warns |
 
 Then re-run `python3 src/weekly_update.py`. The gate restored the previous
 data automatically; nothing is corrupted.
+
+**Reading the weekly warnings.** They are tuned to be worth reading — each
+line should tell you something specific and currently true. If a warning
+becomes permanent background noise, that is a bug in the check, not a fact
+of life: retune it, split "new since last run" from settled history, or
+acknowledge it (`config.KNOWN_DATA_GAPS`). Chronic warnings train people to
+ignore the whole block, which is how real problems go unnoticed for months.
 
 **Adding a machine** requires touching four dicts in `src/config.py`:
 `MACHINE_DATA_RANGES`, `MACHINE_WEEKLY_CAPACITY`,

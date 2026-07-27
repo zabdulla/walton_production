@@ -13,13 +13,11 @@ Usage:
 """
 
 import argparse
-import json
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
-from config import PROJECT_ROOT, DEFAULT_AGGREGATED_DATA, DEFAULT_AGGREGATED_NOTES, CHART_PALETTE
+from config import PROJECT_ROOT, DEFAULT_AGGREGATED_DATA, DEFAULT_AGGREGATED_NOTES
 from daily_template import (  # template extracted 2026-07
     build_dashboard_html,
     compute_machine_baselines,  # re-export: tests + callers use this path

@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -115,6 +115,54 @@ def _extract_date_from_sheet(data: pd.DataFrame) -> str | None:
         return None
 
 
+_SHEET_WEEKDAY = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5}
+
+
+def _date_for_sheet_label(
+    sheet_name: str,
+    week_start: datetime,
+    week_end: datetime,
+    date_cell: datetime | None = None,
+) -> datetime | None:
+    """The date in the file's week whose weekday matches the sheet label.
+
+    The sheet tabs are a fixed template (Mon…Sat), so the label is
+    structural. The date cell is hand-typed and is wrong often enough to
+    matter — copy-paste errors ("Sat" carrying Friday's date) and
+    month/day transpositions both occur. When the two disagree, the label
+    wins.
+
+    Returns None when the label isn't a known weekday.
+    """
+    target = _SHEET_WEEKDAY.get(sheet_name)
+    if target is None:
+        return None
+
+    span = (week_end - week_start).days
+    candidates = [
+        week_start + timedelta(days=offset)
+        for offset in range(max(span, 0) + 1)
+        if (week_start + timedelta(days=offset)).weekday() == target
+    ]
+
+    if len(candidates) == 1:
+        return candidates[0]
+
+    if not candidates:
+        # Degenerate filename range — supervisors sometimes type the same
+        # date twice ("03-09-26 to 03-09-26"). Anchor to the Monday of
+        # week_start's own week instead of trusting the range.
+        monday = week_start - timedelta(days=week_start.weekday())
+        return monday + timedelta(days=target)
+
+    # Ranges spanning more than a week (rare, from odd filenames) offer two
+    # candidate dates for the same weekday. Pick the one nearest the typed
+    # date rather than blindly taking the first.
+    if date_cell is not None:
+        return min(candidates, key=lambda d: abs((d - date_cell).days))
+    return candidates[0]
+
+
 def extract_daily_data_from_file(
     file_path: str | Path,
     hourly_rate: float = LABOR_RATE,
@@ -143,45 +191,57 @@ def extract_daily_data_from_file(
 
         # Get date from sheet
         sheet_date = _extract_date_from_sheet(data)
-        if not sheet_date:
-            logger.warning(f"{file_name}/{sheet_name}: Could not extract date, skipping")
-            continue
-
-        # Validate date falls within a reasonable range of the week from the filename.
-        # Catches typos like 12-30 instead of 01-30 in the Excel cell.
         date_corrected = False
+        if not sheet_date:
+            # A blank date cell used to discard the whole sheet, which is
+            # strictly worse than the wrong-date case below — the tab label
+            # tells us the day either way. Three Saturday sheets were being
+            # dropped this way (13,200 lbs of output).
+            inferred = None
+            if week_start and week_end:
+                inferred = _date_for_sheet_label(
+                    sheet_name,
+                    datetime.strptime(week_start, "%Y-%m-%d"),
+                    datetime.strptime(week_end, "%Y-%m-%d"),
+                )
+            if inferred is None:
+                logger.warning(
+                    "%s/%s: no date cell and no usable sheet label, skipping",
+                    file_name, sheet_name,
+                )
+                continue
+            sheet_date = inferred.strftime("%Y-%m-%d")
+            date_corrected = True
+            logger.info(
+                "%s/%s: date cell blank; using %s from the sheet label",
+                file_name, sheet_name, sheet_date,
+            )
+
+        # Reconcile the hand-typed date cell against the sheet's tab label.
+        # The tab is a fixed template position; the cell is typed weekly and
+        # carries both month/day transpositions and copy-paste errors. When
+        # they disagree the label wins.
+        #
+        # An earlier version tried a month/day swap first and accepted it
+        # whenever the result landed anywhere in the week — which silently
+        # stamped Tuesday's sheet onto Monday whenever the swap happened to
+        # fit (2026-06-07 -> 2026-07-06), merging two days of production
+        # into one and leaving the real day empty.
         if week_start and week_end:
             parsed_date = datetime.strptime(sheet_date, "%Y-%m-%d")
             ws = datetime.strptime(week_start, "%Y-%m-%d")
             we = datetime.strptime(week_end, "%Y-%m-%d")
-            tolerance = pd.Timedelta(days=7)
-            if parsed_date < ws - tolerance or parsed_date > we + tolerance:
+            inferred = _date_for_sheet_label(sheet_name, ws, we, parsed_date)
+            if inferred is not None and inferred != parsed_date:
                 logger.warning(
-                    "%s/%s: Date %s outside expected week %s–%s, correcting to week range",
-                    file_name, sheet_name, sheet_date, week_start, week_end,
+                    "%s/%s: date cell says %s (a %s) but the sheet is '%s'; "
+                    "using %s",
+                    file_name, sheet_name, sheet_date,
+                    parsed_date.strftime("%a"), sheet_name,
+                    inferred.strftime("%Y-%m-%d"),
                 )
-                corrected = False
-                # Try swapping month/day to see if it fits
-                try:
-                    swapped = datetime(parsed_date.year, parsed_date.day, parsed_date.month)
-                    if ws - tolerance <= swapped <= we + tolerance:
-                        sheet_date = swapped.strftime("%Y-%m-%d")
-                        logger.info("  Corrected to %s (month/day swap)", sheet_date)
-                        corrected = True
-                        date_corrected = True
-                except ValueError:
-                    pass
-                # Fallback: infer date from sheet name (day of week) within the week range
-                if not corrected:
-                    day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5}
-                    if sheet_name in day_map:
-                        inferred = ws + pd.Timedelta(days=day_map[sheet_name])
-                        sheet_date = inferred.strftime("%Y-%m-%d")
-                        logger.info("  Corrected to %s (inferred from sheet name '%s')", sheet_date, sheet_name)
-                        date_corrected = True
-                    else:
-                        logger.warning("  Could not auto-correct, skipping sheet")
-                        continue
+                sheet_date = inferred.strftime("%Y-%m-%d")
+                date_corrected = True
 
         # Extract machine data
         for machine, (start_row, end_row) in MACHINE_DATA_RANGES.items():
@@ -278,10 +338,20 @@ def extract_daily_data_from_file(
 from config import DEDUP_SUBSET  # noqa: E402  (kept near use site for clarity)
 
 
+def dedup_key_for(df: pd.DataFrame) -> list[str]:
+    """DEDUP_SUBSET narrowed to the columns *df* actually has.
+
+    Aggregates written before a key column was introduced won't have it;
+    dropping duplicates on a missing column raises instead of degrading.
+    Shared with validate_data so both sides always agree on the key.
+    """
+    return [col for col in DEDUP_SUBSET if col in df.columns]
+
+
 def dedup_daily(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     """Drop duplicate daily rows; return (deduped_df, n_dropped)."""
     before = len(df)
-    df = df.drop_duplicates(subset=DEDUP_SUBSET, keep="first")
+    df = df.drop_duplicates(subset=dedup_key_for(df), keep="first")
     return df, before - len(df)
 
 
@@ -313,7 +383,10 @@ def merge_incremental(
     # Rows from older aggregates may predate later-added columns (e.g.
     # Date_Corrected); flag-like columns default to False, not NaN.
     if "Date_Corrected" in combined.columns:
-        combined["Date_Corrected"] = combined["Date_Corrected"].fillna(False)
+        # .where + astype rather than .fillna: fillna on an object-dtype
+        # column emits a pandas downcasting FutureWarning on every run.
+        col = combined["Date_Corrected"]
+        combined["Date_Corrected"] = col.where(col.notna(), False).astype(bool)
     return combined
 
 
@@ -526,12 +599,5 @@ if __name__ == "__main__":
              "recently-modified workbooks are parsed and merged into the "
              "existing aggregate.",
     )
-    parser.add_argument(
-        "--incremental", action="store_true",
-        help=argparse.SUPPRESS,  # legacy alias; incremental is now the default
-    )
     args = parser.parse_args()
-    if args.full and args.incremental:
-        parser.error("--full and --incremental are mutually exclusive")
-
     run_aggregation(reports_dir=args.reports_dir, full=args.full)

@@ -10,7 +10,7 @@ from __future__ import annotations
 import plotly.graph_objects as go
 from plotly.io import to_html
 
-from config import ALL_METRICS, DEFAULT_WEEKS, RUNNING_AVG_WINDOW
+from config import DEFAULT_WEEKS
 from dashboard_common import (
     BASE_CSS, CARD_CSS, PLOTLY_CONFIG, MOBILE_MODEBAR_CSS, MOBILE_PLOTLY_JS,
     SHIFT_METRICS, DARK_CSS, THEME_INIT_JS, THEME_TOGGLE_HTML, THEME_TOGGLE_CSS,

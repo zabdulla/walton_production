@@ -76,6 +76,7 @@ def check_dependencies() -> list[str]:
     """
     required = [
         ("pandas", "pandas"),
+        ("numpy", "numpy"),  # imported at module scope by two dashboard builders
         ("plotly", "plotly"),
         ("openpyxl", "openpyxl"),
         ("pymupdf", "pymupdf"),  # PDF parsing
@@ -351,12 +352,31 @@ def step_validate() -> dict[str, Any]:
         issues.append(f"{results['duplicates_count']} duplicate row(s)")
     if results.get("missing_operators"):
         n = sum(results["missing_operators"].values())
-        issues.append(f"{n} missing operator(s)")
+        unatt = results.get("unattributed_output") or {}
+        if unatt.get("pct_output_unattributed"):
+            worst = (unatt.get("by_shift") or [{}])[0]
+            issues.append(
+                f"{unatt['pct_output_unattributed']}% of the last "
+                f"{unatt['recent_weeks']} weeks' output has no operator "
+                f"(worst: {worst.get('shift', '?')} shift at "
+                f"{worst.get('pct_output_unattributed', 0)}%); "
+                f"{n:,} blank rows all-time"
+            )
+        else:
+            issues.append(f"{n} missing operator(s)")
     if results.get("missing_weeks"):
         issues.append(f"{len(results['missing_weeks'])} missing week(s)")
     payroll = results.get("payroll", {})
     if payroll.get("unmatched_production_ops"):
-        issues.append(f"{len(payroll['unmatched_production_ops'])} unmapped production operator(s)")
+        active = payroll.get("unmatched_active") or []
+        total = len(payroll["unmatched_production_ops"])
+        if active:
+            issues.append(
+                f"{len(active)} unmapped production operator(s) active in the "
+                f"last 90 days ({total} all-time)"
+            )
+        else:
+            issues.append(f"{total} unmapped production operator(s), none recently active")
     if payroll.get("unrostered_employees"):
         issues.append(f"{len(payroll['unrostered_employees'])} unrostered payroll employee(s)")
     anomalies = results.get("anomalous_values") or []
@@ -370,7 +390,25 @@ def step_validate() -> dict[str, Any]:
         )
     out_anom = results.get("output_anomalies") or []
     if out_anom:
-        issues.append(f"{len(out_anom)} weekly output anomaly(ies) (>2σ)")
+        worst = max(out_anom, key=lambda a: a.get("deviation_sigma", 0))
+        issues.append(
+            f"{len(out_anom)} weekly output anomaly(ies) (>3σ) — worst: "
+            f"{worst['machine']} week {worst['week_start']}, "
+            f"{worst['output']:,.0f} vs expected {worst['expected']:,.0f}"
+        )
+    fresh = results.get("payroll_freshness") or {}
+    if fresh.get("status") == "stale":
+        issues.append(
+            f"payroll {fresh['age_days']} days stale "
+            f"(newest period ends {fresh['latest_period_end']}) — "
+            f"the profit dashboard's labor uplift is computed from it"
+        )
+    mismatches = results.get("weekday_mismatches") or []
+    if mismatches:
+        rows = sum(m["rows"] for m in mismatches)
+        issues.append(
+            f"{rows} row(s) on {len(mismatches)} date(s) stamped with the wrong weekday"
+        )
 
     blocked, reasons = gating_decision(results)
 

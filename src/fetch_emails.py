@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import argparse
 import base64
-import json
 import logging
 import re
 import sys
@@ -57,7 +56,6 @@ RETRY_BACKOFF_SEC = 5
 _RETRY_STATUS = {500, 502, 503, 504}
 
 from config import (
-    PROJECT_ROOT,
     REPORTS_DIR,           # processing_reports/
     PAYROLL_PDF_DIR,       # data/payroll_pdfs/
 )
@@ -268,6 +266,27 @@ def shift_from_filename(filename: str) -> str | None:
     return None
 
 
+def _existing_report_for(target_name: str) -> Path | None:
+    """Find an already-downloaded report matching *target_name*.
+
+    Filenames are rebuilt from the email subject with single spaces, but the
+    sender's originals sometimes carry double or triple spaces ("processing
+    weights   12-21-25 to ..."). A plain ``target.exists()`` misses those, so
+    the same week is downloaded a second time under a slightly different
+    name and then parsed twice.
+    """
+    def _norm(name: str) -> str:
+        return re.sub(r"\s+", " ", name).strip().lower()
+
+    wanted = _norm(target_name)
+    if not REPORTS_DIR.exists():
+        return None
+    for candidate in REPORTS_DIR.glob("*.xlsx"):
+        if _norm(candidate.name) == wanted:
+            return candidate
+    return None
+
+
 def fetch_processing_weights(service, days_back: int = 14, dry_run: bool = False) -> list[Path]:
     """Find weekly processing-weights emails, download all 3 shift files.
 
@@ -304,8 +323,9 @@ def fetch_processing_weights(service, days_back: int = 14, dry_run: bool = False
             target_name = f"{shift} shift processing weights {start} to {end}.xlsx"
             target = REPORTS_DIR / target_name
 
-            if target.exists():
-                logger.info(f"Already have: {target_name}")
+            existing = _existing_report_for(target_name)
+            if existing is not None:
+                logger.info(f"Already have: {existing.name}")
                 continue
             if dry_run:
                 print(f"  [dry-run] would download → {target_name}")

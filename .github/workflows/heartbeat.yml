@@ -51,7 +51,7 @@ jobs:
           The weekly launchd job on the Mac may not have run. Check:
           1. Is the Mac on and awake? (\`launchctl list | grep walton\`)
           2. logs/weekly_update.log for errors
-          3. Run manually: \`python3 src/weekly_update.py --all\`"
+          3. Run manually: \`python3 src/weekly_update.py\`"
           else
             echo "Heartbeat issue already open; not duplicating."
           fi

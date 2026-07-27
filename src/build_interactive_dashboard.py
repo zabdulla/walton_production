@@ -20,7 +20,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.io import to_html
 
 from config import (
     PROJECT_ROOT, DEFAULT_AGGREGATED_DATA,
@@ -28,14 +27,10 @@ from config import (
     UTILIZATION_TARGET_PCT, MACHINE_WEEKLY_OUTPUT_TARGETS,
     PRODUCT_TYPO_MAP, PRODUCT_CATEGORY_MAP,
     KEY_METRICS, ALL_METRICS,
-    DEFAULT_WEEKS, RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
-    LABOR_RATE,
+    RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
 )
-from dashboard_common import (
-    BASE_CSS, CARD_CSS, PLOTLY_CONFIG, MOBILE_MODEBAR_CSS, MOBILE_PLOTLY_JS,
-    SHIFT_METRICS, SHIFT_COLORS,
-)
-from interactive_template import render_dashboard  # re-export; template extracted 2026-07
+from dashboard_common import SHIFT_METRICS, SHIFT_COLORS
+from interactive_template import render_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +112,6 @@ def aggregate_weekly(df: pd.DataFrame) -> pd.DataFrame:
             Total_Expense=("Total_Expense", "sum"),
         )
         .reset_index()
-        .rename(columns={"Week_Start": "Week_Start"})
     )
     grouped["Output_per_Hour"] = grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, pd.NA)
     grouped["Output_per_Man_Hour"] = grouped["Actual_Output"] / grouped["Total_Man_Hours"].replace(0, pd.NA)
@@ -299,7 +293,11 @@ def build_monthly_summary_html(weekly: pd.DataFrame, visible_months: int = 6) ->
 
 def build_latest_week_table_html(weekly: pd.DataFrame, cost_threshold: float = COST_PER_POUND_THRESHOLD) -> str:
     latest_week = weekly["Week_Start"].max()
-    last_4_weeks = sorted(weekly["Week_Start"].unique())[-4:]
+    # The baseline must EXCLUDE the week being measured against it, or the
+    # week dilutes its own comparison and every deviation reads smaller than
+    # it is. validate_data._check_weekly_output_anomalies uses .shift(1) for
+    # the same reason.
+    last_4_weeks = sorted(weekly["Week_Start"].unique())[-5:-1]
     avg_4 = weekly[weekly["Week_Start"].isin(last_4_weeks)]
 
     scope = weekly[weekly["Week_Start"] == latest_week].copy().sort_values("Actual_Output", ascending=False)
@@ -601,7 +599,6 @@ def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
             target = sum(MACHINE_WEEKLY_OUTPUT_TARGETS.values())
         else:
             scope = weekly_tracked[weekly_tracked["Machine_Name"] == machine].copy()
-            scope = scope.rename(columns={"Week_Label": "Week_Label"})
             target = MACHINE_WEEKLY_OUTPUT_TARGETS.get(machine, 0)
 
         scope = scope.sort_values("Week_Start")
@@ -643,7 +640,6 @@ def build_targets_vs_actuals_fig(weekly: pd.DataFrame) -> go.Figure:
                 poly = np.poly1d(coeffs)
 
                 # Build forecast dates: from first point of regression window to 4 weeks ahead
-                last_date = recent["Week_Start"].iloc[-1]
                 forecast_dates = pd.date_range(recent["Week_Start"].iloc[0], periods=len(recent) + 4, freq="7D")
                 x_forecast = (forecast_dates - recent["Week_Start"].iloc[0]).days.astype(float)
                 y_forecast = poly(x_forecast)
@@ -704,7 +700,6 @@ def aggregate_weekly_by_shift(df: pd.DataFrame) -> pd.DataFrame:
             Total_Expense=("Total_Expense", "sum"),
         )
         .reset_index()
-        .rename(columns={"Week_Start": "Week_Start"})
     )
     # Leave NaN where the denominator is zero — Plotly omits the bar, which is
     # truthful; a 0 bar would read as "free production" / "zero rate".
@@ -817,7 +812,6 @@ def main(input_path: Path, output_path: Path) -> None:
 
     # With Guillotine support work included
     df_sup = _apply_guillotine_support(df)
-    df_sup = df_sup[(df_sup["Man_Hours"] > 0) | (df_sup["Actual_Output"] > 0)]
     df_sup = df_sup[(df_sup["Man_Hours"] > 0) & (df_sup["Machine_Hours"] > 0)]
     weekly_sup, df_sup_full, trends_sup, rag_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
 

@@ -16,8 +16,6 @@ data/employee_roster.json
 data/snapshots/
 
 # Generated artifacts (can be regenerated)
-auto_generated_graphs/
-Meeting_Plots/
 
 # Local-only reports (operator dashboard, etc.)
 reports/
@@ -49,5 +47,5 @@ Thumbs.db
 *~
 
 # Logs from the weekly update orchestrator (keep dir, ignore content)
-logs/*.log
+logs/*.log*
 !logs/.gitkeep

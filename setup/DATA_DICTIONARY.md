@@ -22,17 +22,26 @@ schema end-to-end; display labels are applied only at render time.
 | `Man_Hours` | float | Total labor hours (can exceed 24 — multiple operators) |
 | `Operator` | str | First name(s), comma-separated when a crew shared the machine |
 | `Comment` | str | Supervisor note, if any (also extracted to `aggregated_notes.xlsx`) |
-| `Output_per_Hour` | float | `Actual_Output / Machine_Hours` (0 when no hours) |
+| `Output_per_Hour` | float | `Actual_Output / Machine_Hours`, **NaN when hours are 0** — a 0 would read as "produced nothing per hour" and drag averages down |
 | `Labor_Cost` | float | `Man_Hours × config.LABOR_RATE` ($25/hr) |
 | `Total_Expense` | float | `Labor_Cost × overhead_multiplier` (currently 1.0) |
-| `Cost_per_Pound` | float | `Total_Expense / Actual_Output` (0 when no output) |
+| `Cost_per_Pound` | float | `Total_Expense / Actual_Output`, **NaN when output is 0** — a 0 would read as free production |
 | `Has_Machine_Hours` / `Has_Man_Hours` / `Has_Output` / `Has_Comment` | bool | Data-presence flags |
 | `Data_Quality_Score` | int | See below |
+| `Date_Corrected` | bool | True when the typed date cell disagreed with the sheet's tab label (see below) |
 
 **Data_Quality_Score (0–100):**
 `25·has_machine_hours + 25·has_man_hours + 40·has_output + 10·consistency`
 where the consistency bonus applies when machine-hours presence matches
 output presence (both or neither).
+
+**Which day a row belongs to.** The sheet tabs are a fixed template
+(Mon–Sat), so the tab label is structural; the date cell in row 0 is typed
+by hand each week and carries both month/day transpositions and copy-paste
+errors. When the two disagree the label wins, `Date` is set to the matching
+day inside the file's week, and `Date_Corrected` is set True. Validation
+enforces the resulting invariant: `Date`'s weekday always equals
+`Day_of_Week`, and a fresh violation blocks publication.
 
 **Duplicate identity** (`config.DEDUP_SUBSET`): `Date, Shift, Machine_Name,
 Output_Product, Actual_Output, Operator, Machine_Hours, Man_Hours`. Operator
@@ -41,8 +50,8 @@ collapsed. Aggregation drops on this key; validation asserts none remain.
 
 ## `data/aggregated_notes.xlsx`
 
-One row per supervisor comment: `Date, Shift, Machine_Name, Operator, Note,
-Category`. Category is keyword-derived (`config.NOTE_CATEGORIES`):
+One row per supervisor comment: `Date, Shift, Machine_Name, Input_Item,
+Operator, Note, Category`. Category is keyword-derived (`config.NOTE_CATEGORIES`):
 `downtime`, `material`, `quality`, else `operational`.
 
 ## `data/aggregated_payroll.xlsx` (gitignored — PII)

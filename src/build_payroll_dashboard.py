@@ -80,7 +80,6 @@ def build_period_data(
         machine_data: dict[str, dict] = {}
         for emp in employees:
             info = employees_map.get(emp["employee_name"], {})
-            aliases = info.get("production_aliases", [])
             primary = info.get("primary_machine")
             secondary = info.get("secondary_machines", [])
             all_machines = ([primary] if primary else []) + secondary

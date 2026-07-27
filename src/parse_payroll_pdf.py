@@ -253,7 +253,15 @@ def aggregate_payroll(parsed: dict, output_path: Path = DEFAULT_PAYROLL_DATA) ->
     if dupes:
         logger.info(f"Dropped {dupes} duplicate payroll row(s)")
 
-    df_combined.sort_values(["period_start", "employee_name"], inplace=True)
+    # period_start is "MM/DD/YYYY" text, so a plain sort is lexicographic —
+    # it put every 2026 period ahead of every 2025 one. Sort on the parsed
+    # date so the file is genuinely chronological for anything that reads it
+    # in row order.
+    df_combined["_period_sort"] = pd.to_datetime(
+        df_combined["period_start"], format="%m/%d/%Y", errors="coerce"
+    )
+    df_combined.sort_values(["_period_sort", "employee_name"], inplace=True)
+    df_combined.drop(columns="_period_sort", inplace=True)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     snapshot_dir = output_path.parent / "snapshots"
     from atomic import write_with_snapshot
@@ -324,9 +332,19 @@ def parse_pdf_directory(
                 logger.warning(f"Failed: {pdf.name}: {e}")
                 _quarantine(pdf)
         except Exception as e:
+            # Quarantine is for PDFs we cannot parse, and it is permanent —
+            # the file is renamed into failed/, which is excluded from every
+            # later run. An environmental failure (missing pymupdf, an Excel
+            # write error, a full disk) says nothing about the PDF, so
+            # retiring it would lose good data that a `pip install` would
+            # have fixed. This exact failure already happened once: all 20
+            # PDFs failed with "pymupdf is required" on 2025-04-27.
             failed.append((pdf.name, str(e)))
             logger.warning(f"Failed: {pdf.name}: {e}")
-            _quarantine(pdf)
+            logger.warning(
+                "  Not quarantining — %s looks environmental, not a bad PDF. "
+                "Fix the cause and re-run.", type(e).__name__,
+            )
 
     return {"processed": processed, "skipped": skipped, "failed": failed}
 
@@ -381,7 +399,6 @@ def generate_roster(
     for _, emp in payroll_employees.iterrows():
         full_name = emp["employee_name"]
         first = emp.get("first_name", "").strip()
-        last = emp.get("last_name", "").strip()
 
         # Find production aliases matching this employee's first name
         aliases = []
@@ -503,13 +520,31 @@ def compare_payroll_to_production(
     df_prod["Date"] = pd.to_datetime(df_prod["Date"])
     df_prod_period = df_prod[(df_prod["Date"] >= start_dt) & (df_prod["Date"] <= end_dt)].copy()
 
-    # Build exploded per-row operator view (preserve Shift for filtering)
+    # Build exploded per-row operator view (preserve Shift for filtering).
+    #
+    # Man_Hours is the CREW total for a row, not one person's shift — the
+    # median Man_Hours/Machine_Hours ratio is 1.00 for one operator, 1.88 for
+    # two and 2.69 for three. Crediting the full value to each operator
+    # inflated summed production hours by 1.9x, which flowed straight into
+    # the profit dashboard's labor-overhead uplift and produced employees
+    # whose "production hours" exceeded the hours they actually clocked.
+    # build_operator_dashboard.explode_operators has always divided; this
+    # path did not.
     prod_ops = df_prod_period[df_prod_period["Operator"].notna()].copy()
     prod_ops["Operator"] = prod_ops["Operator"].str.strip()
+    prod_ops["_crew"] = (
+        prod_ops["Operator"]
+        .apply(lambda s: len([n for n in str(s).split(",") if n.strip()]))
+        .clip(lower=1)
+    )
+    for col in ("Man_Hours", "Machine_Hours", "Actual_Output"):
+        if col in prod_ops.columns:
+            prod_ops[col] = prod_ops[col] / prod_ops["_crew"]
     prod_exploded = prod_ops.assign(
         Operator=prod_ops["Operator"].str.split(",")
     ).explode("Operator")
     prod_exploded["Operator"] = prod_exploded["Operator"].str.strip()
+    prod_exploded = prod_exploded[prod_exploded["Operator"] != ""]
 
     # Build comparison rows
     rows = []
