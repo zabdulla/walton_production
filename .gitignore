@@ -49,3 +49,6 @@ Thumbs.db
 # Logs from the weekly update orchestrator (keep dir, ignore content)
 logs/*.log*
 !logs/.gitkeep
+
+# Per-run validation baseline (machine-local; used for "since last run" deltas)
+data/validation_state.json

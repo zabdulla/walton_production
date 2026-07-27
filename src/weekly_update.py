@@ -418,12 +418,24 @@ def step_validate() -> dict[str, Any]:
         for issue in issues:
             log_warn(issue)
 
+    # Movement matters more than level: a count that cannot change reads the
+    # same every week as one that is deteriorating.
+    deltas = {k: v for k, v in (results.get("deltas") or {}).items() if k != "rows"}
+    for key, change in sorted(deltas.items(), key=lambda kv: -abs(kv[1])):
+        log_warn(f"  {change:+d} {key.replace('_', ' ')} since last run")
+
     if blocked:
         log_err("Validation gating: BLOCK publication")
         for r in reasons:
             log_err(f"  reason: {r}")
+    else:
+        # Only re-baseline on a run that is actually publishing, so a blocked
+        # run's numbers don't become the "normal" everything is compared to.
+        from validate_data import save_validation_state
+        save_validation_state(results)
 
-    return {"ok": True, "issues": issues, "blocked": blocked, "reasons": reasons}
+    return {"ok": True, "issues": issues, "blocked": blocked, "reasons": reasons,
+            "deltas": deltas}
 
 
 def _dashboard_builders() -> list[tuple[str, Any]]:

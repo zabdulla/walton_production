@@ -501,6 +501,68 @@ def _check_completeness(df: pd.DataFrame, n_weeks: int = 4) -> list[dict[str, An
 
 
 # ---------------------------------------------------------------------------
+# Run-over-run movement
+# ---------------------------------------------------------------------------
+
+VALIDATION_STATE_PATH = DEFAULT_AGGREGATED_DATA.parent / "validation_state.json"
+
+
+def _scalar_counts(results: dict[str, Any]) -> dict[str, int]:
+    """The countable part of a validation run, for comparison against last run."""
+    payroll = results.get("payroll") or {}
+    return {
+        "rows": int(results.get("total_rows", 0)),
+        "unmapped_products": len(results.get("unmapped_products") or []),
+        "missing_operator_rows": int(sum((results.get("missing_operators") or {}).values())),
+        "duplicates": int(results.get("duplicates_count", 0) or 0),
+        "anomalous_values": len(results.get("anomalous_values") or []),
+        "output_anomalies": len(results.get("output_anomalies") or []),
+        "unmatched_operators": len(payroll.get("unmatched_production_ops") or []),
+        "unmatched_operators_active": len(payroll.get("unmatched_active") or []),
+        "weekday_mismatch_rows": int(
+            sum(m["rows"] for m in (results.get("weekday_mismatches") or []))
+        ),
+    }
+
+
+def compute_deltas(
+    results: dict[str, Any], state_path: Path = VALIDATION_STATE_PATH
+) -> dict[str, int]:
+    """Change in each count since the previous run.
+
+    Absolute counts alone can't distinguish a settled historical number
+    from one that is deteriorating — both print the same every week, which
+    is how a real regression hid inside a block of five identical-looking
+    warnings for months. Returns {} on the first run (no baseline yet).
+    """
+    current = _scalar_counts(results)
+    try:
+        previous = json.loads(state_path.read_text()).get("counts", {})
+    except (OSError, ValueError):
+        return {}
+    return {
+        key: current[key] - previous[key]
+        for key in current
+        if key in previous and current[key] != previous[key]
+    }
+
+
+def save_validation_state(
+    results: dict[str, Any], state_path: Path = VALIDATION_STATE_PATH
+) -> None:
+    """Persist this run's counts as the baseline for the next run."""
+    payload = {
+        "generated": pd.Timestamp.now().isoformat(timespec="seconds"),
+        "counts": _scalar_counts(results),
+    }
+    try:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps(payload, indent=2))
+    except OSError as exc:  # pragma: no cover - non-fatal bookkeeping
+        print(f"  (could not save validation state: {exc})")
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -535,7 +597,7 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
     payroll_freshness = _check_payroll_freshness()
     unattributed = _check_unattributed_output(df)
 
-    return {
+    results = {
         "total_rows": len(df),
         "unmapped_products": unmapped,
         "missing_weeks": missing_weeks,
@@ -551,6 +613,8 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
         "payroll_freshness": payroll_freshness,
         "unattributed_output": unattributed,
     }
+    results["deltas"] = compute_deltas(results)
+    return results
 
 
 # ---------------------------------------------------------------------------
@@ -786,6 +850,18 @@ def print_report(results: dict[str, Any]) -> None:
     else:
         for issue in issues:
             _warn(issue)
+
+    deltas = results.get("deltas") or {}
+    movement = {k: v for k, v in deltas.items() if k != "rows"}
+    if movement:
+        print()
+        print(f"        {_bold('Changed since the last run:')}")
+        for key, change in sorted(movement.items(), key=lambda kv: -abs(kv[1])):
+            label = key.replace("_", " ")
+            print(f"          {change:+d}  {label}")
+    elif deltas:
+        print()
+        print(f"        {_dim('No change in any check since the last run.')}")
     print()
 
 
