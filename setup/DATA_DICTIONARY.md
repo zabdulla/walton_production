@@ -15,11 +15,11 @@ schema end-to-end; display labels are applied only at render time.
 | `Shift` | str | `1st` / `2nd` / `3rd` from the filename; `unspecified` in pre-2025 files |
 | `Machine_Name` | str | One of the 10 machines in `config.MACHINE_DATA_RANGES` |
 | `Input_Item` | str | Feedstock description as typed by the supervisor |
-| `Actual_Input` | float | Feedstock weight (lbs) |
+| `Actual_Input` | float | Weight (lbs) — see "one weight, two columns" below |
 | `Output_Product` | str | Product as typed (typos normalized via `PRODUCT_TYPO_MAP`) |
-| `Actual_Output` | float | Output weight (lbs) |
+| `Actual_Output` | float | Weight (lbs) — see "one weight, two columns" below |
 | `Machine_Hours` | float | Machine run time that day |
-| `Man_Hours` | float | Total labor hours (can exceed 24 — multiple operators) |
+| `Man_Hours` | float | **Crew** total labor hours, not one person's — divide by the number of names in `Operator` for anything per-person (see below) |
 | `Operator` | str | First name(s), comma-separated when a crew shared the machine |
 | `Comment` | str | Supervisor note, if any (also extracted to `aggregated_notes.xlsx`) |
 | `Output_per_Hour` | float | `Actual_Output / Machine_Hours`, **NaN when hours are 0** — a 0 would read as "produced nothing per hour" and drag averages down |
@@ -34,6 +34,30 @@ schema end-to-end; display labels are applied only at render time.
 `25·has_machine_hours + 25·has_man_hours + 40·has_output + 10·consistency`
 where the consistency bonus applies when machine-hours presence matches
 output presence (both or neither).
+
+**One weight, two columns — there is no yield data.** `Actual_Input` and
+`Actual_Output` are the *same measurement* wherever both are present:
+identical on 3,594 of 3,595 rows (the one exception differs by 1 lb, a
+typo). The material is weighed once. `Input_Item` and `Output_Product` do
+describe genuinely different things (PP Film → PP resin), so the row
+records *what it became*, not *how much was lost*.
+
+Do **not** compute yield, shrinkage, or material loss from these columns —
+it is 100.0% by construction on every machine, which is an artifact, not a
+fact about the plant. Answering that question needs a second weighing that
+the shift reports do not currently capture.
+
+1,093 rows carry an input weight with no output weight (7.08M lbs). 1,076
+of them are GUILLOTINE, whose output is routinely not re-weighed — this is
+exactly what the "with Guillotine support" view in the interactive
+dashboard exists to correct (`_apply_guillotine_support`). The remaining 17
+are SHREDDER rows (80,213 lbs) and are **not** covered by that adjustment.
+
+**`Man_Hours` is a crew total.** The median `Man_Hours / Machine_Hours`
+ratio is 1.00 for one operator, 1.88 for two and 2.69 for three. Any
+per-person figure must divide by the crew size (comma-split `Operator`);
+`build_operator_dashboard.explode_operators` is the reference
+implementation. Getting this wrong inflates summed labor ~1.9x.
 
 **Which day a row belongs to.** The sheet tabs are a fixed template
 (Mon–Sat), so the tab label is structural; the date cell in row 0 is typed
