@@ -173,12 +173,18 @@ def print_run(run: dict, idx: int, total: int) -> None:
     runtime = format_runtime(run.get("runtime"))
     completed = run["end"] is not None
 
-    # Health emoji
+    # Health emoji. Only the launchd job redirects stdout to weekly_stdout.log,
+    # so a run started by hand has no summary chunk to find. That is not a
+    # failure — judge those purely on whether the run reached its END marker,
+    # or every manual run reads as a warning.
     out = parse_stdout_for_run(run["start"])
     failed = "Failed dashboards" in out["summary"]
     push_ok = "pushed" in out["summary"].get("Git", "")
-    health = green("✓") if completed and push_ok and not failed else \
-             yellow("⚠") if completed else red("✗")
+    if not out["summary"]:
+        health = green("✓") if completed else red("✗")
+    else:
+        health = green("✓") if completed and push_ok and not failed else \
+                 yellow("⚠") if completed else red("✗")
 
     label = f"Run {total - idx} of {total}" if idx > 0 else "LATEST RUN"
     print(f"\n{bold(label)}  {health}")
@@ -186,7 +192,8 @@ def print_run(run: dict, idx: int, total: int) -> None:
     print(f"  Runtime:   {runtime}" + (red("  ⚠ unusually long") if run.get("runtime") and run["runtime"] > 300 else ""))
 
     if not out["summary"]:
-        print(f"  {dim('(no parseable summary — log may have been rotated)')}")
+        status = "completed" if completed else dim("did not finish")
+        print(f"  Result:    {status} {dim('(run by hand — console output not captured)')}")
         return
 
     s = out["summary"]
