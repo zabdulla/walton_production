@@ -28,6 +28,8 @@ def render_dashboard(
     shift_fig_std: go.Figure = None, shift_fig_sup: go.Figure = None,
     total_weeks: int = 20,
     latest_data_date: str = "",
+    labor_html: str = "",
+    capture_html: str = "",
 ) -> str:
     def _render_figs(fig_sections):
         rendered = [
@@ -98,6 +100,16 @@ def render_dashboard(
     .range-btn:hover:not(.active) {{ background:#f3f4f6; }}
     .muted {{ color:var(--muted); }}
     .table-wrap {{ overflow-x:auto; }}
+    td.num, th.num {{ text-align:right; font-variant-numeric:tabular-nums; }}
+    .eff-h3 {{ font-size:14px; font-weight:600; margin:20px 0 8px; letter-spacing:-0.01em; }}
+    .eff-h3:first-of-type {{ margin-top:4px; }}
+    /* Inline magnitude bar under the rate, relative to the best in the group */
+    .eff-bar {{ display:block; height:4px; border-radius:2px; background:var(--border);
+                margin-top:5px; overflow:hidden; }}
+    .eff-bar > span {{ display:block; height:100%; border-radius:2px; background:var(--brand); }}
+    @media (prefers-reduced-motion: no-preference) {{
+      .eff-bar > span {{ transition:width .4s ease; }}
+    }}
     table {{ width:100%; border-collapse:collapse; }}
     th,td {{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }}
     th {{ background:#111827; color:#fff; }}
@@ -231,6 +243,16 @@ def render_dashboard(
         {monthly_sup}
       </section>
     </div>
+    <!-- Shown in both views: these read row-level labour data, which the
+         standard/support toggle does not change. -->
+    <section class="card">
+      <h2 style="margin-top:0">Labor Efficiency</h2>
+      {labor_html}
+    </section>
+    <section class="card">
+      <h2 style="margin-top:0">Operator Capture</h2>
+      {capture_html}
+    </section>
   </main>
   <script>
     const machineSelect = document.getElementById('machineSelect');

@@ -28,6 +28,7 @@ from config import (
     PRODUCT_TYPO_MAP, PRODUCT_CATEGORY_MAP,
     KEY_METRICS, ALL_METRICS,
     RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
+    LABOR_RATE,
 )
 from dashboard_common import SHIFT_METRICS, SHIFT_COLORS
 from interactive_template import render_dashboard
@@ -427,6 +428,153 @@ def build_target_rag_html(weekly: pd.DataFrame, lookback: int = RAG_LOOKBACK_WEE
     """
 
 
+def build_labor_efficiency_html(df: pd.DataFrame, weeks: int = 26) -> str:
+    """Pounds per man-hour and labor cost per pound, by shift and by machine.
+
+    Man_Hours is a crew total, so these are plant-level rates (output per
+    hour of labour bought), not per-person productivity. That is the right
+    unit for comparing a shift or a machine against another.
+    """
+    if df.empty or "Man_Hours" not in df.columns:
+        return "<p class='muted'>No labor data available.</p>"
+
+    d = df.copy()
+    d["Date"] = pd.to_datetime(d["Date"])
+    cutoff = d["Date"].max() - pd.Timedelta(weeks=weeks)
+    d = d[d["Date"] >= cutoff]
+    if d.empty:
+        return "<p class='muted'>No labor data in the recent window.</p>"
+
+    def _table(group_col: str, label: str, min_hours: float) -> str:
+        g = d.groupby(group_col).agg(
+            lbs=("Actual_Output", "sum"), man_h=("Man_Hours", "sum"),
+        )
+        g = g[g["man_h"] >= min_hours]
+        if g.empty:
+            return ""
+        g["per_hour"] = g["lbs"] / g["man_h"]
+        g["cost_lb"] = g["man_h"] * LABOR_RATE / g["lbs"].replace(0, pd.NA)
+        g = g.sort_values("per_hour", ascending=False)
+        best = g["per_hour"].max()
+
+        rows = []
+        for name, r in g.iterrows():
+            # Bar is relative to the best performer in the group; this is a
+            # ranking aid, not a target line.
+            pct = (r["per_hour"] / best * 100) if best else 0
+            cost = f"${r['cost_lb']:,.4f}" if pd.notna(r["cost_lb"]) else "—"
+            rows.append(f"""
+            <tr>
+                <td>{name}</td>
+                <td class="num">{r['lbs']:,.0f}</td>
+                <td class="num">{r['man_h']:,.0f}</td>
+                <td class="num"><strong>{r['per_hour']:,.0f}</strong>
+                    <span class="eff-bar"><span style="width:{pct:.0f}%"></span></span>
+                </td>
+                <td class="num">{cost}</td>
+            </tr>""")
+        return f"""
+        <h3 class="eff-h3">{label}</h3>
+        <div class="table-wrap">
+        <table>
+            <thead><tr>
+                <th>{label}</th><th class="num">Output (lbs)</th>
+                <th class="num">Man-hours</th><th class="num">Lbs / man-hour</th>
+                <th class="num">Labor $ / lb</th>
+            </tr></thead>
+            <tbody>{''.join(rows)}</tbody>
+        </table></div>"""
+
+    shift_tbl = _table("Shift", "Shift", min_hours=50)
+    machine_tbl = _table("Machine_Name", "Machine", min_hours=100)
+
+    return f"""
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
+        Last {weeks} weeks. Man-hours are crew totals, so these are rates per
+        hour of labour bought — not per-person output. Labor $/lb uses
+        ${LABOR_RATE:,.0f}/hr and excludes overhead. Machines under 100
+        man-hours in the window are omitted.
+    </p>
+    {shift_tbl}
+    {machine_tbl}
+    """
+
+
+def build_operator_capture_html(df: pd.DataFrame, weeks: int = 12) -> str:
+    """How much output is recorded with nobody's name against it.
+
+    Output with no operator can't be attributed to labour, which both
+    understates cost-per-pound denominators and makes payroll reconciliation
+    impossible. The repeat offenders are pre-printed template rows that
+    nobody fills in, so listing them by signature gives supervisors a
+    specific, finite thing to fix.
+    """
+    if df.empty or "Operator" not in df.columns:
+        return "<p class='muted'>No operator data available.</p>"
+
+    d = df.copy()
+    d["Date"] = pd.to_datetime(d["Date"])
+    d = d[d["Date"] >= d["Date"].max() - pd.Timedelta(weeks=weeks)]
+    if d.empty:
+        return "<p class='muted'>No recent data.</p>"
+
+    d["_blank"] = d["Operator"].isna() | (d["Operator"].astype(str).str.strip() == "")
+
+    cards = []
+    for shift, g in sorted(d.groupby("Shift")):
+        total = g["Actual_Output"].sum()
+        if total <= 0:
+            continue
+        pct = 100.0 * g.loc[g["_blank"], "Actual_Output"].sum() / total
+        color = "#22c55e" if pct < 5 else "#f59e0b" if pct < 12 else "#ef4444"
+        cards.append(f"""
+        <div class="kpi-card" style="border-left:5px solid {color};">
+            <div class="kpi-label">{shift} shift</div>
+            <div class="kpi-value" style="color:{color};">{pct:.1f}%
+                <span style="font-size:12px;font-weight:400;color:var(--muted);">of output unattributed</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+                {int(g['_blank'].sum()):,} of {len(g):,} rows blank
+            </div>
+        </div>""")
+
+    blank = d[d["_blank"]]
+    rows = []
+    if not blank.empty:
+        sig = (
+            blank.groupby(["Shift", "Machine_Name", "Output_Product"])
+            .agg(times=("Actual_Output", "size"), lbs=("Actual_Output", "sum"))
+            .sort_values("times", ascending=False)
+            .head(10)
+        )
+        for (shift, machine, product), r in sig.iterrows():
+            rows.append(
+                f"<tr><td>{shift}</td><td>{machine}</td><td>{product or '—'}</td>"
+                f"<td class='num'>{int(r['times'])}</td>"
+                f"<td class='num'>{r['lbs']:,.0f}</td></tr>"
+            )
+
+    repeat_tbl = f"""
+        <h3 class="eff-h3">Rows that are blank again and again</h3>
+        <div class="table-wrap">
+        <table>
+            <thead><tr><th>Shift</th><th>Machine</th><th>Product</th>
+                <th class="num">Times blank</th><th class="num">Output (lbs)</th></tr></thead>
+            <tbody>{''.join(rows)}</tbody>
+        </table></div>""" if rows else ""
+
+    return f"""
+    <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">
+        Last {weeks} weeks. Output recorded with no operator name can't be tied
+        to labour, so it silently shortens the denominator behind
+        cost-per-pound and output-per-man-hour. The repeats below are the
+        same template rows going unfilled week after week.
+    </p>
+    <div class="kpi-grid">{''.join(cards)}</div>
+    {repeat_tbl}
+    """
+
+
 # ---------------------------------------------------------------------------
 # Plotly charts — all accept a recent-only dataframe
 # ---------------------------------------------------------------------------
@@ -821,6 +969,13 @@ def main(input_path: Path, output_path: Path) -> None:
     shift_sup = aggregate_weekly_by_shift(df_sup)
     shift_fig_sup = build_shift_comparison_fig(shift_sup)
 
+    # Labor efficiency + operator capture read row-level data (crew hours,
+    # operator names), not the weekly rollup, so they take df directly.
+    # Guillotine output is unweighed, so use the support-adjusted frame or
+    # its lbs/man-hour reads near zero.
+    labor_html = build_labor_efficiency_html(_apply_guillotine_support(df))
+    capture_html = build_operator_capture_html(_apply_guillotine_support(df))
+
     # Total weeks available (for range control)
     total_weeks = len(weekly_std["Week_Start"].unique())
 
@@ -850,6 +1005,8 @@ def main(input_path: Path, output_path: Path) -> None:
             shift_fig_std=shift_fig_std, shift_fig_sup=shift_fig_sup,
             total_weeks=total_weeks,
             latest_data_date=weekly_std["Week_Start"].max().strftime("%Y-%m-%d"),
+            labor_html=labor_html,
+            capture_html=capture_html,
         ),
     )
     print(f"Wrote interactive dashboard to {output_path}")
