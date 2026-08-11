@@ -286,6 +286,47 @@ def _check_unattributed_output(df: pd.DataFrame, recent_weeks: int = 12) -> dict
     }
 
 
+def _check_output_without_hours(df: pd.DataFrame, recent_weeks: int = 8) -> dict[str, Any]:
+    """Output recorded with no usable machine-hours against it.
+
+    These rows are real production. They used to be filtered out before the
+    weekly rollup, which deleted their tonnage from every total on the
+    dashboard — the plant caught it when a week read 34,000 lbs against a
+    hand-count of 73,781. Totals now include them, but a rising share still
+    means the hours column is being abandoned, and every rate on the site
+    is computed from a shrinking sample.
+    """
+    if df.empty or "Actual_Output" not in df.columns:
+        return {}
+    from config import MAX_MACHINE_HOURS_PER_DAY
+
+    d = df.copy()
+    d["Date"] = pd.to_datetime(d["Date"])
+    d = d[d["Date"] >= d["Date"].max() - pd.Timedelta(weeks=recent_weeks)]
+    produced = d[d["Actual_Output"] > 0]
+    if produced.empty:
+        return {}
+
+    hours = pd.to_numeric(produced["Machine_Hours"], errors="coerce")
+    unusable = ~((hours > 0) & (hours <= MAX_MACHINE_HOURS_PER_DAY))
+    total = float(produced["Actual_Output"].sum())
+    hidden = float(produced.loc[unusable, "Actual_Output"].sum())
+    if hidden <= 0:
+        return {}
+
+    by_shift = (
+        produced[unusable].groupby("Shift")["Actual_Output"].sum()
+        .sort_values(ascending=False)
+    )
+    return {
+        "recent_weeks": recent_weeks,
+        "pct_output_without_hours": round(100.0 * hidden / total, 1),
+        "lbs": round(hidden),
+        "rows": int(unusable.sum()),
+        "worst_shift": str(by_shift.index[0]) if len(by_shift) else None,
+    }
+
+
 def _check_duplicates(df: pd.DataFrame) -> dict[str, Any]:
     """Detect exact duplicates on key columns.  Returns count + examples."""
     # Use the same dedup key the aggregation step writes with so we never
@@ -596,6 +637,7 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
     weekday_mismatches = _check_weekday_mismatches(df)
     payroll_freshness = _check_payroll_freshness()
     unattributed = _check_unattributed_output(df)
+    output_no_hours = _check_output_without_hours(df)
 
     results = {
         "total_rows": len(df),
@@ -612,6 +654,7 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
         "weekday_mismatches": weekday_mismatches,
         "payroll_freshness": payroll_freshness,
         "unattributed_output": unattributed,
+        "output_without_hours": output_no_hours,
     }
     results["deltas"] = compute_deltas(results)
     return results
@@ -843,6 +886,14 @@ def print_report(results: dict[str, Any]) -> None:
         issues.append(
             f"payroll {fresh['age_days']} days stale "
             f"(newest period ends {fresh['latest_period_end']})"
+        )
+    noh = results.get("output_without_hours") or {}
+    if noh.get("pct_output_without_hours"):
+        issues.append(
+            f"{noh['pct_output_without_hours']}% of the last {noh['recent_weeks']} weeks' "
+            f"output has no usable machine-hours ({noh['lbs']:,} lbs, {noh['rows']} rows"
+            + (f", worst on {noh['worst_shift']} shift" if noh.get("worst_shift") else "")
+            + ") — rates are computed from the rest"
         )
 
     if not issues:

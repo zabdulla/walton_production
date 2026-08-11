@@ -190,6 +190,12 @@ COL_DATE = 9
 
 DAILY_SHEETS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
+# A row covers one machine on one day, so a machine cannot run more than 24
+# hours on it. Anything above is a typo (2026-08-07 EXTRUDER recorded 713.25).
+# Such hours are treated as UNRECORDED for rate purposes — the output still
+# counts, we just can't say how long it took.
+MAX_MACHINE_HOURS_PER_DAY = 24.0
+
 # Columns that identify a genuinely duplicated row (same report ingested
 # twice). Operator and hours are included so that two operators who happen
 # to post identical output on the same machine/shift/day are NOT collapsed.

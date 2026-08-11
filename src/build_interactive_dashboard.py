@@ -28,7 +28,7 @@ from config import (
     PRODUCT_TYPO_MAP, PRODUCT_CATEGORY_MAP,
     KEY_METRICS, ALL_METRICS,
     RUNNING_AVG_WINDOW, COST_PER_POUND_THRESHOLD,
-    LABOR_RATE,
+    LABOR_RATE, MAX_MACHINE_HOURS_PER_DAY,
 )
 from dashboard_common import SHIFT_METRICS, SHIFT_COLORS
 from interactive_template import render_dashboard
@@ -103,8 +103,31 @@ def _apply_guillotine_support(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def aggregate_weekly(df: pd.DataFrame) -> pd.DataFrame:
+    """Weekly rollup per machine.
+
+    Output totals count EVERY row that produced something. Rates divide only
+    the output whose hours were actually recorded by those hours, so a row
+    with output but no hours lowers no rate and — critically — is never
+    dropped from the tonnage.
+
+    This used to be handled by filtering such rows out before aggregating,
+    which removed their output from every total on the dashboard. In the week
+    of 2026-08-03 that hid 77,951 of 239,995 lbs (32.5%), and the share was
+    growing week over week as hours capture degraded.
+    """
+    d = df.copy()
+    keys = ["Machine_Name", "Week_Start"]
+
+    # A machine-day cannot exceed 24 machine-hours. A typo like 713.25 would
+    # otherwise dominate the week's denominator and crush every rate, so treat
+    # impossible hours as unrecorded rather than believing them.
+    machine_h = pd.to_numeric(d["Machine_Hours"], errors="coerce")
+    d["Machine_Hours"] = machine_h.where(
+        (machine_h > 0) & (machine_h <= MAX_MACHINE_HOURS_PER_DAY), 0.0
+    )
+
     grouped = (
-        df.groupby(["Machine_Name", "Week_Start"])
+        d.groupby(keys)
         .agg(
             Actual_Output=("Actual_Output", "sum"),
             Total_Machine_Hours=("Machine_Hours", "sum"),
@@ -114,8 +137,26 @@ def aggregate_weekly(df: pd.DataFrame) -> pd.DataFrame:
         )
         .reset_index()
     )
-    grouped["Output_per_Hour"] = grouped["Actual_Output"] / grouped["Total_Machine_Hours"].replace(0, pd.NA)
-    grouped["Output_per_Man_Hour"] = grouped["Actual_Output"] / grouped["Total_Man_Hours"].replace(0, pd.NA)
+
+    # Numerators matched to their denominators: only output from rows that
+    # recorded the relevant hours may be divided by those hours.
+    def _output_where(mask: pd.Series, name: str) -> pd.Series:
+        sub = d[mask]
+        if sub.empty:
+            return pd.Series(0.0, index=grouped.index, name=name)
+        totals = sub.groupby(keys)["Actual_Output"].sum()
+        return (
+            grouped.set_index(keys).index.map(totals).to_series(index=grouped.index)
+            .astype(float).fillna(0.0).rename(name)
+        )
+
+    out_with_machine_h = _output_where(d["Machine_Hours"] > 0, "out_mach")
+    out_with_man_h = _output_where(d["Man_Hours"] > 0, "out_man")
+
+    grouped["Output_per_Hour"] = out_with_machine_h / grouped["Total_Machine_Hours"].replace(0, pd.NA)
+    grouped["Output_per_Man_Hour"] = out_with_man_h / grouped["Total_Man_Hours"].replace(0, pd.NA)
+    # Cost per pound stays over TOTAL output: the labour was paid to make all
+    # of it, including the pounds whose hours went unrecorded.
     grouped["Production_Cost_per_Pound"] = grouped["Total_Expense"] / grouped["Actual_Output"].replace(0, pd.NA)
     grouped["Week_Start"] = pd.to_datetime(grouped["Week_Start"])
     grouped["Week_Label"] = grouped["Week_Start"].dt.strftime("%Y-%m-%d")
@@ -934,7 +975,15 @@ def _build_pipeline(df: pd.DataFrame):
 def main(input_path: Path, output_path: Path) -> None:
     df = load_data(input_path)
     df = clean_product_names(df)
-    df = df[(df["Man_Hours"] > 0) | (df["Actual_Input"] > 0)]
+    # Keep every row that represents real activity. Output counts even when
+    # nobody wrote down the hours — see aggregate_weekly for why hours-based
+    # filtering here silently deleted tonnage.
+    df = df[
+        (df["Man_Hours"] > 0)
+        | (df["Machine_Hours"] > 0)
+        | (df["Actual_Input"] > 0)
+        | (df["Actual_Output"] > 0)
+    ]
 
     machine_options = ["All Machines"] + sorted(df["Machine_Name"].unique())
     machine_options_html = "\n".join(f'<option value="{m}">{m}</option>' for m in machine_options)
@@ -954,13 +1003,14 @@ def main(input_path: Path, output_path: Path) -> None:
         for i, (val, label, group) in enumerate(metric_opts)
     )
 
-    # Standard pipeline (profit-producing output only)
-    df_std = df[(df["Man_Hours"] > 0) & (df["Machine_Hours"] > 0)]
+    # Standard pipeline. No hours filter: aggregate_weekly now matches each
+    # rate's numerator to its own denominator, so rows with unrecorded hours
+    # keep their tonnage in the totals without distorting any rate.
+    df_std = df
     weekly_std, df_std_full, trends_std, rag_std, snapshot_std, monthly_std = _build_pipeline(df_std)
 
     # With Guillotine support work included
     df_sup = _apply_guillotine_support(df)
-    df_sup = df_sup[(df_sup["Man_Hours"] > 0) & (df_sup["Machine_Hours"] > 0)]
     weekly_sup, df_sup_full, trends_sup, rag_sup, snapshot_sup, monthly_sup = _build_pipeline(df_sup)
 
     # Shift comparison charts

@@ -403,6 +403,14 @@ def step_validate() -> dict[str, Any]:
             f"(newest period ends {fresh['latest_period_end']}) — "
             f"the profit dashboard's labor uplift is computed from it"
         )
+    noh = results.get("output_without_hours") or {}
+    if noh.get("pct_output_without_hours"):
+        issues.append(
+            f"{noh['pct_output_without_hours']}% of the last {noh['recent_weeks']} weeks' "
+            f"output has no usable machine-hours ({noh['lbs']:,} lbs, {noh['rows']} rows"
+            + (f", worst on {noh['worst_shift']} shift" if noh.get("worst_shift") else "")
+            + ") — tonnage still counts; rates use the rest"
+        )
     mismatches = results.get("weekday_mismatches") or []
     if mismatches:
         rows = sum(m["rows"] for m in mismatches)

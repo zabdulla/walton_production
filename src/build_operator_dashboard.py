@@ -319,6 +319,11 @@ def render_operator_dashboard(
 def main(input_path: Path, output_path: Path) -> None:
     df = load_data(input_path)
     df = clean_product_names(df)
+    # Rows with no man-hours can't be divided among a crew, so this view
+    # necessarily excludes them. Its totals are therefore LOWER than plant
+    # output and must not be read as plant output — the interactive
+    # dashboard is the source of truth for tonnage. Around 11% of recent
+    # output currently has no usable hours recorded against it.
     df = df[(df["Man_Hours"] > 0)]
     df = explode_operators(df)
 
