@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-01",
+  "date_confidence": 0.95,
+  "date_alternatives": [],
+  "shift": "2nd",
+  "rows": [
+    {"machine_label": "Auto tie", "machine_hours": 5.25, "man_hours": 5.25, "operators": ["Steven B."], "material": "Mixed Plastic", "comment": "Came in late", "confidence": 0.92, "uncertainty": null},
+    {"machine_label": "Extruder", "machine_hours": 7.0, "man_hours": 14.0, "operators": ["Montez", "Tevin"], "material": "BOPP", "comment": null, "confidence": 0.95, "uncertainty": null},
+    {"machine_label": "Guillotine", "machine_hours": 7.25, "man_hours": 7.25, "operators": ["Andrew"], "material": "BOPP", "comment": null, "confidence": 0.95, "uncertainty": null},
+    {"machine_label": "Shredder/Grinder", "machine_hours": 7.25, "man_hours": 7.25, "operators": ["Brandon"], "material": "HIPS", "comment": null, "confidence": 0.9, "uncertainty": null}
+  ],
+  "margin_notes": ["Steven A. was unloading / dumping trash"],
+  "needs_review": false,
+  "review_reasons": []
+}

@@ -52,3 +52,7 @@ logs/*.log*
 
 # Per-run validation baseline (machine-local; used for "since last run" deltas)
 data/validation_state.json
+
+# End-of-Shift labor capture: photos and the landing file (operator names)
+data/shift_reports/
+data/labor_entries.xlsx

@@ -245,3 +245,49 @@ ALL_METRICS: dict[str, tuple[str, str]] = {
     "Labor_Cost": ("Labor Cost", "currency"),
     "Total_Expense": ("Total Expense", "currency"),
 }
+
+# ---------------------------------------------------------------------------
+# End-of-Shift labor capture (paper photo -> extractor, or Google Form)
+# ---------------------------------------------------------------------------
+
+WALTON_CONFIG_DIR = Path.home() / ".config" / "walton"
+SHIFT_REPORT_DIR = DATA_DIR / "shift_reports"        # emailed photos land here (gitignored)
+
+# Row labels as printed on the End of Shift sheet (and the Google Form's
+# machine dropdown), keyed by their lowercase alphanumeric slug, mapped to the
+# canonical machine names used everywhere else. Both supervisors' templates
+# are covered: "Densifier"/"New Densifier" is the Green Max, "Big densifier"
+# the Avanguard, and "Shredder/Grinder" is the grinder line.
+SHIFT_FORM_MACHINE_MAP: dict[str, str] = {
+    "autotie": "AUTO TIE BALER",
+    "autotiebaler": "AUTO TIE BALER",
+    "baler1": "BALER 1",
+    "baler2": "BALER 2",
+    "bigdensifier": "AVANGUARD DENSIFIER (OLD)",
+    "avanguarddensifier": "AVANGUARD DENSIFIER (OLD)",
+    "densifier": "GREEN MAX DENSIFIER (NEW)",
+    "newdensifier": "GREEN MAX DENSIFIER (NEW)",
+    "greenmax": "GREEN MAX DENSIFIER (NEW)",
+    "greenmaxdensifier": "GREEN MAX DENSIFIER (NEW)",
+    "extruder": "EXTRUDER",
+    "guillotine": "GUILLOTINE",
+    "shredder": "SHREDDER",
+    "shreddergrinder": "GRINDER",
+    "grinder": "GRINDER",
+    "smallgrinder": "SMALL GRINDER",
+}
+
+# Machine choices offered on the Google Form, in the order the paper sheet
+# lists them. Display label -> canonical name.
+SHIFT_FORM_MACHINE_CHOICES: list[tuple[str, str]] = [
+    ("Auto tie baler", "AUTO TIE BALER"),
+    ("Baler 1", "BALER 1"),
+    ("Baler 2", "BALER 2"),
+    ("Big densifier (Avanguard)", "AVANGUARD DENSIFIER (OLD)"),
+    ("New densifier (Green Max)", "GREEN MAX DENSIFIER (NEW)"),
+    ("Extruder", "EXTRUDER"),
+    ("Guillotine", "GUILLOTINE"),
+    ("Shredder", "SHREDDER"),
+    ("Shredder/Grinder", "GRINDER"),
+    ("Small grinder", "SMALL GRINDER"),
+]

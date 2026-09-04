@@ -1,0 +1,13 @@
+{
+  "date": "2026-09-03",
+  "date_confidence": 0.6,
+  "date_alternatives": ["2026-08-03"],
+  "shift": "3rd",
+  "rows": [
+    {"machine_label": "Auto tie", "machine_hours": 7.0, "man_hours": 7.0, "operators": ["Darius"], "material": "Foil Bags", "comment": null, "confidence": 0.9, "uncertainty": null},
+    {"machine_label": "Extruder", "machine_hours": 6.0, "man_hours": 12.0, "operators": ["Connor", "James"], "material": "BOPP", "comment": "2 Blade changes. Over heating problem.", "confidence": 0.85, "uncertainty": null}
+  ],
+  "margin_notes": [],
+  "needs_review": true,
+  "review_reasons": ["first digit of the date reads as 9 or 8"]
+}

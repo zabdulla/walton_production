@@ -1,0 +1,5 @@
+Timestamp,Date,Shift,Machine,Machine hours operated,Total man hours,Operator(s),Material run,Comments,Shift notes (anything else)
+9/1/2026 23:10:04,9/1/2026,2nd,Auto tie baler,5.25,5.25,Steven B.,Mixed Plastic,Came in late,Steven A. was unloading / dumping trash
+9/1/2026 23:11:30,9/1/2026,2nd,Extruder,7,14,"Montez, Tevin",BOPP,,
+9/1/2026 23:12:12,9/1/2026,2nd,Shredder/Grinder,7.25,7.25,Brandon,HIPS,,
+9/4/2026 07:02:00,9/3/2026,3rd,New densifier (Green Max),4,4,Darius,EPS,,
