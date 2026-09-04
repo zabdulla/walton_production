@@ -101,3 +101,15 @@ uritemplate==4.2.0
     # via google-api-python-client
 urllib3==2.7.0
     # via requests
+annotated-types==0.7.0
+    # via pydantic
+pillow==11.1.0
+    # via -r requirements.txt
+pydantic==2.10.3
+    # via -r requirements.txt
+pydantic-core==2.27.1
+    # via pydantic
+typing-extensions==4.12.2
+    # via
+    #   pydantic
+    #   pydantic-core

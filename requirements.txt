@@ -18,5 +18,11 @@ google-auth-oauthlib>=1.2,<2.0
 google-auth-httplib2>=0.2,<1.0
 httplib2>=0.20,<1.0        # explicit; needed for per-call timeout in fetch_emails
 
+# End-of-Shift labor capture (src/shift_report_ocr.py, src/labor_sheet.py)
+pillow>=10.0,<12.0          # photo orientation + downscale before extraction
+pydantic>=2.0,<3.0          # response schema for the vision extraction
+# `anthropic` (the vision extractor's SDK) is installed separately where live
+# extraction runs — see setup/LABOR_CAPTURE.md; tests fake the client.
+
 # Test tooling
 pytest>=8.0,<9.0
