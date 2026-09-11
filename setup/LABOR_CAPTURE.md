@@ -12,6 +12,8 @@ cares which route a row came from:
 | `Machine_Name` | Canonical name (`config.SHIFT_FORM_MACHINE_MAP` maps the sheet's row labels) |
 | `Machine_Hours`, `Man_Hours` | As written; `Man_Hours` is the **crew total** |
 | `Operator` | Comma-separated first names; bracketed material is split out into `Material` |
+| `Downtime_Minutes`, `Downtime_Reason` | Structured downtime from the web app (the paper sheet buries it in the operator cell: "1 hour down") |
+| `Submitted_By` | Who filed the report |
 | `Comment` | The row's comment; review reasons are appended as `REVIEW: …` |
 | `Source` | `form` or `image:<file>` — a re-submission replaces the earlier row from the same source |
 | `Confidence`, `Needs_Review` | 1.0 / false for the form; per-row from the extractor for photos |
@@ -22,7 +24,42 @@ unloading / dumping trash") — labor that belongs to the shift, not a machine.
 **Nothing in the weekly run reads this file yet.** Wiring it in is the next step once
 either route has a few weeks of real submissions.
 
-## Route 1 — the Google Form (target state)
+## Route 1 — the End of Shift web app (target state)
+
+`scripts/end_of_shift_app/` is a phone-first page that mirrors the paper sheet: date
+(defaults to today, or last night for a 3rd-shift report filed before 7 AM), shift
+(pre-picked from the clock), the submitter's name (remembered on the device), then one
+card per machine in the paper's order. A machine card stays collapsed as "Didn't run"
+until its switch is turned on — only the machines that ran need any typing. Each open
+card takes machine hours, total man hours (auto-suggested as hours × crew, editable),
+operators (one-tap chips from the `Operators` tab plus free text), material (chips),
+**downtime minutes + reason**, and comments. Shift notes go in one box at the bottom.
+Review → Submit, with a warning if that date + shift was already sent. Drafts survive a
+closed browser; a failed send keeps the entries on the phone.
+
+Deploy once (about five minutes):
+
+1. <https://script.google.com> → New project → paste `Code.gs` over the default file and
+   add a file named `Index.html` with the page.
+2. Deploy → New deployment → Web app → Execute as **Me**, Who has access **Anyone**.
+   Copy the URL; that link (or a QR code of it) is what supervisors open.
+3. Open it once yourself — that creates the spreadsheet **Walton End of Shift (log)** in
+   your Drive with tabs `Entries`, `Submissions`, `Operators`, `Materials`. Type the
+   crew's first names into `Operators`; they become the chips.
+4. Save the spreadsheet ID for the reader:
+   ```json
+   // ~/.config/walton/labor_sheet.json
+   {"spreadsheet_id": "<id from the sheet URL>", "range": "Entries"}
+   ```
+5. Pull: `python3 src/labor_sheet.py --dry-run`, then without the flag to land rows.
+   Shift notes are read from the `Submissions` tab automatically.
+
+Why one page instead of the earlier one-submission-per-machine Form: the supervisors
+already think in the paper sheet's shape, and the machines that didn't run cost nothing
+here. The Form (`scripts/create_labor_form.gs`) remains as a fallback; the reader
+accepts either.
+
+## Route 1b — the Google Form (fallback)
 
 One submission per machine per shift, phone-first. `scripts/create_labor_form.gs` builds
 the form and its response spreadsheet:

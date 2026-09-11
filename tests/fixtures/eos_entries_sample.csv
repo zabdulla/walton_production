@@ -1,0 +1,7 @@
+Timestamp,Submission ID,Date,Shift,Machine,Machine hours operated,Total man hours,Operator(s),Material run,Downtime minutes,Downtime reason,Comments,Submitted by
+2026-09-11 14:52:10,20260911-145210-1st,2026-09-11,1st,Auto tie,7,7,Tony,Cores mixed plastic,,,No issues,Mike
+2026-09-11 14:52:10,20260911-145210-1st,2026-09-11,1st,New densifier,3,3,Shynequa,EPS fines styrofoam,,No material,Ran out of product,Mike
+2026-09-11 14:52:10,20260911-145210-1st,2026-09-11,1st,Extruder,7,13.25,"Daniel, Steven",BOPP resin,60,Blades,Had to build material; blades breaking,Mike
+2026-09-11 14:52:10,20260911-145210-1st,2026-09-11,1st,Guillotine,7,7,Vince,BOPP slabs,,,No issues,Mike
+2026-09-11 14:52:10,20260911-145210-1st,2026-09-11,1st,Shredder/Grinder,4,4,Clarence,LDPE green grass,,,One tiplift more resin than material,Mike
+2026-09-11 16:05:00,20260911-160500-1st,2026-09-11,1st,Extruder,7,14,"Daniel, Steven",BOPP resin,60,Blades,corrected man hours,Mike

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>End of Shift</title>
+<style>
+  :root { --bg:#f4f6f8; --card:#fff; --border:#d9dee3; --text:#1f2937; --muted:#6b7280; --brand:#0b6e4f; --brand-soft:#e7f3ee; --warn:#b45309; --warn-soft:#fef3c7; --danger:#b91c1c; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .wrap { max-width:720px; margin:0 auto; padding:16px 14px 96px; }
+  h1 { font-size:22px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; }
+  label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=date], input[type=number], select, textarea {
+    width:100%; font:inherit; font-size:17px; padding:12px; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--text); }
+  textarea { min-height:64px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .row3 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .top { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .machine { border:1px solid var(--border); border-radius:14px; background:#fff; margin-bottom:10px; overflow:hidden; }
+  .machine-head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; user-select:none; }
+  .machine-head b { font-size:17px; }
+  .machine-head .state { font-size:13px; color:var(--muted); }
+  .switch { position:relative; width:52px; height:30px; flex:0 0 auto; }
+  .switch input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; inset:0; background:#cbd5e1; border-radius:30px; transition:.15s; }
+  .slider:before { content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+  .switch input:checked + .slider { background:var(--brand); }
+  .switch input:checked + .slider:before { transform:translateX(22px); }
+  .machine-body { display:none; padding:0 14px 14px; border-top:1px solid var(--border); }
+  .machine.on .machine-body { display:block; }
+  .machine.on .machine-head { background:var(--brand-soft); }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip { font-size:14px; padding:7px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; cursor:pointer; }
+  .chip.sel { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .hint { font-size:12px; color:var(--muted); margin-top:4px; }
+  .notice { background:var(--warn-soft); color:var(--warn); border-radius:10px; padding:10px 12px; font-size:14px; margin:10px 0; display:none; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--border); padding:10px 14px; display:flex; gap:10px; justify-content:center; }
+  .bar .inner { width:100%; max-width:720px; display:flex; gap:10px; }
+  button.primary { flex:1; font:inherit; font-size:18px; font-weight:700; padding:14px; border-radius:12px; border:none; background:var(--brand); color:#fff; cursor:pointer; }
+  button.primary:disabled { opacity:.6; }
+  button.ghost { font:inherit; font-size:15px; padding:14px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--text); cursor:pointer; }
+  .summary { font-size:15px; }
+  .summary li { margin:4px 0; }
+  .ok { text-align:center; padding:30px 10px; }
+  .ok .big { font-size:54px; line-height:1; margin-bottom:10px; }
+  .err { color:var(--danger); font-size:14px; margin-top:8px; display:none; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:flex-end; justify-content:center; z-index:20; }
+  .modal .box { background:#fff; width:100%; max-width:720px; border-radius:16px 16px 0 0; padding:18px 16px 24px; max-height:85vh; overflow:auto; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" id="form">
+  <h1>End of Shift Report</h1>
+  <p class="sub">Same sheet as the paper one. Only turn on the machines that ran.</p>
+
+  <div class="card">
+    <div class="top">
+      <div><label for="date">Date</label><input type="date" id="date"></div>
+      <div><label for="shift">Shift</label>
+        <select id="shift"><option value="1st">1st shift</option><option value="2nd">2nd shift</option><option value="3rd">3rd shift</option></select></div>
+    </div>
+    <div class="hint" id="shiftHint"></div>
+    <label for="by">Your name (who is submitting)</label>
+    <input type="text" id="by" placeholder="Supervisor name" autocomplete="name">
+    <div class="notice" id="dupNotice"></div>
+  </div>
+
+  <div id="machines"></div>
+
+  <div class="card">
+    <label for="notes">Shift notes — anything not tied to one machine</label>
+    <textarea id="notes" placeholder="People on other duties, events, anything the office should know"></textarea>
+  </div>
+  <div class="err" id="err"></div>
+</div>
+
+<div class="wrap" id="done" hidden>
+  <div class="card ok">
+    <div class="big">✓</div>
+    <h1 id="doneTitle">Saved</h1>
+    <p class="sub" id="doneText"></p>
+    <p><button class="ghost" id="again">Submit another shift</button> &nbsp; <button class="ghost" id="editAgain">Edit this one</button></p>
+  </div>
+</div>
+
+<div class="bar" id="bar"><div class="inner"><button class="primary" id="review">Review &amp; submit</button></div></div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h2 style="margin:0 0 6px;font-size:19px;">Submit this report?</h2>
+    <div class="summary" id="summary"></div>
+    <div class="err" id="modalErr"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="ghost" id="back">Go back</button>
+      <button class="primary" id="confirm">Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ---- server bridge (falls back to a local stub when previewed outside Apps Script) ----
+  var server = (typeof google !== 'undefined' && google.script) ? {
+    call: function (fn, args, ok, fail) { google.script.run.withSuccessHandler(ok).withFailureHandler(fail)[fn].apply(null, args); }
+  } : {
+    call: function (fn, args, ok) {
+      var stub = { getLists: function () { return { machines: ['Auto tie','Baler 1','Baler 2','Big densifier','New densifier','Extruder','Guillotine','Shredder','Shredder/Grinder'],
+        operators: ['Tony','Daniel','Steven','Vince','Clarence','Kemonica','Shynequa','Montez','Tevin','Andrew','Brandon','Darius','Connor','James'],
+        materials: ['BOPP','BOPP resin','BOPP slabs','Mixed plastic','SBS','Cores','EPS fines','LDPE','PET regrind','HIPS','Cardboard','Toll bags'],
+        downtimeReasons: ['Blades','No material','Breakdown','Changeover','No forklift','Waiting on material','Other'] }; },
+        getExisting: function () { return null; },
+        submitReport: function (p) { return { ok: true, id: 'preview', entries: (p.machines || []).filter(function (m) { return m.ran; }).length, replaced: false }; } };
+      setTimeout(function () { ok(stub[fn].apply(null, args)); }, 150);
+    }
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var lists = null;
+  var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+  var isoLocal = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+
+  // ---- defaults: today's date and the shift that is on right now ----
+  function defaultDateShift() {
+    var now = new Date(), h = now.getHours() + now.getMinutes() / 60, d = new Date(now);
+    var shift, why;
+    if (h < 7) { shift = '3rd'; d.setDate(d.getDate() - 1); why = '3rd shift is dated by the night it started, so this is last night’s shift.'; }
+    else if (h < 15) { shift = '1st'; why = 'Picked from the clock — change it if you’re reporting a different shift.'; }
+    else if (h < 23) { shift = '2nd'; why = 'Picked from the clock — change it if you’re reporting a different shift.'; }
+    else { shift = '3rd'; why = 'Picked from the clock — 3rd shift is dated by the night it starts.'; }
+    return { date: isoLocal(d), shift: shift, why: why };
+  }
+
+  function draftKey() { return 'eos_draft_' + $('date').value + '_' + $('shift').value; }
+
+  function buildMachines() {
+    var host = $('machines'); host.innerHTML = '';
+    lists.machines.forEach(function (name, i) {
+      var id = 'm' + i;
+      var el = document.createElement('div'); el.className = 'machine'; el.dataset.machine = name;
+      el.innerHTML =
+        '<div class="machine-head">' +
+          '<div><b>' + esc(name) + '</b><div class="state">Didn’t run</div></div>' +
+          '<label class="switch" onclick="event.stopPropagation()"><input type="checkbox" class="ran"><span class="slider"></span></label>' +
+        '</div>' +
+        '<div class="machine-body">' +
+          '<div class="row"><div><label>Machine hours operated</label><input type="number" inputmode="decimal" step="0.25" min="0" max="24" class="mh" placeholder="e.g. 7"></div>' +
+          '<div><label>Total man hours</label><input type="number" inputmode="decimal" step="0.25" min="0" max="120" class="manh" placeholder="crew added up"></div></div>' +
+          '<div class="hint mh-hint"></div>' +
+          '<label>Operator(s)</label><input type="text" class="ops" placeholder="Tap names or type, comma separated"><div class="chips ops-chips"></div>' +
+          '<label>Material run</label><input type="text" class="mat" placeholder="e.g. BOPP resin"><div class="chips mat-chips"></div>' +
+          '<div class="row3"><div><label>Downtime (minutes)</label><input type="number" inputmode="numeric" min="0" max="1440" class="dtm" placeholder="0"></div>' +
+          '<div><label>Downtime reason</label><select class="dtr"><option value="">—</option></select></div></div>' +
+          '<label>Comments</label><textarea class="cmt" placeholder="Blades breaking, ran out of product, no issues…"></textarea>' +
+        '</div>';
+      host.appendChild(el);
+      var ran = el.querySelector('.ran'), head = el.querySelector('.machine-head');
+      head.addEventListener('click', function () { ran.checked = !ran.checked; ran.dispatchEvent(new Event('change')); });
+      ran.addEventListener('change', function () { el.classList.toggle('on', ran.checked); el.querySelector('.state').textContent = ran.checked ? 'Ran this shift' : 'Didn’t run'; saveDraft(); });
+      chips(el.querySelector('.ops-chips'), lists.operators, el.querySelector('.ops'), true);
+      chips(el.querySelector('.mat-chips'), lists.materials, el.querySelector('.mat'), false);
+      var dtr = el.querySelector('.dtr'); lists.downtimeReasons.forEach(function (r) { var o = document.createElement('option'); o.value = r; o.textContent = r; dtr.appendChild(o); });
+      // suggest man-hours = machine hours x number of operators, only while man-hours is still empty
+      var mh = el.querySelector('.mh'), manh = el.querySelector('.manh'), ops = el.querySelector('.ops'), hint = el.querySelector('.mh-hint');
+      function suggest() {
+        var n = ops.value.split(/[,/&]|\band\b/).map(function (s) { return s.trim(); }).filter(String).length;
+        var h = parseFloat(mh.value);
+        if (n > 1 && h > 0 && !manh.value) { manh.value = +(h * n).toFixed(2); hint.textContent = n + ' operators × ' + h + ' h = ' + manh.value + ' man-hours (change if someone left early)'; }
+        else if (n <= 1) hint.textContent = '';
+      }
+      mh.addEventListener('blur', suggest); ops.addEventListener('blur', suggest);
+      el.querySelectorAll('input,select,textarea').forEach(function (inp) { inp.addEventListener('input', saveDraft); inp.addEventListener('change', saveDraft); });
+    });
+  }
+
+  function chips(host, items, input, multi) {
+    items.forEach(function (it) {
+      var c = document.createElement('span'); c.className = 'chip'; c.textContent = it;
+      c.addEventListener('click', function () {
+        var cur = input.value.split(',').map(function (s) { return s.trim(); }).filter(String);
+        if (multi) { var i = cur.indexOf(it); if (i >= 0) cur.splice(i, 1); else cur.push(it); input.value = cur.join(', '); }
+        else { input.value = (input.value.trim() === it) ? '' : it; }
+        syncChips(host, input, multi); input.dispatchEvent(new Event('input')); input.dispatchEvent(new Event('blur'));
+      });
+      host.appendChild(c);
+    });
+    input.addEventListener('input', function () { syncChips(host, input, multi); });
+  }
+  function syncChips(host, input, multi) {
+    var cur = input.value.split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(String);
+    host.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('sel', cur.indexOf(c.textContent.toLowerCase()) >= 0); });
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ---- read / write the whole form ----
+  function collect() {
+    var machines = [];
+    document.querySelectorAll('.machine').forEach(function (el) {
+      machines.push({ machine: el.dataset.machine, ran: el.querySelector('.ran').checked,
+        machineHours: el.querySelector('.mh').value, manHours: el.querySelector('.manh').value,
+        operators: el.querySelector('.ops').value, material: el.querySelector('.mat').value,
+        downtimeMinutes: el.querySelector('.dtm').value, downtimeReason: el.querySelector('.dtr').value,
+        comments: el.querySelector('.cmt').value });
+    });
+    return { date: $('date').value, shift: $('shift').value, submittedBy: $('by').value, shiftNotes: $('notes').value, machines: machines };
+  }
+  function fill(p) {
+    $('notes').value = p.shiftNotes || '';
+    document.querySelectorAll('.machine').forEach(function (el, i) {
+      var m = (p.machines || [])[i]; if (!m) return;
+      el.querySelector('.ran').checked = !!m.ran; el.classList.toggle('on', !!m.ran);
+      el.querySelector('.state').textContent = m.ran ? 'Ran this shift' : 'Didn’t run';
+      el.querySelector('.mh').value = m.machineHours || ''; el.querySelector('.manh').value = m.manHours || '';
+      el.querySelector('.ops').value = m.operators || ''; el.querySelector('.mat').value = m.material || '';
+      el.querySelector('.dtm').value = m.downtimeMinutes || ''; el.querySelector('.dtr').value = m.downtimeReason || '';
+      el.querySelector('.cmt').value = m.comments || '';
+      syncChips(el.querySelector('.ops-chips'), el.querySelector('.ops'), true); syncChips(el.querySelector('.mat-chips'), el.querySelector('.mat'), false);
+    });
+  }
+  var saveTimer = null;
+  function saveDraft() { clearTimeout(saveTimer); saveTimer = setTimeout(function () { try { localStorage.setItem(draftKey(), JSON.stringify(collect())); localStorage.setItem('eos_by', $('by').value); } catch (e) {} }, 250); }
+  function loadDraft() {
+    try { var raw = localStorage.getItem(draftKey()); if (raw) { fill(JSON.parse(raw)); return true; } } catch (e) {}
+    fill({ machines: [] }); return false;
+  }
+  function checkExisting() {
+    var n = $('dupNotice'); n.style.display = 'none';
+    server.call('getExisting', [$('date').value, $('shift').value], function (ex) {
+      if (!ex) return;
+      n.textContent = 'A report for this date and shift was already sent at ' + ex.at + (ex.by ? ' by ' + ex.by : '') + ' (' + ex.machines + ' machines). Sending again replaces it.';
+      n.style.display = 'block';
+    }, function () {});
+  }
+
+  // ---- review + submit ----
+  $('review').addEventListener('click', function () {
+    var p = collect(), ran = p.machines.filter(function (m) { return m.ran; }), err = $('err'); err.style.display = 'none';
+    if (!p.date) { err.textContent = 'Pick the date.'; err.style.display = 'block'; return; }
+    if (!p.submittedBy.trim()) { err.textContent = 'Put your name in "Your name".'; err.style.display = 'block'; $('by').focus(); return; }
+    if (!ran.length && !p.shiftNotes.trim()) { err.textContent = 'Turn on at least one machine that ran, or add a shift note.'; err.style.display = 'block'; return; }
+    var missing = ran.filter(function (m) { return !m.machineHours && !m.manHours && !m.operators.trim(); }).map(function (m) { return m.machine; });
+    if (missing.length) { err.textContent = 'Fill in hours or operators for: ' + missing.join(', '); err.style.display = 'block'; return; }
+    var d = new Date(p.date + 'T00:00:00');
+    var html = '<p><b>' + d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + esc(p.shift) + ' shift</b> · ' + esc(p.submittedBy) + '</p><ul>';
+    ran.forEach(function (m) { html += '<li><b>' + esc(m.machine) + '</b>: ' + (m.machineHours || '—') + ' h machine, ' + (m.manHours || '—') + ' man-h' + (m.operators ? ' · ' + esc(m.operators) : '') + (m.material ? ' · ' + esc(m.material) : '') + (m.downtimeMinutes ? ' · ' + m.downtimeMinutes + ' min down' + (m.downtimeReason ? ' (' + esc(m.downtimeReason) + ')' : '') : '') + '</li>'; });
+    html += '</ul>' + (p.shiftNotes.trim() ? '<p><i>' + esc(p.shiftNotes) + '</i></p>' : '');
+    $('summary').innerHTML = html; $('modalErr').style.display = 'none'; $('modal').style.display = 'flex';
+  });
+  $('back').addEventListener('click', function () { $('modal').style.display = 'none'; });
+  $('confirm').addEventListener('click', function () {
+    var btn = $('confirm'); btn.disabled = true; btn.textContent = 'Sending…';
+    var p = collect();
+    server.call('submitReport', [p], function (res) {
+      btn.disabled = false; btn.textContent = 'Submit'; $('modal').style.display = 'none';
+      try { localStorage.removeItem(draftKey()); localStorage.setItem('eos_last', JSON.stringify(p)); } catch (e) {}
+      $('doneTitle').textContent = res.replaced ? 'Saved (replaced the earlier one)' : 'Saved';
+      $('doneText').textContent = res.entries + ' machine' + (res.entries === 1 ? '' : 's') + ' logged for ' + p.shift + ' shift, ' + p.date + '.';
+      $('form').hidden = true; $('bar').hidden = true; $('done').hidden = false; window.scrollTo(0, 0);
+    }, function (e) {
+      btn.disabled = false; btn.textContent = 'Submit';
+      $('modalErr').textContent = 'Could not send: ' + (e && e.message ? e.message : e) + '. Your entries are kept on this phone — try again.'; $('modalErr').style.display = 'block';
+    });
+  });
+  $('again').addEventListener('click', function () { $('done').hidden = true; $('form').hidden = false; $('bar').hidden = false; fill({ machines: [] }); $('notes').value = ''; checkExisting(); });
+  $('editAgain').addEventListener('click', function () { $('done').hidden = true; $('form').hidden = false; $('bar').hidden = false; try { fill(JSON.parse(localStorage.getItem('eos_last') || '{}')); } catch (e) {} });
+
+  // ---- boot ----
+  var def = defaultDateShift();
+  $('date').value = def.date; $('shift').value = def.shift; $('shiftHint').textContent = def.why;
+  try { $('by').value = localStorage.getItem('eos_by') || ''; } catch (e) {}
+  $('by').addEventListener('input', saveDraft);
+  ['date', 'shift'].forEach(function (id) { $(id).addEventListener('change', function () { loadDraft(); checkExisting(); }); });
+  server.call('getLists', [], function (l) { lists = l; buildMachines(); loadDraft(); checkExisting(); }, function (e) { $('err').textContent = 'Could not load the form lists: ' + e.message; $('err').style.display = 'block'; });
+})();
+</script>
+</body>
+</html>

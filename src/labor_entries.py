@@ -21,7 +21,8 @@ LABOR_ENTRIES_PATH = DATA_DIR / "labor_entries.xlsx"
 
 ENTRY_COLUMNS = [
     "Date", "Shift", "Machine_Name", "Machine_Hours", "Man_Hours", "Operator",
-    "Material", "Comment", "Source", "Confidence", "Needs_Review", "Captured_At",
+    "Material", "Downtime_Minutes", "Downtime_Reason", "Comment", "Source",
+    "Confidence", "Needs_Review", "Captured_At", "Submitted_By",
 ]
 NOTE_COLUMNS = ["Date", "Shift", "Note", "Source", "Captured_At"]
 SHIFTS = ("1st", "2nd", "3rd")

@@ -199,3 +199,36 @@ def test_refusal_is_an_error_not_silent_garbage(tmp_path) -> None:
     Image.new("RGB", (100, 100), "white").save(img)
     with pytest.raises(RuntimeError):
         O.extract_report(img, client=_fake_client(stop_reason="refusal"))
+
+
+# ---------------------------------------------------------------------------
+# The End of Shift web app's sheet (Entries + Submissions tabs)
+# ---------------------------------------------------------------------------
+
+def test_webapp_entries_land_with_structured_downtime_and_submitter() -> None:
+    from labor_sheet import responses_to_entries
+    e, _ = responses_to_entries(pd.read_csv(FIX / "eos_entries_sample.csv"))
+    ext = e[e["Machine_Name"] == "EXTRUDER"]
+    assert len(ext) == 2, "both submissions are kept as rows; record() picks the later"
+    assert ext.iloc[0]["Downtime_Minutes"] == 60.0 and ext.iloc[0]["Downtime_Reason"] == "Blades"
+    assert (e["Submitted_By"] == "Mike").all()
+    assert e[e["Machine_Name"] == "GREEN MAX DENSIFIER (NEW)"].iloc[0]["Material"] == "EPS fines styrofoam"
+
+
+def test_webapp_resubmission_replaces_in_landing_file(tmp_path) -> None:
+    from labor_sheet import responses_to_entries, submissions_to_notes
+    e, _ = responses_to_entries(pd.read_csv(FIX / "eos_entries_sample.csv"))
+    n = submissions_to_notes(pd.read_csv(FIX / "eos_submissions_sample.csv"))
+    path = tmp_path / "labor.xlsx"
+    r = L.record(e, n, path=path)
+    assert r["total_entries"] == 5, "five machines; the corrected extruder row replaced the first"
+    entries, notes = L.load_entries(path)
+    assert entries.loc[entries["Machine_Name"] == "EXTRUDER", "Man_Hours"].iloc[0] == 14.0
+    assert notes["Note"].tolist() == ["Steven A. was unloading / dumping trash"]
+
+
+def test_webapp_headers_map_new_fields() -> None:
+    from labor_sheet import map_columns
+    m = map_columns(["Timestamp", "Submission ID", "Downtime minutes", "Downtime reason", "Submitted by"])
+    assert m["Downtime minutes"] == "downtime_minutes" and m["Downtime reason"] == "downtime_reason"
+    assert m["Submitted by"] == "submitted_by" and m["Submission ID"] == "submission_id"

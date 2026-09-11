@@ -1,9 +1,11 @@
-"""Read End-of-Shift submissions from the Google Form's response sheet.
+"""Read End-of-Shift submissions from the Google Sheet the web app logs to.
 
-The form (created by ``scripts/create_labor_form.gs``) takes one submission per
-machine per shift and writes to a linked spreadsheet. This module pulls that
-sheet through the Sheets API and lands the rows in ``data/labor_entries.xlsx``
-via ``labor_entries.record``.
+The web app (``scripts/end_of_shift_app/``) writes one row per machine to an
+``Entries`` tab and one row per report to a ``Submissions`` tab (shift notes live
+there). This module pulls both through the Sheets API and lands the rows in
+``data/labor_entries.xlsx`` via ``labor_entries.record``. A Google Forms
+response sheet (``scripts/create_labor_form.gs``) is read the same way — the
+columns are matched by their headings, not their position.
 
 Setup (once):
   1. Deploy the form; note the linked spreadsheet's ID (the long token in its URL).
@@ -38,7 +40,8 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 CREDENTIALS_PATH = WALTON_CONFIG_DIR / "gmail_credentials.json"   # same OAuth client as Gmail
 TOKEN_PATH = WALTON_CONFIG_DIR / "sheets_token.json"
 SETTINGS_PATH = WALTON_CONFIG_DIR / "labor_sheet.json"
-DEFAULT_RANGE = "Form Responses 1"
+DEFAULT_RANGE = "Entries"
+NOTES_RANGE = "Submissions"
 
 # Form question titles (prefix-matched on their slug) -> field
 FIELD_PREFIXES = [
@@ -46,6 +49,8 @@ FIELD_PREFIXES = [
     ("machinehours", "machine_hours"), ("totalmanhours", "man_hours"), ("manhours", "man_hours"),
     ("operator", "operators"), ("material", "material"), ("comment", "comment"),
     ("shiftnote", "shift_note"), ("anythingelse", "shift_note"),
+    ("downtimeminutes", "downtime_minutes"), ("downtimereason", "downtime_reason"),
+    ("submittedby", "submitted_by"), ("submissionid", "submission_id"),
 ]
 
 
@@ -68,8 +73,23 @@ def map_columns(columns: list[str]) -> dict[str, str]:
     return out
 
 
+def _text(v: object) -> str | None:
+    if v is None:
+        return None
+    t = str(v).strip()
+    return t if t and t != "nan" else None
+
+
 def responses_to_entries(df: pd.DataFrame, source: str = "form") -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Normalise raw form rows into the landing schema."""
+    """Normalise raw rows (web-app Entries tab or a Forms sheet) into the landing schema.
+
+    Rows are sorted by their timestamp first so that when a shift is re-submitted
+    the later rows replace the earlier ones in ``labor_entries.record``.
+    """
+    cols0 = map_columns(list(df.columns))
+    ts_col = next((c for c, f in cols0.items() if f == "timestamp"), None)
+    if ts_col is not None:
+        df = df.assign(_ts=pd.to_datetime(df[ts_col], errors="coerce")).sort_values("_ts", kind="stable").drop(columns="_ts")
     cols = map_columns(list(df.columns))
     rows, notes = [], []
     for _, r in df.iterrows():
@@ -87,9 +107,11 @@ def responses_to_entries(df: pd.DataFrame, source: str = "form") -> tuple[pd.Dat
                 Machine_Hours=to_number(get("machine_hours")), Man_Hours=to_number(get("man_hours")),
                 Operator=parse_operators(get("operators")), Material=(str(get("material")).strip() or None) if get("material") is not None and str(get("material")).strip() != "nan" else None,
                 Comment=(str(get("comment")).strip() or None) if get("comment") is not None and str(get("comment")).strip() != "nan" else None,
+                Downtime_Minutes=to_number(get("downtime_minutes")),
+                Downtime_Reason=_text(get("downtime_reason")),
                 Source=source, Confidence=1.0,
                 Needs_Review=(machine is None or date_s is None or shift is None),
-                Captured_At=captured,
+                Captured_At=captured, Submitted_By=_text(get("submitted_by")),
             ))
         note = get("shift_note")
         if note is not None and str(note).strip() and str(note).strip() != "nan":
@@ -132,6 +154,24 @@ def read_responses(service: Any, spreadsheet_id: str, sheet_range: str = DEFAULT
     return pd.DataFrame(body, columns=header)
 
 
+def submissions_to_notes(df: pd.DataFrame, source: str = "form") -> pd.DataFrame:
+    """Shift notes from the web app's Submissions tab (one row per report)."""
+    if df is None or df.empty:
+        return empty_notes()
+    cols = map_columns(list(df.columns))
+    out = []
+    for _, r in df.iterrows():
+        get = lambda f: next((r[c] for c, fld in cols.items() if fld == f), None)
+        note = _text(get("shift_note"))
+        if not note:
+            continue
+        date = pd.to_datetime(get("date"), errors="coerce")
+        out.append({"Date": date.strftime("%Y-%m-%d") if not pd.isna(date) else None,
+                    "Shift": normalize_shift(get("shift")), "Note": note, "Source": source,
+                    "Captured_At": str(get("timestamp") or "")})
+    return pd.DataFrame(out) if out else empty_notes()
+
+
 def load_settings() -> tuple[str | None, str]:
     sid = os.environ.get("WALTON_LABOR_SHEET_ID")
     rng = DEFAULT_RANGE
@@ -144,15 +184,19 @@ def load_settings() -> tuple[str | None, str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--from-csv", type=Path, help="Read a Google Forms CSV export instead of the API")
+    ap.add_argument("--from-csv", type=Path, help="Read an Entries/Forms CSV export instead of the API")
+    ap.add_argument("--notes-csv", type=Path, help="Optional Submissions CSV export (shift notes)")
     ap.add_argument("--sheet-id", help="Override the spreadsheet ID")
     ap.add_argument("--range", dest="sheet_range", help="Sheet/range to read")
     ap.add_argument("--output", type=Path, default=LABOR_ENTRIES_PATH)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
+    notes_raw = None
     if args.from_csv:
         raw = pd.read_csv(args.from_csv)
+        if args.notes_csv:
+            notes_raw = pd.read_csv(args.notes_csv)
     else:
         sid, rng = load_settings()
         sid = args.sheet_id or sid
@@ -161,8 +205,15 @@ def main() -> int:
             print("No spreadsheet configured. Set WALTON_LABOR_SHEET_ID or write "
                   f"{SETTINGS_PATH} with {{\"spreadsheet_id\": ...}}", file=sys.stderr)
             return 2
-        raw = read_responses(get_sheets_service(), sid, rng)
+        service = get_sheets_service()
+        raw = read_responses(service, sid, rng)
+        try:
+            notes_raw = read_responses(service, sid, NOTES_RANGE)
+        except Exception:  # a Forms sheet has no Submissions tab; notes come from its rows instead
+            notes_raw = None
     entries, notes = responses_to_entries(raw)
+    if notes_raw is not None and len(notes_raw):
+        notes = pd.concat([notes, submissions_to_notes(notes_raw)], ignore_index=True)
     result = record(entries, notes, path=args.output, dry_run=args.dry_run)
     print(f"{'[dry-run] ' if args.dry_run else ''}{result['new_entries']} submission(s) -> "
           f"{result['total_entries']} entries on file ({result['needs_review']} need review), "
