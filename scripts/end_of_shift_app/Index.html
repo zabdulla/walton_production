@@ -5,50 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>End of Shift</title>
 <style>
-  :root { --bg:#f4f6f8; --card:#fff; --border:#d9dee3; --text:#1f2937; --muted:#6b7280; --brand:#0b6e4f; --brand-soft:#e7f3ee; --warn:#b45309; --warn-soft:#fef3c7; --danger:#b91c1c; }
+  :root { color-scheme:light; --bg:#f6f7f9; --card:#ffffff; --field:#ffffff; --border:#e5e7eb; --text:#1f2937; --muted:#6b7280;
+    --brand:#0b6e4f; --brand-ink:#ffffff; --brand-soft:#e7f3ee; --track:#c4ccd6; --warn:#8a4b06; --warn-soft:#fdf0d5; --danger:#b91c1c;
+    --shadow:0 1px 2px rgba(0,0,0,.25); --scrim:rgba(15,20,23,.5); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme:dark; --bg:#0f1417; --card:#161d23; --field:#0f1417; --border:#2a333a; --text:#e5e9ec; --muted:#9aa5ad;
+    --brand:#34a882; --brand-ink:#08130e; --brand-soft:#173a2e; --track:#3a4750; --warn:#f0b45a; --warn-soft:#33260f; --danger:#f08a8a;
+    --shadow:0 1px 2px rgba(0,0,0,.6); --scrim:rgba(0,0,0,.6); } }
+  :root[data-theme="dark"] { color-scheme:dark; --bg:#0f1417; --card:#161d23; --field:#0f1417; --border:#2a333a; --text:#e5e9ec; --muted:#9aa5ad;
+    --brand:#34a882; --brand-ink:#08130e; --brand-soft:#173a2e; --track:#3a4750; --warn:#f0b45a; --warn-soft:#33260f; --danger:#f08a8a;
+    --shadow:0 1px 2px rgba(0,0,0,.6); --scrim:rgba(0,0,0,.6); }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; }
   .wrap { max-width:720px; margin:0 auto; padding:16px 14px 96px; }
-  h1 { font-size:22px; margin:0 0 2px; }
+  h1 { font-size:22px; margin:0 0 2px; text-wrap:balance; }
   .sub { color:var(--muted); font-size:14px; margin:0 0 14px; }
   .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; }
   label { display:block; font-size:13px; color:var(--muted); margin:10px 0 4px; }
   input[type=text], input[type=date], input[type=number], select, textarea {
-    width:100%; font:inherit; font-size:17px; padding:12px; border:1px solid var(--border); border-radius:10px; background:#fff; color:var(--text); }
+    width:100%; font:inherit; font-size:17px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--field); color:var(--text); }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
   textarea { min-height:64px; resize:vertical; }
   .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .row3 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .top { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .machine { border:1px solid var(--border); border-radius:14px; background:#fff; margin-bottom:10px; overflow:hidden; }
+  .machine { border:1px solid var(--border); border-radius:14px; background:var(--card); margin-bottom:10px; overflow:hidden; }
   .machine-head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; cursor:pointer; user-select:none; }
   .machine-head b { font-size:17px; }
   .machine-head .state { font-size:13px; color:var(--muted); }
   .switch { position:relative; width:52px; height:30px; flex:0 0 auto; }
   .switch input { opacity:0; width:0; height:0; }
-  .slider { position:absolute; inset:0; background:#cbd5e1; border-radius:30px; transition:.15s; }
-  .slider:before { content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; box-shadow:0 1px 2px rgba(0,0,0,.25); }
+  .slider { position:absolute; inset:0; background:var(--track); border-radius:30px; transition:.15s; }
+  .slider:before { content:""; position:absolute; width:24px; height:24px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.15s; box-shadow:var(--shadow); }
   .switch input:checked + .slider { background:var(--brand); }
   .switch input:checked + .slider:before { transform:translateX(22px); }
   .machine-body { display:none; padding:0 14px 14px; border-top:1px solid var(--border); }
   .machine.on .machine-body { display:block; }
   .machine.on .machine-head { background:var(--brand-soft); }
   .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-  .chip { font-size:14px; padding:7px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; cursor:pointer; }
-  .chip.sel { background:var(--brand); color:#fff; border-color:var(--brand); }
+  .chip { font:inherit; font-size:14px; padding:7px 12px; border-radius:999px; border:1px solid var(--border); background:var(--field); color:var(--text); cursor:pointer; }
+  .chip.sel { background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }
   .hint { font-size:12px; color:var(--muted); margin-top:4px; }
   .notice { background:var(--warn-soft); color:var(--warn); border-radius:10px; padding:10px 12px; font-size:14px; margin:10px 0; display:none; }
-  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--border); padding:10px 14px; display:flex; gap:10px; justify-content:center; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--border); padding:10px 14px; display:flex; gap:10px; justify-content:center; }
   .bar .inner { width:100%; max-width:720px; display:flex; gap:10px; }
-  button.primary { flex:1; font:inherit; font-size:18px; font-weight:700; padding:14px; border-radius:12px; border:none; background:var(--brand); color:#fff; cursor:pointer; }
+  button.primary { flex:1; font:inherit; font-size:18px; font-weight:700; padding:14px; border-radius:12px; border:none; background:var(--brand); color:var(--brand-ink); cursor:pointer; }
   button.primary:disabled { opacity:.6; }
-  button.ghost { font:inherit; font-size:15px; padding:14px 16px; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--text); cursor:pointer; }
+  button.ghost { font:inherit; font-size:15px; padding:14px 16px; border-radius:12px; border:1px solid var(--border); background:var(--field); color:var(--text); cursor:pointer; }
   .summary { font-size:15px; }
   .summary li { margin:4px 0; }
   .ok { text-align:center; padding:30px 10px; }
   .ok .big { font-size:54px; line-height:1; margin-bottom:10px; }
   .err { color:var(--danger); font-size:14px; margin-top:8px; display:none; }
-  .modal { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:flex-end; justify-content:center; z-index:20; }
-  .modal .box { background:#fff; width:100%; max-width:720px; border-radius:16px 16px 0 0; padding:18px 16px 24px; max-height:85vh; overflow:auto; }
+  .modal { position:fixed; inset:0; background:var(--scrim); display:none; align-items:flex-end; justify-content:center; z-index:20; }
+  .modal .box { background:var(--card); width:100%; max-width:720px; border-radius:16px 16px 0 0; padding:18px 16px 24px; max-height:85vh; overflow:auto; }
+  .preview { background:var(--warn-soft); color:var(--warn); border-radius:10px; padding:10px 12px; font-size:14px; margin:0 0 12px; }
+  .link { font:inherit; font-weight:600; color:inherit; background:none; border:none; padding:0; text-decoration:underline; cursor:pointer; }
+  @media (prefers-reduced-motion: reduce) { .slider, .slider:before { transition:none; } }
   [hidden] { display:none !important; }
 </style>
 </head>
@@ -56,6 +68,7 @@
 <div class="wrap" id="form">
   <h1>End of Shift Report</h1>
   <p class="sub">Same sheet as the paper one. Only turn on the machines that ran.</p>
+  <div class="preview" id="previewNote" hidden>Preview, filled with an example shift so you can see how it reads. Nothing is saved from here. <button type="button" class="link" id="clearExample">Start blank</button></div>
 
   <div class="card">
     <div class="top">
@@ -104,7 +117,8 @@
 <script>
 (function () {
   // ---- server bridge (falls back to a local stub when previewed outside Apps Script) ----
-  var server = (typeof google !== 'undefined' && google.script) ? {
+  var isApps = (typeof google !== 'undefined' && !!google.script);
+  var server = isApps ? {
     call: function (fn, args, ok, fail) { google.script.run.withSuccessHandler(ok).withFailureHandler(fail)[fn].apply(null, args); }
   } : {
     call: function (fn, args, ok) {
@@ -144,7 +158,7 @@
       el.innerHTML =
         '<div class="machine-head">' +
           '<div><b>' + esc(name) + '</b><div class="state">Didn’t run</div></div>' +
-          '<label class="switch" onclick="event.stopPropagation()"><input type="checkbox" class="ran"><span class="slider"></span></label>' +
+          '<label class="switch"><input type="checkbox" class="ran"><span class="slider"></span></label>' +
         '</div>' +
         '<div class="machine-body">' +
           '<div class="row"><div><label>Machine hours operated</label><input type="number" inputmode="decimal" step="0.25" min="0" max="24" class="mh" placeholder="e.g. 7"></div>' +
@@ -158,6 +172,7 @@
         '</div>';
       host.appendChild(el);
       var ran = el.querySelector('.ran'), head = el.querySelector('.machine-head');
+      el.querySelector('.switch').addEventListener('click', function (e) { e.stopPropagation(); });
       head.addEventListener('click', function () { ran.checked = !ran.checked; ran.dispatchEvent(new Event('change')); });
       ran.addEventListener('change', function () { el.classList.toggle('on', ran.checked); el.querySelector('.state').textContent = ran.checked ? 'Ran this shift' : 'Didn’t run'; saveDraft(); });
       chips(el.querySelector('.ops-chips'), lists.operators, el.querySelector('.ops'), true);
@@ -178,7 +193,7 @@
 
   function chips(host, items, input, multi) {
     items.forEach(function (it) {
-      var c = document.createElement('span'); c.className = 'chip'; c.textContent = it;
+      var c = document.createElement('button'); c.type = 'button'; c.className = 'chip'; c.textContent = it;
       c.addEventListener('click', function () {
         var cur = input.value.split(',').map(function (s) { return s.trim(); }).filter(String);
         if (multi) { var i = cur.indexOf(it); if (i >= 0) cur.splice(i, 1); else cur.push(it); input.value = cur.join(', '); }
@@ -273,7 +288,24 @@
   try { $('by').value = localStorage.getItem('eos_by') || ''; } catch (e) {}
   $('by').addEventListener('input', saveDraft);
   ['date', 'shift'].forEach(function (id) { $(id).addEventListener('change', function () { loadDraft(); checkExisting(); }); });
-  server.call('getLists', [], function (l) { lists = l; buildMachines(); loadDraft(); checkExisting(); }, function (e) { $('err').textContent = 'Could not load the form lists: ' + e.message; $('err').style.display = 'block'; });
+  // Example shift shown in preview mode (outside Apps Script) so the page opens in a working state.
+  var EXAMPLE = { submittedBy: 'Sam R.', shiftNotes: 'Steven A. unloading the trailer and dumping trash after 1 PM', rows: {
+    'Auto tie': { machineHours: 7, manHours: 7, operators: 'Tony', material: 'Cores, mixed plastic', comments: 'No issues' },
+    'New densifier': { machineHours: 3, manHours: 3, operators: 'Shynequa', material: 'EPS fines', downtimeMinutes: 240, downtimeReason: 'No material', comments: 'Ran out of product' },
+    'Extruder': { machineHours: 7, manHours: 14, operators: 'Daniel, Steven', material: 'BOPP resin', downtimeMinutes: 60, downtimeReason: 'Blades', comments: 'Blades keep breaking' },
+    'Guillotine': { machineHours: 7, manHours: 7, operators: 'Vince', material: 'BOPP slabs', comments: '' },
+    'Shredder/Grinder': { machineHours: 4, manHours: 4, operators: 'Clarence', material: 'LDPE green grass', comments: 'One tiplift, more resin than material' } } };
+  function exampleReport() {
+    return { submittedBy: EXAMPLE.submittedBy, shiftNotes: EXAMPLE.shiftNotes,
+      machines: lists.machines.map(function (n) { var r = EXAMPLE.rows[n]; return r ? Object.assign({ ran: true }, r) : { ran: false }; }) };
+  }
+  $('clearExample').addEventListener('click', function () { fill({ machines: [] }); $('by').value = ''; $('notes').value = ''; $('previewNote').hidden = true; try { localStorage.removeItem(draftKey()); } catch (e) {} });
+  server.call('getLists', [], function (l) {
+    lists = l; buildMachines();
+    var hadDraft = loadDraft();
+    if (!isApps) { $('previewNote').hidden = false; if (!hadDraft) { var ex = exampleReport(); if (!$('by').value) $('by').value = ex.submittedBy; fill(ex); } }
+    checkExisting();
+  }, function (e) { $('err').textContent = 'Could not load the form lists: ' + e.message; $('err').style.display = 'block'; });
 })();
 </script>
 </body>
