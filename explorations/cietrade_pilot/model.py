@@ -116,7 +116,9 @@ def snapshot_points(raw: pd.DataFrame, m: pd.DataFrame) -> pd.DataFrame:
     return s[["Job No", "export_ts", "export_file", "Output Qty"]].sort_values(["Job No", "export_ts"]).reset_index(drop=True)
 
 
-def coverage(m: pd.DataFrame, closed_days: set, horizon: pd.Timestamp) -> pd.DataFrame:
+def coverage(m: pd.DataFrame, closed_days: set, horizon: pd.Timestamp, last_snap: pd.Timestamp | None = None) -> pd.DataFrame:
+    """Which job owns each shift-day of each line. An open-jobs export lists every open job, so a
+    shift that started before the last snapshot and has no job is idle, not awaiting."""
     rows = []
     for (line, shift), jobs in m.groupby(["line", "shift"]):
         jobs = jobs.sort_values("start_dt")
@@ -133,7 +135,8 @@ def coverage(m: pd.DataFrame, closed_days: set, horizon: pd.Timestamp) -> pd.Dat
             by_time = (jobs["start_dt"] <= mid) & (mid < closed_at)         # multi-day era: creation-time partition
             cand = jobs[(jobs["old_regime"] & by_date) | (~jobs["old_regime"] & by_time)]
             if cand.empty:
-                mode = "not yet posted" if (line_active and d >= last_activity) else "no open job"
+                unseen = last_snap is None or d + pd.Timedelta(hours=SHIFT_HOURS[shift][0]) > last_snap
+                mode = "not yet posted" if (line_active and d >= last_activity and unseen) else "no open job"
                 rows.append(dict(Date=d, Shift=shift, line=line, Machine=machine, job=np.nan, mode=mode))
             else:
                 rows.append(dict(Date=d, Shift=shift, line=line, Machine=machine, job=int(cand.iloc[-1]["Job No"]), mode=""))
@@ -286,8 +289,8 @@ def run(export_dir: Path = EXPORT_DIR, verbose: bool = True) -> dict:
     m = job_master(raw)
     closed_days = closures(m)
     horizon = max(raw["export_ts"].max().normalize(), m["Post Date"].max())
-    cov = coverage(m, closed_days, horizon)
     pts = snapshot_points(raw, m)
+    cov = coverage(m, closed_days, horizon, pts["export_ts"].max() if len(pts) else None)
     cov, windows = attribute(m, cov, pts)
     cells = to_cells(cov)
     val = validate(cells) if AGGREGATE.exists() else None
