@@ -34,6 +34,9 @@ def render_dashboard(
     daily_html: str = "",
     daily_js: str = "",
     status_line: str = "",
+    live_css: str = "",
+    live_html: str = "",
+    live_js: str = "",
 ) -> str:
     def _render_figs(fig_sections):
         rendered = [
@@ -133,6 +136,7 @@ def render_dashboard(
     .date-input {{ font:inherit; padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text);
                    font-size:12px; min-width:unset; width:auto; }}
 {daily_css}
+{live_css}
     #clearCustomBtn {{ display:none; }}
     #clearCustomBtn.visible {{ display:inline-block; }}
     @media (max-width:768px) {{
@@ -206,6 +210,7 @@ def render_dashboard(
         <button class="export-btn" onclick="window.print()">Print</button>
       </div>
     </div>
+{live_html}
 {daily_html}
     <!-- Standard view (profit-producing output only) -->
     <div id="view-standard">
@@ -521,6 +526,7 @@ def render_dashboard(
     setTimeout(() => {{ applyRange(); optimizePlotlyForMobile(); }}, 500);
   </script>
 {daily_js}
+{live_js}
 {THEME_TOGGLE_HTML}
 </body>
 </html>"""

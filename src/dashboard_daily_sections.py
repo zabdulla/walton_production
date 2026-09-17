@@ -202,6 +202,7 @@ DAILY_JS = r"""
   const label = m => m.split(" ").map(w => /^[A-Z]{2,}$/.test(w) ? w[0] + w.slice(1).toLowerCase() : w).join(" ").replace(/\((.*?)\)/, (a, b) => "(" + b.toLowerCase() + ")");
   const MACHINES = PAYLOAD.machines.map((m, i) => ({ key: m, label: label(m), color: SERIES[i % SERIES.length] }));
   const machineByKey = key => MACHINES.find(m => m.key === key);
+  window.waltonMachineColors = Object.fromEntries(MACHINES.map(m => [m.key, m.color]));
   const MODE = { e: "exact", a: "spread", p: "partial" };
   const ROWS = PAYLOAD.rows.map(r => ({ d: r[0], s: r[1], m: PAYLOAD.machines[r[2]], o: r[3], u: r[4], mode: MODE[r[5]] || "exact" }));
   const AWAIT = new Set((STATUS.awaiting || []).map(a => a.join("|")));

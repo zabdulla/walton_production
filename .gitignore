@@ -58,3 +58,4 @@ data/shift_reports/
 data/labor_entries.xlsx
 
 explorations/cietrade_pilot/out/
+data/cietrade/live.json

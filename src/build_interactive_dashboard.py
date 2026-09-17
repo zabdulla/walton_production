@@ -34,6 +34,7 @@ from dashboard_common import SHIFT_METRICS, SHIFT_COLORS
 from dashboard_daily_sections import (
     DAILY_CSS, DAILY_HTML, build_daily_payload, daily_script, load_status, status_line_html,
 )
+from dashboard_live_section import LIVE_CSS, LIVE_HTML, live_script, load_live
 from interactive_template import render_dashboard
 
 logger = logging.getLogger(__name__)
@@ -1069,6 +1070,9 @@ def main(input_path: Path, output_path: Path) -> None:
             daily_html=DAILY_HTML,
             daily_js=daily_script(daily_payload),
             status_line=status_line_html(status, total_weeks, last_date),
+            live_css=LIVE_CSS,
+            live_html=LIVE_HTML,
+            live_js=live_script(load_live()),
         ),
     )
     print(f"Wrote interactive dashboard to {output_path}")

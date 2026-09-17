@@ -38,6 +38,7 @@ from config import (
     CIETRADE_DATA_DIR, CIETRADE_POSTED_LOOKBACK_DAYS, CIETRADE_SITES, LIVE_PAGE_COPY, PROJECT_ROOT,
 )
 import cietrade_api as api
+import cietrade_live
 
 POLLS = CIETRADE_DATA_DIR / "polls.jsonl"
 POSTED = CIETRADE_DATA_DIR / "posted.csv"
@@ -186,6 +187,14 @@ def main(argv: list[str] | None = None) -> int:
                  rec["open_jobs"], rec["monroe_open"], f"{rec['open_lbs']:,.0f}", rec.get("posted_recent", 0),
                  rec.get("posted_new", 0), rec.get("posted_changed", 0),
                  "snapshot appended" if rec["changed"] else "no change", rec["ms"])
+    if rec["ok"] and not args.dry_run:
+        try:
+            live = cietrade_live.write_live()
+            published = cietrade_live.publish()
+            LOG.info("live feed: %d changes today, %s lbs · %s", live["changes_today"], f"{live['lbs_today']:,}",
+                     "published" if published else "not published")
+        except Exception as e:  # noqa: BLE001 — the poll itself succeeded
+            LOG.error("live feed failed: %s", e)
     if args.rebuild and rec["ok"] and not args.dry_run:
         LOG.info("pilot page %s", "rebuilt" if rebuild_pilot() else "NOT rebuilt")
     return 0 if rec["ok"] else 1

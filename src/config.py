@@ -334,3 +334,13 @@ SHIFT_HOURS: dict[str, tuple[int, int]] = {"1st": (6, 14), "2nd": (14, 22), "3rd
 # Where the poller drops a copy of the freshly built pilot page so it can be
 # opened from a phone through OneDrive. Set to None to disable.
 LIVE_PAGE_COPY = Path.home() / "Library" / "CloudStorage" / "OneDrive-PlusMaterials" / "Walton Live" / "production.html"
+
+# Live feed: rewritten after every poll (gitignored) and published to a gist so the
+# static dashboard can fetch today's state without a redeploy. Set LIVE_GIST_ID once
+# after `gh gist create` (see setup/CIETRADE_API.md).
+LIVE_JSON_PATH = CIETRADE_DATA_DIR / "live.json"
+LIVE_GIST_ID = "ceed60b99ea8b27ddf163c80f10b7b7e"
+LIVE_GIST_USER = "zabdulla"
+LIVE_FEED_URL = f"https://gist.githubusercontent.com/{LIVE_GIST_USER}/{LIVE_GIST_ID}/raw/live.json" if LIVE_GIST_ID else ""
+LIVE_QUIET_MINUTES = 60          # a machine that produced this shift but not for this long gets flagged
+LIVE_FEED_LENGTH = 20
