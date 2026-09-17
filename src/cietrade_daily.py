@@ -41,8 +41,10 @@ AGG_COLUMNS = [
     "Date", "Day_of_Week", "Week_Start", "Week_End", "Shift", "Machine_Name", "Input_Item", "Actual_Input",
     "Output_Product", "Actual_Output", "Machine_Hours", "Man_Hours", "Operator", "Comment", "Output_per_Hour",
     "Labor_Cost", "Total_Expense", "Cost_per_Pound", "Has_Machine_Hours", "Has_Man_Hours", "Has_Output",
-    "Has_Comment", "Data_Quality_Score", "Date_Corrected", "Source",
+    "Has_Comment", "Data_Quality_Score", "Date_Corrected", "Source", "Basis",
 ]
+BASIS = {"exact": "exact", "spread": "averaged", "partial": "partial"}
+STATUS_PATH = DATA_DIR / "cietrade_status.json"
 PROVENANCE = {"exact": "", "spread": "cieTrade: averaged over a multi-day job", "partial": "cieTrade: shift in progress at the last poll"}
 
 
@@ -118,7 +120,7 @@ def daily_rows(res: dict, labor_path: Path = LABOR_ENTRIES_PATH, from_date: str 
             "Cost_per_Pound": labor_cost / actual_output if actual_output > 0 else float("nan"),
             "Has_Machine_Hours": has_mh, "Has_Man_Hours": has_man, "Has_Output": has_out, "Has_Comment": bool(comment),
             "Data_Quality_Score": has_mh * 25 + has_man * 25 + has_out * 40 + (10 if has_mh == has_out else 0),
-            "Date_Corrected": False, "Source": "cietrade",
+            "Date_Corrected": False, "Source": "cietrade", "Basis": BASIS[mode],
         })
         if comment:
             notes.append({"Date": key[0], "Shift": shift, "Machine_Name": machine, "Input_Item": material or "",
@@ -130,6 +132,25 @@ def daily_rows(res: dict, labor_path: Path = LABOR_ENTRIES_PATH, from_date: str 
                               "Operator": "", "Note": _text(r.Note), "Category": _categorize_note(_text(r.Note))})
     rows_df = pd.DataFrame(rows, columns=AGG_COLUMNS)
     return rows_df, pd.DataFrame(notes, columns=["Date", "Shift", "Machine_Name", "Input_Item", "Operator", "Note", "Category"]), warnings
+
+
+def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE) -> dict:
+    """What the dashboards need to know beyond the rows: freshness, open jobs, and the
+    shift-days that have no figure yet (awaiting a poll or a posting) or were closed."""
+    cov = res["cov"]
+    meta = res["meta"]
+    recent = cov[cov["Date"] >= pd.Timestamp(from_date)]
+    awaiting = recent[recent["mode"] == "not yet posted"]
+    awaiting_cells = sorted({(d.strftime("%Y-%m-%d"), s, CIETRADE_LINE_TO_MACHINE.get(ln, ln))
+                             for d, s, ln in zip(awaiting["Date"], awaiting["Shift"], awaiting["line"])})
+    return {
+        "data_through": meta.get("data_through"), "last_poll": meta.get("last_poll"),
+        "last_snapshot": meta.get("last_snapshot"), "polls": meta.get("polls", 0),
+        "open_jobs": meta.get("open_jobs", 0), "open_lbs": round(float(meta.get("open_lbs", 0.0))),
+        "from_date": from_date, "closures": meta.get("closures", []),
+        "awaiting": [list(c) for c in awaiting_cells], "warnings": list(meta.get("warnings", [])),
+        "generated": pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S"),
+    }
 
 
 def update_aggregate(rows: pd.DataFrame, notes: pd.DataFrame, agg_path: Path = DEFAULT_AGGREGATED_DATA,
@@ -165,10 +186,17 @@ def update_aggregate(rows: pd.DataFrame, notes: pd.DataFrame, agg_path: Path = D
     return summary
 
 
-def run(dry_run: bool = False, verbose: bool = True) -> dict:
+def run(dry_run: bool = False, verbose: bool = True, status_path: Path = STATUS_PATH) -> dict:
+    import json
     res = model.run(verbose=verbose)
     rows, notes, warnings = daily_rows(res)
     summary = update_aggregate(rows, notes, dry_run=dry_run)
+    status = build_status(res)
+    if not dry_run:
+        tmp = Path(status_path).with_suffix(".tmp")
+        tmp.write_text(json.dumps(status, indent=1))
+        tmp.replace(status_path)
+    summary["awaiting_cells"] = len(status["awaiting"])
     summary["warnings"] = warnings + list(res["meta"].get("warnings", []))
     summary["last_poll"] = res["meta"].get("last_poll")
     return summary

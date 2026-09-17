@@ -28,37 +28,36 @@ BASE_CSS = """\
     :root {
       --brand:#0b6e4f; --brand-strong:#095c42; --brand-soft:#e7f3ee;
       --bg:#f6f7f9; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
-      --shadow-card:0 1px 2px rgba(16,24,40,.05), 0 8px 24px rgba(16,24,40,.06);
+      --shadow-card:0 1px 2px rgba(16,24,32,.06), 0 6px 20px rgba(16,24,32,.05);
       --shadow-lift:0 2px 4px rgba(16,24,40,.06), 0 12px 32px rgba(16,24,40,.10);
+      --grid:#eceff2; --good:#0ca30c; --warn:#fab219; --await:#b3bcc3; --await-ink:#6b7680; --idle:#d3d8dd;
+      --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#7d8b9c; --s7:#8e6fd8; --s8:#2fb5c9; --s9:#b8863b; --s10:#5a6b7b;
     }
     * { box-sizing:border-box; }
-    body { margin:0; padding:24px;
-            font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
-            background:linear-gradient(180deg,#edf4f0 0,var(--bg) 360px) fixed; color:var(--text); }
+    body { margin:0; padding:28px 24px 48px;
+            font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+            background:var(--bg); color:var(--text); }
+    header, main, footer { max-width:1180px; margin-left:auto; margin-right:auto; }
     .eyebrow { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
                color:var(--brand); margin:0 0 6px; }
-    h1 { margin:0 0 4px; font-weight:700; letter-spacing:-0.02em; }
-    .subtitle { margin:0 0 16px; color:var(--muted); font-size:14px; }
-    .kpi-card { transition:transform .18s ease, box-shadow .18s ease; }
-    .kpi-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-lift); }
+    h1 { margin:0 0 4px; font-size:28px; font-weight:700; letter-spacing:-0.02em; text-wrap:balance; }
+    .subtitle { margin:0 0 14px; color:var(--muted); font-size:13px; }
+    .subtitle b { color:var(--text); font-weight:600; }
     .kpi-value { font-variant-numeric:tabular-nums; }
     button { transition:background .15s ease, color .15s ease, border-color .15s ease,
              transform .1s ease, box-shadow .15s ease; }
     button:active { transform:scale(.97); }
-    @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
-    .kpi-grid > .kpi-card { animation:rise .4s cubic-bezier(.2,.7,.3,1) backwards; }
-    .kpi-grid > .kpi-card:nth-child(1){animation-delay:.02s} .kpi-grid > .kpi-card:nth-child(2){animation-delay:.07s}
-    .kpi-grid > .kpi-card:nth-child(3){animation-delay:.12s} .kpi-grid > .kpi-card:nth-child(4){animation-delay:.17s}
-    .kpi-grid > .kpi-card:nth-child(5){animation-delay:.22s} .kpi-grid > .kpi-card:nth-child(6){animation-delay:.27s}
-    .kpi-grid > .kpi-card:nth-child(n+7){animation-delay:.32s}
     @media (prefers-reduced-motion: reduce) {
       * { animation:none !important; transition:none !important; }
     }"""
 
 CARD_CSS = """\
-    .card { background:var(--card); border:1px solid var(--border); border-radius:16px;
-             box-shadow:var(--shadow-card); padding:20px; margin-bottom:20px;
-             animation:rise .45s cubic-bezier(.2,.7,.3,1) backwards; animation-delay:.05s; }"""
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px;
+             box-shadow:var(--shadow-card); padding:18px 20px; margin-bottom:20px; }
+    .card h2 { margin:0 0 4px; font-size:20px; font-weight:600; letter-spacing:-.01em; }
+    .card .lede { margin:0 0 12px; color:var(--muted); font-size:13px; }
+    .card-head { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:8px 16px; margin-bottom:8px; }
+    .card-head h2, .card-head .lede { margin-bottom:0; }"""
 
 # ---------------------------------------------------------------------------
 # Dark mode
@@ -75,9 +74,11 @@ DARK_CSS = """\
       --shadow-card:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
       --shadow-lift:0 2px 4px rgba(0,0,0,.45), 0 12px 32px rgba(0,0,0,.5);
     }
-    html[data-theme="dark"] body {
-      background:linear-gradient(180deg,#111c17 0,var(--bg) 360px) fixed; color:var(--text);
+    html[data-theme="dark"] {
+      --grid:#222b32; --await:#4f5a63; --await-ink:#9aa5ad; --idle:#343f47;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#8b99a8; --s7:#9d84e0; --s8:#39b9cb; --s9:#c9964c; --s10:#8797a6;
     }
+    html[data-theme="dark"] body { background:var(--bg); color:var(--text); }
     html[data-theme="dark"] select, html[data-theme="dark"] input,
     html[data-theme="dark"] .toggle-btn, html[data-theme="dark"] .range-btn,
     html[data-theme="dark"] .export-btn, html[data-theme="dark"] .nav-btn,

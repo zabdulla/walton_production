@@ -30,6 +30,10 @@ def render_dashboard(
     latest_data_date: str = "",
     labor_html: str = "",
     capture_html: str = "",
+    daily_css: str = "",
+    daily_html: str = "",
+    daily_js: str = "",
+    status_line: str = "",
 ) -> str:
     def _render_figs(fig_sections):
         rendered = [
@@ -76,23 +80,23 @@ def render_dashboard(
 {DARK_CSS}
 {THEME_TOGGLE_CSS}
 {CARD_CSS}
-    .kpi-grid {{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin:8px 0; }}
-    .kpi-card {{ background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:12px; }}
+    .kpi-grid {{ display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin:8px 0; }}
+    .kpi-card {{ background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; }}
     .kpi-label {{ color:var(--muted); font-size:12px; }}
-    .kpi-value {{ font-size:20px; font-weight:700; margin-top:4px; }}
-    .controls {{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }}
-    .controls label {{ font-weight:600; color:var(--muted); margin-right:4px; }}
-    select {{ padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:#fff; min-width:160px; }}
-    .toggle-btn {{ padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff;
-                   cursor:pointer; font-size:13px; transition:all .2s; }}
+    .kpi-value {{ font-size:24px; font-weight:600; margin-top:4px; line-height:1.15; }}
+    .controls {{ display:flex; gap:10px 18px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }}
+    .controls label {{ font-size:12px; font-weight:500; color:var(--muted); margin-right:6px; }}
+    select {{ font:inherit; font-size:13px; font-weight:600; color:var(--text); padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card); min-width:160px; }}
+    .toggle-btn {{ font:inherit; padding:7px 12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text);
+                   cursor:pointer; font-size:12px; font-weight:600; transition:all .2s; }}
     .toggle-btn.active {{ background:var(--brand); color:#fff; border-color:var(--brand); }}
     .toggle-btn:hover {{ background:#f3f4f6; }}
     .toggle-btn.active:hover {{ background:var(--brand-strong); }}
     .range-control {{ display:flex; align-items:center; gap:6px; }}
     .range-control label {{ font-weight:600; color:var(--muted); }}
     .range-btns {{ display:flex; gap:0; }}
-    .range-btn {{ padding:6px 12px; border:1px solid var(--border); background:#fff; cursor:pointer;
-                  font-size:12px; transition:all .2s; }}
+    .range-btn {{ font:inherit; padding:6px 12px; border:1px solid var(--border); background:var(--card); color:var(--text); cursor:pointer;
+                  font-size:12px; font-weight:600; transition:all .2s; }}
     .range-btn:first-child {{ border-radius:8px 0 0 8px; }}
     .range-btn:last-child {{ border-radius:0 8px 8px 0; }}
     .range-btn:not(:first-child) {{ border-left:none; }}
@@ -110,24 +114,25 @@ def render_dashboard(
     @media (prefers-reduced-motion: no-preference) {{
       .eff-bar > span {{ transition:width .4s ease; }}
     }}
-    table {{ width:100%; border-collapse:collapse; }}
+    table {{ width:100%; border-collapse:collapse; font-size:13px; }}
     th,td {{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }}
-    th {{ background:#111827; color:#fff; }}
+    th {{ font-size:12px; color:var(--muted); font-weight:600; }}
     .trend-up {{ color:#059669; font-size:12px; margin-left:6px; }}
     .trend-down {{ color:#dc2626; font-size:12px; margin-left:6px; }}
     .trend-flat {{ color:#6b7280; font-size:12px; margin-left:6px; }}
     .highlight-warning {{ background:#fef3c7; color:#92400e; font-weight:600; }}
     .export-buttons {{ display:flex; gap:8px; margin-left:auto; }}
-    .export-btn {{ padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:#fff;
-                   cursor:pointer; font-size:13px; }}
+    .export-btn {{ font:inherit; padding:7px 12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text);
+                   cursor:pointer; font-size:12px; font-weight:600; }}
     .export-btn:hover {{ background:#f3f4f6; }}
-    .nav-link {{ display:inline-block; padding:8px 16px; background:var(--brand); color:#fff;
-                 text-decoration:none; border-radius:6px; font-size:14px; margin-bottom:16px; }}
+    .nav-link {{ display:inline-block; padding:7px 14px; background:var(--brand); color:#fff;
+                 text-decoration:none; border-radius:8px; font-size:13px; font-weight:600; margin-bottom:16px; }}
     .nav-link:hover {{ background:var(--brand-strong); }}
     .rag-dots {{ margin-top:8px; line-height:1; }}
     .rag-dot {{ display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:4px; }}
-    .date-input {{ padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:#fff;
+    .date-input {{ font:inherit; padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text);
                    font-size:12px; min-width:unset; width:auto; }}
+{daily_css}
     #clearCustomBtn {{ display:none; }}
     #clearCustomBtn.visible {{ display:inline-block; }}
     @media (max-width:768px) {{
@@ -149,7 +154,7 @@ def render_dashboard(
   <header>
     <p class="eyebrow">Walton Logistics &mdash; Production</p>
     <h1>Processing Performance Dashboard</h1>
-    <p class="subtitle">Use controls below to adjust view. {total_weeks} weeks of data available.</p>
+    <p class="subtitle">{status_line or f"Use controls below to adjust view. {total_weeks} weeks of data available."}</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
   </header>
   <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
@@ -201,6 +206,7 @@ def render_dashboard(
         <button class="export-btn" onclick="window.print()">Print</button>
       </div>
     </div>
+{daily_html}
     <!-- Standard view (profit-producing output only) -->
     <div id="view-standard">
       <section class="card">
@@ -514,6 +520,7 @@ def render_dashboard(
     // Apply default range + mobile layout after Plotly renders
     setTimeout(() => {{ applyRange(); optimizePlotlyForMobile(); }}, 500);
   </script>
+{daily_js}
 {THEME_TOGGLE_HTML}
 </body>
 </html>"""

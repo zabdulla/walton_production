@@ -216,3 +216,11 @@ def test_update_aggregate_is_idempotent_and_keeps_workbook_rows(tmp_path) -> Non
     s2 = daily.update_aggregate(rows, notes, agg_path=agg, notes_path=tmp_path / "notes.xlsx")
     out = pd.read_excel(agg)
     assert s1["records"] == s2["records"] == 4 and (out["Source"] == "workbook").sum() == 1 and (out["Source"] == "cietrade").sum() == 3
+
+
+def test_daily_rows_carry_basis_and_status_lists_awaiting_cells(tmp_path) -> None:
+    rows, _, _ = daily.daily_rows(_fake_res(), labor_path=tmp_path / "none.xlsx")
+    assert rows.set_index("Machine_Name")["Basis"].to_dict() == {"EXTRUDER": "exact", "GUILLOTINE": "partial", "GRINDER": "averaged"}
+    res = _fake_res(); res["meta"].update(data_through="2026-09-15", open_jobs=2, open_lbs=1234.5, closures=["2026-09-07"])
+    st = daily.build_status(res)
+    assert st["awaiting"] == [["2026-09-15", "2nd", "GRINDER"]] and st["open_lbs"] == 1234 and st["closures"] == ["2026-09-07"]

@@ -31,6 +31,9 @@ from config import (
     LABOR_RATE, MAX_MACHINE_HOURS_PER_DAY,
 )
 from dashboard_common import SHIFT_METRICS, SHIFT_COLORS
+from dashboard_daily_sections import (
+    DAILY_CSS, DAILY_HTML, build_daily_payload, daily_script, load_status, status_line_html,
+)
 from interactive_template import render_dashboard
 
 logger = logging.getLogger(__name__)
@@ -1029,6 +1032,11 @@ def main(input_path: Path, output_path: Path) -> None:
     # Total weeks available (for range control)
     total_weeks = len(weekly_std["Week_Start"].unique())
 
+    # Week at a glance + daily chart: one compact payload, rendered client-side
+    status = load_status()
+    daily_payload = build_daily_payload(df, status)
+    last_date = str(df["Date"].max())[:10]
+
     # Charts for both modes — pass ALL data, JS controls visible range
     fig_sections_std = [
         ("Weekly Metrics by Machine", "fig-metrics", build_interactive_fig(weekly_std)),
@@ -1057,6 +1065,10 @@ def main(input_path: Path, output_path: Path) -> None:
             latest_data_date=weekly_std["Week_Start"].max().strftime("%Y-%m-%d"),
             labor_html=labor_html,
             capture_html=capture_html,
+            daily_css=DAILY_CSS,
+            daily_html=DAILY_HTML,
+            daily_js=daily_script(daily_payload),
+            status_line=status_line_html(status, total_weeks, last_date),
         ),
     )
     print(f"Wrote interactive dashboard to {output_path}")
