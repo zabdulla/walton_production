@@ -47,7 +47,7 @@ MACHINE_MAP = {"AUTO-TIE BALER": "AUTO TIE BALER", "EXTRUDER": "EXTRUDER", "GUIL
                "SHREDDER/GRINDER": "SHREDDER+GRINDER", "SMALL GRINDER": "SHREDDER+GRINDER",
                "AVANGARD (OLD)": "OTHER LINES", "BALER2": "OTHER LINES", "BALER 2": "OTHER LINES",
                "BALER1": "OTHER LINES", "BALER 1": "OTHER LINES"}
-MID = {"1st": 10, "2nd": 19, "3rd": 27}      # coverage midpoint, hours after midnight (validated)
+MID = {k: (a + b) / 2 for k, (a, b) in SHIFT_HOURS.items()}   # coverage midpoint of each shift (validation unchanged)
 WORKDAYS = {0, 1, 2, 3, 4}
 REGIME_CHANGE = pd.Timestamp("2026-08-24")
 CALENDAR_CLOSURES = ["2026-09-07", "2026-11-26", "2026-11-27", "2026-12-24", "2026-12-25", "2027-01-01"]

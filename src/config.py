@@ -329,7 +329,7 @@ CIETRADE_LINE_TO_MACHINE: dict[str, str] = {
 # Working hours of each shift as hours after midnight of the shift's date
 # (3rd shift runs into the next morning). Used to split a job's output
 # between two API polls across the shifts that ran in between.
-SHIFT_HOURS: dict[str, tuple[int, int]] = {"1st": (7, 15), "2nd": (15, 23), "3rd": (23, 31)}
+SHIFT_HOURS: dict[str, tuple[int, int]] = {"1st": (6, 14), "2nd": (14, 22), "3rd": (22, 30)}   # 6-2, 2-10, 10-6 (confirmed 2026-09-17)
 
 # Where the poller drops a copy of the freshly built pilot page so it can be
 # opened from a phone through OneDrive. Set to None to disable.

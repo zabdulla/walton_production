@@ -27,7 +27,7 @@ either route has a few weeks of real submissions.
 ## Route 1 — the End of Shift web app (target state)
 
 `scripts/end_of_shift_app/` is a phone-first page that mirrors the paper sheet: date
-(defaults to today, or last night for a 3rd-shift report filed before 7 AM), shift
+(defaults to today, or last night for a 3rd-shift report filed before 6 AM), shift
 (pre-picked from the clock), the submitter's name (remembered on the device), then one
 card per machine in the paper's order. A machine card stays collapsed as "Didn't run"
 until its switch is turned on — only the machines that ran need any typing. Each open

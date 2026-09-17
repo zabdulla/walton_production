@@ -141,9 +141,10 @@
   function defaultDateShift() {
     var now = new Date(), h = now.getHours() + now.getMinutes() / 60, d = new Date(now);
     var shift, why;
-    if (h < 7) { shift = '3rd'; d.setDate(d.getDate() - 1); why = '3rd shift is dated by the night it started, so this is last night’s shift.'; }
-    else if (h < 15) { shift = '1st'; why = 'Picked from the clock — change it if you’re reporting a different shift.'; }
-    else if (h < 23) { shift = '2nd'; why = 'Picked from the clock — change it if you’re reporting a different shift.'; }
+    // shifts run 6-2, 2-10, 10-6
+    if (h < 6) { shift = '3rd'; d.setDate(d.getDate() - 1); why = '3rd shift is dated by the night it started, so this is last night’s shift.'; }
+    else if (h < 14) { shift = '1st'; why = 'Picked from the clock — change it if you’re reporting a different shift.'; }
+    else if (h < 22) { shift = '2nd'; why = 'Picked from the clock — change it if you’re reporting a different shift.'; }
     else { shift = '3rd'; why = 'Picked from the clock — 3rd shift is dated by the night it starts.'; }
     return { date: isoLocal(d), shift: shift, why: why };
   }
