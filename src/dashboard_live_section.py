@@ -136,7 +136,8 @@ LIVE_JS = r"""
     }
     for (let h = 0; h <= 24; h += 2) { const t = el("text", { x: x(h * 60), y: base + 18, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }); t.textContent = hourLabel(start + h); svg.appendChild(t); }
     const path = pts => pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join(" ");
-    if (L.yesterday.total.length > 1) svg.appendChild(el("path", { d: path(L.yesterday.total), fill: "none", stroke: "var(--muted)", "stroke-width": 1.5, "stroke-dasharray": "4 4", opacity: 0.7 }));
+    const yest = L.yesterday && L.yesterday.lbs > 0 && L.yesterday.total.length > 1;
+    if (yest) svg.appendChild(el("path", { d: path(L.yesterday.total), fill: "none", stroke: "var(--muted)", "stroke-width": 1.5, "stroke-dasharray": "4 4", opacity: 0.7 }));
     machines.forEach(m => {
       svg.appendChild(el("path", { d: path(L.series[m]), fill: "none", stroke: colorOf(m), "stroke-width": 2, "stroke-linejoin": "round" }));
       L.series[m].forEach((p, i, arr) => { if (i > 0 && arr[i - 1][0] === p[0] && p[1] !== arr[i - 1][1]) svg.appendChild(el("circle", { cx: x(p[0]), cy: y(p[1]), r: 3, fill: colorOf(m), stroke: "var(--card)", "stroke-width": 1.5 })); });
@@ -151,7 +152,7 @@ LIVE_JS = r"""
     const key = (color, text, dashed) => { const k = document.createElement("span"); k.className = "k"; const sw = document.createElement("span"); sw.className = "lkey"; sw.style.background = color; if (dashed) sw.style.opacity = "0.6"; k.append(sw, text); legend.appendChild(k); };
     machines.forEach(m => key(colorOf(m), label(m)));
     if (plant.length > 1) key("var(--text)", "Plant total");
-    if (L.yesterday.total.length > 1) key("var(--muted)", `Yesterday's plant total (${fmt(L.yesterday.lbs)} lbs)`, true);
+    if (yest) key("var(--muted)", `Yesterday's plant total (${fmt(L.yesterday.lbs)} lbs)`, true);
 
     // feed
     const feed = document.getElementById("liveFeed"); feed.replaceChildren();

@@ -63,12 +63,9 @@ def status_line_html(status: dict | None, total_weeks: int, last_date: str) -> s
             return datetime.strptime(s[:10], "%Y-%m-%d").strftime("%a %b %-d")
         except ValueError:
             return s
-    parts = [f"Data through <b>{day(last_date)}</b>"]
+    parts = [f"Data through <b>{day(last_date)}</b>", f"{total_weeks} weeks of data"]
     if status and status.get("last_poll"):
-        parts.append(f"cieTrade polled every 10 min, last {when(status['last_poll'])}")
-        if status.get("open_jobs"):
-            parts.append(f"{status['open_jobs']} open jobs, {status.get('open_lbs', 0):,} lbs not yet posted")
-    parts.append(f"{total_weeks} weeks of data")
+        parts.append(f"fed by cieTrade every 10 min (dashboard rebuilt {when(status['last_poll'])}); the Live card below updates on its own")
     return " · ".join(parts)
 
 

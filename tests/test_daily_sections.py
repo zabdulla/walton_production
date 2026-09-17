@@ -45,9 +45,8 @@ def test_payload_without_basis_column_or_status() -> None:
 
 def test_status_line_mentions_poller_and_open_jobs() -> None:
     line = ds.status_line_html({"last_poll": "2026-09-17T13:26:41", "open_jobs": 14, "open_lbs": 226408}, 88, "2026-09-17")
-    assert "Data through <b>Thu Sep 17</b>" in line and "last Thu Sep 17, 1:26 PM" in line
-    assert "14 open jobs, 226,408 lbs not yet posted" in line and "88 weeks of data" in line
-    assert "polled" not in ds.status_line_html(None, 5, "2026-08-21")
+    assert "Data through <b>Thu Sep 17</b>" in line and "rebuilt Thu Sep 17, 1:26 PM" in line and "88 weeks of data" in line
+    assert "cieTrade" not in ds.status_line_html(None, 5, "2026-08-21")
 
 
 def test_load_status_tolerates_missing_file(tmp_path) -> None:
