@@ -147,6 +147,8 @@
     .nav-link { display:inline-block; padding:7px 14px; background:var(--brand); color:#fff;
                  text-decoration:none; border-radius:8px; font-size:13px; font-weight:600; margin-bottom:16px; }
     .nav-link:hover { background:var(--brand-strong); }
+    .nav-link.secondary { background:transparent; color:var(--brand); border:1px solid var(--border); margin-left:8px; }
+    .nav-link.secondary:hover { background:var(--brand-soft); }
     .rag-dots { margin-top:8px; line-height:1; }
     .rag-dot { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:4px; }
     .date-input { font:inherit; padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text);
@@ -258,6 +260,7 @@
     <h1>Processing Performance Dashboard</h1>
     <p class="subtitle">Data through <b>Thu Sep 17</b> · 103 weeks of data · fed by cieTrade every 10 min (dashboard rebuilt Thu Sep 17, 1:36 PM); the Live card below updates on its own</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
+    <a href="#liveCard" class="nav-link secondary">Live feed &darr;</a>
   </header>
   <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
   <script>
@@ -333,24 +336,6 @@
         <button class="export-btn" onclick="window.print()">Print</button>
       </div>
     </div>
-
-    <section class="card live" id="liveCard">
-      <div class="card-head">
-        <div>
-          <h2>Live<span class="live-dot" id="liveDot"></span></h2>
-          <p class="lede" id="liveLede">Pounds entered into cieTrade so far this production day (6 AM to 6 AM), from a poll every 10 minutes. Guillotine counts rolls cut.</p>
-        </div>
-        <div class="live-meta" id="liveMeta"></div>
-      </div>
-      <div class="tiles" id="liveTiles"></div>
-      <div class="live-chart" id="liveChart"></div>
-      <div class="live-legend" id="liveLegend"></div>
-      <details class="feed" open>
-        <summary id="liveFeedTitle">Latest changes</summary>
-        <div class="table-wrap" id="liveFeed"></div>
-      </details>
-    </section>
-
 
     <section class="card wk" id="weekCard">
       <div class="card-head">
@@ -535,7 +520,7 @@
         <h2 style="margin-top:0">Monthly Summary</h2>
         
     <div class="table-wrap">
-      <table id="monthly-7b8eb825">
+      <table id="monthly-4ecdba6e">
         <thead><tr>
             <th>Month</th><th>Output (Lbs)</th><th>Expense</th><th>Cost / Lb</th><th>Machine Hrs</th>
         </tr></thead>
@@ -692,7 +677,7 @@
         </tr></tbody>
       </table>
     </div>
-    <button class="toggle-btn monthly-toggle" data-table="monthly-7b8eb825" style="margin-top:10px;">Show all months (19 older)</button>
+    <button class="toggle-btn monthly-toggle" data-table="monthly-4ecdba6e" style="margin-top:10px;">Show all months (19 older)</button>
     
       </section>
     </div>
@@ -821,7 +806,7 @@
         <h2 style="margin-top:0">Monthly Summary <span style="font-size:13px;color:var(--muted);font-weight:400;">(incl. Guillotine support)</span></h2>
         
     <div class="table-wrap">
-      <table id="monthly-23b1996f">
+      <table id="monthly-e4d55916">
         <thead><tr>
             <th>Month</th><th>Output (Lbs)</th><th>Expense</th><th>Cost / Lb</th><th>Machine Hrs</th>
         </tr></thead>
@@ -978,7 +963,7 @@
         </tr></tbody>
       </table>
     </div>
-    <button class="toggle-btn monthly-toggle" data-table="monthly-23b1996f" style="margin-top:10px;">Show all months (19 older)</button>
+    <button class="toggle-btn monthly-toggle" data-table="monthly-e4d55916" style="margin-top:10px;">Show all months (19 older)</button>
     
       </section>
     </div>
@@ -1154,6 +1139,24 @@
         </table></div>
     
     </section>
+
+    <section class="card live" id="liveCard">
+      <div class="card-head">
+        <div>
+          <h2>Live<span class="live-dot" id="liveDot"></span></h2>
+          <p class="lede" id="liveLede">Pounds entered into cieTrade so far this production day (6 AM to 6 AM), from a poll every 10 minutes. Guillotine counts rolls cut.</p>
+        </div>
+        <div class="live-meta" id="liveMeta"></div>
+      </div>
+      <div class="tiles" id="liveTiles"></div>
+      <div class="live-chart" id="liveChart"></div>
+      <div class="live-legend" id="liveLegend"></div>
+      <details class="feed" open>
+        <summary id="liveFeedTitle">Latest changes</summary>
+        <div class="table-wrap" id="liveFeed"></div>
+      </details>
+    </section>
+
   </main>
   <script>
     const machineSelect = document.getElementById('machineSelect');
@@ -1743,7 +1746,7 @@
   <script>
 (function () {
   const FEED_URL = "https://gist.githubusercontent.com/zabdulla/ceed60b99ea8b27ddf163c80f10b7b7e/raw/live.json";
-  let LIVE = {"generated":"2026-09-17T14:24:04","day":"2026-09-17","day_start":"2026-09-17T06:00:00","shift_hours":{"1st":[6,14],"2nd":[14,22],"3rd":[22,30]},"current_shift":"2nd","last_poll":"2026-09-17T14:24:03","poll_ok":true,"polls_today":9,"changes_today":6,"lbs_today":12482,"open_jobs":14,"open_lbs":238890,"machines":[{"m":"AUTO TIE BALER","lbs":7654,"by_shift":{"1st":7654},"changes":1,"last_change":"2026-09-17T13:46:51","quiet_min":37,"flag":false},{"m":"EXTRUDER","lbs":2030,"by_shift":{"1st":2030},"changes":2,"last_change":"2026-09-17T13:56:57","quiet_min":27,"flag":false},{"m":"GREEN MAX DENSIFIER (NEW)","lbs":1328,"by_shift":{"1st":1328},"changes":1,"last_change":"2026-09-17T14:07:02","quiet_min":17,"flag":false},{"m":"GUILLOTINE","lbs":970,"by_shift":{"1st":970},"changes":1,"last_change":"2026-09-17T14:17:08","quiet_min":6,"flag":false},{"m":"SHREDDER","lbs":500,"by_shift":{"1st":500},"changes":1,"last_change":"2026-09-17T13:36:46","quiet_min":47,"flag":false}],"series":{"AUTO TIE BALER":[[0,0],[466,0],[466,7654],[504,7654]],"EXTRUDER":[[0,0],[456,0],[456,1930],[476,1930],[476,2030],[504,2030]],"GREEN MAX DENSIFIER (NEW)":[[0,0],[487,0],[487,1328],[504,1328]],"GUILLOTINE":[[0,0],[497,0],[497,970],[504,970]],"SHREDDER":[[0,0],[456,0],[456,500],[504,500]]},"yesterday":{"day":"2026-09-16","total":[[0,0],[1440,0]],"lbs":0},"changes":[{"t0":"2026-09-17T14:07:02","t1":"2026-09-17T14:17:08","m":"GUILLOTINE","s":"1st","lbs":970,"units":0,"job":17132,"correction":false},{"t0":"2026-09-17T13:56:57","t1":"2026-09-17T14:07:02","m":"GREEN MAX DENSIFIER (NEW)","s":"1st","lbs":1328,"units":1,"job":17131,"correction":false},{"t0":"2026-09-17T13:46:51","t1":"2026-09-17T13:56:57","m":"EXTRUDER","s":"1st","lbs":100,"units":0,"job":17130,"correction":false},{"t0":"2026-09-17T13:36:46","t1":"2026-09-17T13:46:51","m":"AUTO TIE BALER","s":"1st","lbs":7654,"units":0,"job":17129,"correction":false},{"t0":"2026-09-17T13:26:41","t1":"2026-09-17T13:36:46","m":"EXTRUDER","s":"1st","lbs":1930,"units":0,"job":17130,"correction":false},{"t0":"2026-09-17T13:26:41","t1":"2026-09-17T13:36:46","m":"SHREDDER","s":"1st","lbs":500,"units":0,"job":17133,"correction":false}]};
+  let LIVE = {"generated":"2026-09-17T14:27:14","day":"2026-09-17","day_start":"2026-09-17T06:00:00","shift_hours":{"1st":[6,14],"2nd":[14,22],"3rd":[22,30]},"current_shift":"2nd","last_poll":"2026-09-17T14:27:13","poll_ok":true,"polls_today":10,"changes_today":6,"lbs_today":12482,"open_jobs":14,"open_lbs":238890,"machines":[{"m":"AUTO TIE BALER","lbs":7654,"by_shift":{"1st":7654},"changes":1,"last_change":"2026-09-17T13:46:51","quiet_min":40,"flag":false},{"m":"EXTRUDER","lbs":2030,"by_shift":{"1st":2030},"changes":2,"last_change":"2026-09-17T13:56:57","quiet_min":30,"flag":false},{"m":"GREEN MAX DENSIFIER (NEW)","lbs":1328,"by_shift":{"1st":1328},"changes":1,"last_change":"2026-09-17T14:07:02","quiet_min":20,"flag":false},{"m":"GUILLOTINE","lbs":970,"by_shift":{"1st":970},"changes":1,"last_change":"2026-09-17T14:17:08","quiet_min":10,"flag":false},{"m":"SHREDDER","lbs":500,"by_shift":{"1st":500},"changes":1,"last_change":"2026-09-17T13:36:46","quiet_min":50,"flag":false}],"series":{"AUTO TIE BALER":[[0,0],[466,0],[466,7654],[507,7654]],"EXTRUDER":[[0,0],[456,0],[456,1930],[476,1930],[476,2030],[507,2030]],"GREEN MAX DENSIFIER (NEW)":[[0,0],[487,0],[487,1328],[507,1328]],"GUILLOTINE":[[0,0],[497,0],[497,970],[507,970]],"SHREDDER":[[0,0],[456,0],[456,500],[507,500]]},"yesterday":{"day":"2026-09-16","total":[[0,0],[1440,0]],"lbs":0},"changes":[{"t0":"2026-09-17T14:07:02","t1":"2026-09-17T14:17:08","m":"GUILLOTINE","s":"1st","lbs":970,"units":0,"job":17132,"correction":false},{"t0":"2026-09-17T13:56:57","t1":"2026-09-17T14:07:02","m":"GREEN MAX DENSIFIER (NEW)","s":"1st","lbs":1328,"units":1,"job":17131,"correction":false},{"t0":"2026-09-17T13:46:51","t1":"2026-09-17T13:56:57","m":"EXTRUDER","s":"1st","lbs":100,"units":0,"job":17130,"correction":false},{"t0":"2026-09-17T13:36:46","t1":"2026-09-17T13:46:51","m":"AUTO TIE BALER","s":"1st","lbs":7654,"units":0,"job":17129,"correction":false},{"t0":"2026-09-17T13:26:41","t1":"2026-09-17T13:36:46","m":"EXTRUDER","s":"1st","lbs":1930,"units":0,"job":17130,"correction":false},{"t0":"2026-09-17T13:26:41","t1":"2026-09-17T13:36:46","m":"SHREDDER","s":"1st","lbs":500,"units":0,"job":17133,"correction":false}]};
   const NS = "http://www.w3.org/2000/svg";
   const fmt = n => Math.round(n).toLocaleString("en-US");
   const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

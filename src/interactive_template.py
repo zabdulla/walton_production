@@ -131,6 +131,8 @@ def render_dashboard(
     .nav-link {{ display:inline-block; padding:7px 14px; background:var(--brand); color:#fff;
                  text-decoration:none; border-radius:8px; font-size:13px; font-weight:600; margin-bottom:16px; }}
     .nav-link:hover {{ background:var(--brand-strong); }}
+    .nav-link.secondary {{ background:transparent; color:var(--brand); border:1px solid var(--border); margin-left:8px; }}
+    .nav-link.secondary:hover {{ background:var(--brand-soft); }}
     .rag-dots {{ margin-top:8px; line-height:1; }}
     .rag-dot {{ display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:4px; }}
     .date-input {{ font:inherit; padding:6px 8px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text);
@@ -160,6 +162,7 @@ def render_dashboard(
     <h1>Processing Performance Dashboard</h1>
     <p class="subtitle">{status_line or f"Use controls below to adjust view. {total_weeks} weeks of data available."}</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
+    <a href="#liveCard" class="nav-link secondary">Live feed &darr;</a>
   </header>
   <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
   <script>
@@ -210,7 +213,6 @@ def render_dashboard(
         <button class="export-btn" onclick="window.print()">Print</button>
       </div>
     </div>
-{live_html}
 {daily_html}
     <!-- Standard view (profit-producing output only) -->
     <div id="view-standard">
@@ -264,6 +266,7 @@ def render_dashboard(
       <h2 style="margin-top:0">Operator Capture</h2>
       {capture_html}
     </section>
+{live_html}
   </main>
   <script>
     const machineSelect = document.getElementById('machineSelect');
