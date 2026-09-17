@@ -78,6 +78,23 @@ Gmail fetch and payroll.
 - Deploy the End of Shift app (`setup/LABOR_CAPTURE.md`) so hours and operators flow in; until
   then rows carry output only and the validation report warns about output without hours.
 
+## Live feed — `src/cietrade_live.py`
+
+After every poll the poller rewrites `data/cietrade/live.json` (gitignored) and republishes
+it to the gist named by `config.LIVE_GIST_ID` through `gh api` (the machine is already signed
+in). The dashboard's **Live** card embeds the copy present at build time and then fetches
+the gist on load and every five minutes, so the public page is current without a redeploy.
+
+A change is a job's gain between two polls; the window starts at the previous poll (or at
+the job's creation for its first sighting), so every entry is placed within one polling
+interval. The card shows today's pounds per machine (6 AM to 6 AM), a cumulative curve
+with shift bands and yesterday's curve for comparison, and the last 20 changes; a machine
+that produced this shift but has been quiet for `LIVE_QUIET_MINUTES` is flagged. Corrections
+(a quantity going down) are shown as removed pounds.
+
+To recreate the gist: `gh gist create --filename live.json data/cietrade/live.json`, then put
+the id in `config.LIVE_GIST_ID`.
+
 ## Operations
 
     scripts/install_schedule.sh cietrade_poll     # every 10 min
