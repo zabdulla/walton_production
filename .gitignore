@@ -57,6 +57,4 @@ data/validation_state.json
 data/shift_reports/
 data/labor_entries.xlsx
 
-# cieTrade Converting Inquiry export archive (snapshot log for the pilot; local only)
-data/cietrade_exports/
 explorations/cietrade_pilot/out/

@@ -277,6 +277,30 @@ def step_aggregate() -> dict[str, Any]:
     return result
 
 
+def step_cietrade_rows() -> dict[str, Any]:
+    """Regenerate the cieTrade-fed weeks of the aggregate (output from cieTrade,
+    hours from the End of Shift app). Non-fatal: a failure leaves the file as is."""
+    result: dict[str, Any] = {"ok": False, "rows": 0, "days": 0, "with_hours": 0, "pre_snapshot": None}
+    _ensure_src_importable()
+    try:
+        import cietrade_daily
+        s = cietrade_daily.run(verbose=False)
+    except Exception as e:
+        logging.exception("cieTrade rows failed")
+        log_err(f"cieTrade rows FAILED: {e.__class__.__name__}: {e}")
+        return result
+    from config import CIETRADE_FROM_DATE
+    result.update(ok=True, from_date=CIETRADE_FROM_DATE,
+                  **{k: s.get(k) for k in ("rows", "days", "with_hours", "pre_snapshot", "through", "last_poll")})
+    log_ok(f"{s['rows']} rows over {s['days']} days through {s['through']} ({s['with_hours']} with hours)"
+           + (f" · last poll {s['last_poll']}" if s.get("last_poll") else ""))
+    for w in s.get("warnings", []):
+        log_warn(w)
+    if s.get("skipped_weeks"):
+        log_warn(f"weeks with workbook rows kept as-is: {', '.join(s['skipped_weeks'])}")
+    return result
+
+
 def step_parse_payroll() -> dict[str, Any]:
     """Run parse_payroll_pdf.py --pdf-dir to (re)aggregate payroll data.
 
@@ -519,16 +543,15 @@ def step_build_dashboards() -> dict[str, Any]:
     return results
 
 
-def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
+def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update") -> dict[str, Any]:
     """Stage tracked + new files, commit if anything changed, push with rebase retry."""
     result = {"ok": True, "committed": False, "pushed": False, "files": 0, "msg": ""}
 
-    # Stage all relevant tracked files (gitignore excludes the sensitive ones)
-    rc, _, _ = run_cmd(["git", "add",
-                        "data/aggregated_daily_data.xlsx",
-                        "data/aggregated_notes.xlsx",
-                        "docs/index.html",
-                        "docs/daily.html"], capture=True)
+    # Stage all relevant tracked files (gitignore excludes the sensitive ones).
+    # The cieTrade poll log is small text and cannot be recreated — it rides along.
+    paths = ["data/aggregated_daily_data.xlsx", "data/aggregated_notes.xlsx", "docs/index.html", "docs/daily.html",
+             "data/cietrade/polls.jsonl", "data/cietrade/posted.csv", "data/cietrade/snapshots", "data/cietrade_exports"]
+    rc, _, _ = run_cmd(["git", "add", *[p for p in paths if (PROJECT_ROOT / p).exists()]], capture=True)
 
     rc, out, _ = run_cmd(["git", "diff", "--cached", "--stat"], capture=True)
     if not out.strip():
@@ -541,7 +564,7 @@ def step_git_commit_push(no_push: bool = False) -> dict[str, Any]:
 
     # Build commit message
     today = datetime.now().strftime("%Y-%m-%d")
-    msg = f"Weekly auto-update {today}\n\nAutomated via src/weekly_update.py orchestrator."
+    msg = f"{label} {today}\n\nAutomated via src/weekly_update.py orchestrator."
     rc, _, err = run_cmd(["git", "commit", "-m", msg])
     if rc != 0:
         log_err(f"Commit failed: {err.strip()[:200]}")
@@ -629,6 +652,8 @@ def main() -> int:
                         help="Build and commit but skip git push")
     parser.add_argument("--dry-run", action="store_true",
                         help="Fetch step runs in --list mode; no aggregate/build/commit")
+    parser.add_argument("--daily", action="store_true",
+                        help="Daily mode: no Gmail fetch or payroll; cieTrade rows -> validate -> build -> push")
     args = parser.parse_args()
 
     setup_file_logger()
@@ -660,8 +685,8 @@ def main() -> int:
     summary: dict[str, Any] = {}
 
     # Step 1: Fetch
-    log_step(1, 6, "Fetching new emails from Gmail")
-    if args.no_fetch:
+    log_step(1, 7, "Fetching new emails from Gmail")
+    if args.no_fetch or args.daily:
         log_info("  " + dim("(--no-fetch, skipping)"))
         summary["fetch"] = {"ok": True, "processing": 0, "payroll": 0}
     else:
@@ -683,18 +708,26 @@ def main() -> int:
         return 1
 
     # Step 2: Aggregate
-    log_step(2, 6, "Aggregating daily production data")
+    log_step(2, 7, "Aggregating daily production data")
     summary["aggregate"] = step_aggregate()
     if not summary["aggregate"]["ok"]:
         log_err("Aggregation failed — aborting pipeline")
         return 1
 
-    # Step 3: Parse payroll
-    log_step(3, 6, "Parsing payroll PDFs")
-    summary["payroll"] = step_parse_payroll()
+    # Step 3: cieTrade rows (production since the workbooks stopped)
+    log_step(3, 7, "Deriving daily rows from cieTrade + End of Shift entries")
+    summary["cietrade"] = step_cietrade_rows()
 
-    # Step 4: Validate
-    log_step(4, 6, "Validating data quality")
+    # Step 4: Parse payroll
+    log_step(4, 7, "Parsing payroll PDFs")
+    if args.daily:
+        log_info("  " + dim("(--daily, skipping)"))
+        summary["payroll"] = {"ok": True, "processed": 0, "pre_snapshot": None}
+    else:
+        summary["payroll"] = step_parse_payroll()
+
+    # Step 5: Validate
+    log_step(5, 7, "Validating data quality")
     summary["validate"] = step_validate()
 
     # If validation gates publication, restore the pre-aggregation snapshot
@@ -714,7 +747,7 @@ def main() -> int:
                 log_warn(f"No pre-run snapshot available; {label} left as-is.")
 
         # Restore daily data and payroll together so they never desync.
-        _restore(summary["aggregate"].get("pre_snapshot"),
+        _restore(summary["aggregate"].get("pre_snapshot") or summary.get("cietrade", {}).get("pre_snapshot"),
                  PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx",
                  "aggregated daily data")
         _restore(summary["payroll"].get("pre_snapshot"),
@@ -730,13 +763,13 @@ def main() -> int:
         logging.info(f"=== END runtime={elapsed:.1f}s BLOCKED ===")
         return 3
 
-    # Step 5: Build all dashboards
-    log_step(5, 6, "Building dashboards")
+    # Step 6: Build all dashboards
+    log_step(6, 7, "Building dashboards")
     summary["build"] = step_build_dashboards()
 
-    # Step 6: Commit + push
-    log_step(6, 6, "Committing changes to git")
-    summary["git"] = step_git_commit_push(no_push=args.no_push)
+    # Step 7: Commit + push
+    log_step(7, 7, "Committing changes to git")
+    summary["git"] = step_git_commit_push(no_push=args.no_push, label="Daily auto-update" if args.daily else "Weekly auto-update")
 
     # Final summary
     elapsed = time.time() - started
@@ -746,6 +779,9 @@ def main() -> int:
     print(f"  New processing-weights files: {summary['fetch'].get('processing', 0)}")
     print(f"  New payroll PDFs:             {summary['fetch'].get('payroll', 0)}")
     print(f"  Total daily records:          {summary['aggregate'].get('records', '?'):,}")
+    ct = summary.get("cietrade", {})
+    if ct:
+        print(f"  cieTrade rows (since {ct.get('from_date', '?')}): {ct.get('rows', '?')} over {ct.get('days', '?')} days, {ct.get('with_hours', '?')} with hours")
     print(f"  Pay periods aggregated:       {summary['payroll'].get('processed', '?')}")
     print(f"  Validation issues:            {len(summary['validate'].get('issues', []))}")
     print(f"  Dashboards built:             {len(summary['build'].get('built', []))} / 5")

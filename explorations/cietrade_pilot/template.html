@@ -187,7 +187,7 @@
     <div class="card-head">
       <div>
         <h2>Export log</h2>
-        <p class="lede">Every export archived, newest first. An open-jobs export is a snapshot: the pounds are what each line produced between that export and the previous one, credited to the shifts that ran in between. Post jobs whenever convenient — weekly is fine; export once a day, ideally at 7 AM before 1st shift, and every day reads as exact.</p>
+        <p class="lede">Newest first. The cieTrade API is polled every 10 minutes; each day's row is what the open jobs gained between polls, credited to the shifts that ran in between. Manual exports from before the API are listed the same way. Post jobs whenever convenient — weekly is fine.</p>
       </div>
     </div>
     <div class="table-wrap" id="exportLog"></div>
@@ -260,7 +260,7 @@
       <ol>
         <li>Each job owns the shifts that ran between the moment the office opened it and the moment the next job on that line was opened — one day while jobs were opened every morning (through Aug 21), several days since. Since Aug 24 the 1st-shift job is opened after the shift ends, so it owns the following days.</li>
         <li>A job seen only in the posted list spreads its output evenly across the shift-days it owns. Weekly totals stay exact; a single day is a window average.</li>
-        <li>A job seen in open-jobs exports is a series of snapshots. The pounds between two consecutive exports go to the shifts that ran in between (1st 7–3, 2nd 3–11, 3rd 11–7), split by hours when a shift straddles an export. Daily exports make every day exact; the shift under way at the last export shows as in progress.</li>
+        <li>A job seen in open-jobs exports is a series of snapshots. The pounds between two consecutive observations go to the shifts that ran in between (<span id="shiftHours"></span>), split by hours when a shift straddles one. Daily exports make every day exact; the shift under way at the last export shows as in progress.</li>
         <li>Checked against the last three weeks of hand-built workbooks: <b id="valPct"></b> of shift-days match to the pound. The only miss is one job that was never posted.</li>
       </ol>
       <h3>Read with these in mind</h3>
@@ -297,7 +297,8 @@
   const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
   const short = s => { const d = parse(s); return `${MON[d.getMonth()]} ${d.getDate()}`; };
   const long = s => { const d = parse(s); return `${DOW[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}`; };
-  const weekOf = s => { const d = parse(s); const dd = new Date(d); dd.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dd.toISOString().slice(0,10); };
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const weekOf = s => { const d = parse(s); const dd = new Date(d); dd.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(dd); };
   const dates = [...new Set(ROWS.map(r => r.d))].sort();
   const basisOf = modes => modes.includes("not yet posted") ? "await" : modes.includes("partial") ? "live" : modes.includes("spread") ? "avg" : modes.includes("exact") ? "exact" : "idle";
   const basisText = { exact: "Exact — one job window", avg: "Averaged over a multi-day job", live: "In progress — output so far at the last export", await: "Awaiting posting — partial", idle: "No job open — nothing recorded" };
@@ -315,7 +316,7 @@
     const mset = new Set(machines.map(m => m.key)), sset = new Set(shifts);
     const lastWeek = weekOf(dates[dates.length - 1]);
     let cutoff = "0000-00-00";
-    if (state.range !== "all") { const d = parse(lastWeek); d.setDate(d.getDate() - 7 * (state.range - 1)); cutoff = d.toISOString().slice(0, 10); }
+    if (state.range !== "all") { const d = parse(lastWeek); d.setDate(d.getDate() - 7 * (state.range - 1)); cutoff = iso(d); }
     const inRange = dates.filter(d => weekOf(d) >= cutoff);
     const dateSet = new Set(inRange);
     const rows = ROWS.filter(r => mset.has(r.m) && sset.has(r.s) && dateSet.has(r.d));
@@ -350,11 +351,15 @@
 
   // ---- header ----
   const status = document.getElementById("status");
-  const lastSnap = META.last_snapshot ? new Date(META.last_snapshot) : null;
+  const fmtWhen = s => { const d = new Date(s); return `${DOW[d.getDay()]} ${MON[d.getMonth()]} ${d.getDate()}, ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`; };
   status.append("Data through ", Object.assign(document.createElement("b"), { textContent: long(META.data_through) }),
-    ` · ${META.exports} cieTrade exports archived` + (lastSnap ? `, last open-jobs snapshot ${DOW[lastSnap.getDay()]} ${MON[lastSnap.getMonth()]} ${lastSnap.getDate()} ${lastSnap.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : "") + " · ",
+    META.last_poll ? ` · cieTrade API polled every ${10} min, last ${fmtWhen(META.last_poll)}` : (META.last_snapshot ? ` · last open-jobs snapshot ${fmtWhen(META.last_snapshot)}` : ""),
+    META.open_jobs ? ` · ${META.open_jobs} open jobs, ${fmt(META.open_lbs)} lbs not yet posted` : "", " · ",
     Object.assign(document.createElement("b"), { textContent: "not connected to the live dashboard" }));
+  if (META.warnings && META.warnings.length) { const w = document.createElement("div"); w.className = "status"; w.style.color = "var(--warn)"; w.textContent = "⚠ " + META.warnings.join(" · "); status.parentElement.appendChild(w); }
   document.getElementById("valPct").textContent = META.validation_pct_exact + "%";
+  { const h = META.shift_hours || {}; const clock = x => { const v = x % 24; return `${v % 12 || 12}${v < 12 ? "am" : "pm"}`; };
+    document.getElementById("shiftHours").textContent = Object.keys(h).map(k => `${k} ${clock(h[k][0])}–${clock(h[k][1])}`).join(", "); }
   document.getElementById("foot").textContent = `Prototype · latest ConvertingInquiryExport ${long(META.export_date)} · Monroe machines only · nothing here is written back to any system.`;
 
   // ---- filters ----
@@ -662,8 +667,28 @@
   function drawExportLog() {
     const host = document.getElementById("exportLog"); host.replaceChildren();
     const EX = (PAYLOAD.exports || []).slice().reverse();
-    const { tbl, tb } = table([["Exported", ""], ["Kind", ""], ["Jobs", "num"], ["Since previous snapshot", ""], ["Produced in between (lbs)", "num"], ["", ""]]);
+    const { tbl, tb } = table([["When", ""], ["Kind", ""], ["Jobs", "num"], ["Detail", ""], ["Produced (lbs)", "num"], ["", ""]]);
     EX.forEach(x => {
+      if (x.kind === "api-day") {
+        const r = document.createElement("tr");
+        r.appendChild(td(`${long(x.file.slice(4))}`));
+        const k = td(null); const ks = document.createElement("span"); ks.className = "kind snap"; ks.textContent = "API · every 10 min"; k.appendChild(ks); r.appendChild(k);
+        r.appendChild(td(String(x.jobs), "num"));
+        r.appendChild(td(`${x.polls} poll${x.polls === 1 ? "" : "s"}${x.failed ? ` (${x.failed} failed)` : ""}, ${x.changes} change${x.changes === 1 ? "" : "s"}` + (x.last_poll ? `, last ${fmtTs(x.last_poll)}` : "") + (x.new_posted ? ` · ${x.new_posted} job(s) posted (${fmt(x.new_posted_lbs)} lbs)` : "")));
+        r.appendChild(td(fmt(x.delta_total), "num delta"));
+        const bc = td(null);
+        if (x.lines && x.lines.length) {
+          const b = document.createElement("button"); b.className = "btn"; b.textContent = `${x.lines.length} line${x.lines.length === 1 ? "" : "s"}`; b.setAttribute("aria-expanded", "false");
+          const sub = document.createElement("tr"); sub.className = "sub-row"; sub.hidden = true; const sc = td(null); sc.colSpan = 6;
+          const { tbl: t2, tb: tb2 } = table([["Machine", ""], ["Shift", ""], ["Job", ""], ["First → last change", ""], ["Windows", "num"], ["lbs", "num"]]);
+          x.lines.forEach(l => { const rr = document.createElement("tr"); const m = machineByKey(l.m);
+            rr.append(td(m ? m.label : l.m), td(l.s), td(String(l.job)), td(`${fmtTs(l.t0)} → ${fmtTs(l.t1)}`), td(String(l.windows), "num"), td(fmt(l.lbs) + (l.correction ? " ⚠" : ""), "num")); tb2.appendChild(rr); });
+          sc.appendChild(t2); sub.appendChild(sc);
+          b.addEventListener("click", () => { sub.hidden = !sub.hidden; b.setAttribute("aria-expanded", String(!sub.hidden)); });
+          bc.appendChild(b); r.appendChild(bc); tb.append(r, sub);
+        } else { bc.textContent = x.polls ? "no change" : ""; r.appendChild(bc); tb.appendChild(r); }
+        return;
+      }
       const snap = x.kind === "in-process";
       const r = document.createElement("tr");
       r.appendChild(td(fmtTs(x.ts)));
@@ -707,7 +732,7 @@
   function drawWeekTable() {
     const host = document.getElementById("weekTable"); host.replaceChildren();
     const monday = parse(wkState.week);
-    const cols = [0, 1, 2, 3, 4].map(k => { const d = new Date(monday); d.setDate(monday.getDate() + k); return d.toISOString().slice(0, 10); });
+    const cols = [0, 1, 2, 3, 4].map(k => { const d = new Date(monday); d.setDate(monday.getDate() + k); return iso(d); });
     const shifts = wkState.shift === "all" ? SHIFTS : [wkState.shift];
     const rows = ROWS.filter(r => cols.includes(r.d) && shifts.includes(r.s));
     const { tbl, tb } = table([["Machine", ""], ...cols.map(c => [`${DOW[parse(c).getDay()]} ${parse(c).getDate()}`, "num"]), ["Week total", "num total"]]);

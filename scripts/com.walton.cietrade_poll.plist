@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd schedule for the cieTrade converting-job poller.
+  Runs src/cietrade_poll.py every 10 minutes (StartInterval 600), rebuilding the
+  pilot page after each poll. Install with: scripts/install_schedule.sh cietrade_poll
+  Logs: logs/cietrade_poll_stdout.log, logs/cietrade_poll_stderr.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.walton.cietrade_poll</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>python3</string>
+        <string>__PROJECT_ROOT__/src/cietrade_poll.py</string>
+        <string>--rebuild</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>600</integer>
+    <key>WorkingDirectory</key>
+    <string>__PROJECT_ROOT__</string>
+    <key>StandardOutPath</key>
+    <string>__PROJECT_ROOT__/logs/cietrade_poll_stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_ROOT__/logs/cietrade_poll_stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>

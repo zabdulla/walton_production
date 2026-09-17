@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 #
-# Uninstall the Walton weekly update launchd job.
+# Uninstall a Walton launchd job: scripts/uninstall_schedule.sh [weekly_update|cietrade_poll|daily_update|all]
 
 set -euo pipefail
+JOB="${1:-weekly_update}"
 
-DEST="$HOME/Library/LaunchAgents/com.walton.weekly_update.plist"
-LABEL="com.walton.weekly_update"
+remove_one() {
+    local dest="$HOME/Library/LaunchAgents/com.walton.$1.plist"
+    if [ ! -f "$dest" ]; then
+        echo "Nothing to uninstall for $1 — $dest not found"
+        return
+    fi
+    launchctl bootout "gui/$(id -u)" "$dest" 2>/dev/null || true
+    rm -f "$dest"
+    echo "✓ com.walton.$1 uninstalled (logs kept)"
+}
 
-if [ ! -f "$DEST" ]; then
-    echo "Nothing to uninstall — plist not found at $DEST"
-    exit 0
-fi
-
-echo "→ Unloading launchd job..."
-launchctl bootout "gui/$(id -u)" "$DEST" 2>/dev/null || true
-
-echo "→ Removing plist..."
-rm -f "$DEST"
-
-echo "✓ Uninstalled. Logs in logs/ are preserved."
+case "$JOB" in
+    all) for j in weekly_update cietrade_poll daily_update; do remove_one "$j"; done ;;
+    weekly_update|cietrade_poll|daily_update) remove_one "$JOB" ;;
+    *) echo "unknown job: $JOB" >&2; exit 1 ;;
+esac

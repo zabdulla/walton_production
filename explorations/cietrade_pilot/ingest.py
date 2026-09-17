@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import glob
 import hashlib
-import os
+
 import shutil
 import sys
 from datetime import datetime

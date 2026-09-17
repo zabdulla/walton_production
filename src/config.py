@@ -291,3 +291,46 @@ SHIFT_FORM_MACHINE_CHOICES: list[tuple[str, str]] = [
     ("Shredder/Grinder", "GRINDER"),
     ("Small grinder", "SMALL GRINDER"),
 ]
+
+
+# ---------------------------------------------------------------------------
+# cieTrade API — Converting Job Inquiry (ListConvertingJobs)
+# ---------------------------------------------------------------------------
+# Credentials live outside the repo: {"base_url", "user_id", "api_key"} in
+# ~/.config/walton/cietrade.json (chmod 600), or env CIETRADE_USER_ID /
+# CIETRADE_API_KEY. The key goes in the Authorization header, never in a URL.
+CIETRADE_CONFIG_PATH = WALTON_CONFIG_DIR / "cietrade.json"
+CIETRADE_BASE_URL = "https://api.cietrade.net"
+CIETRADE_DATA_DIR = DATA_DIR / "cietrade"                 # polls.jsonl, posted.csv, snapshots/  (committed)
+CIETRADE_EXPORT_DIR = DATA_DIR / "cietrade_exports"       # manual Converting Inquiry CSV exports (history)
+CIETRADE_SITES = {"Plus Monroe Warehouse", "Monroe Processing Warehouse"}
+CIETRADE_POSTED_LOOKBACK_DAYS = 14                        # each poll re-reads postings this far back
+CIETRADE_POLL_INTERVAL_MIN = 10
+
+# First production day fed by cieTrade instead of the hand-built workbooks
+# (the last workbook covers Fri 2026-08-21). Rows from this date on are
+# regenerated from cieTrade + the End of Shift app on every run.
+CIETRADE_FROM_DATE = "2026-08-24"
+
+# cieTrade line (machine name without its "(1ST SHIFT)" tag) -> dashboard Machine_Name.
+CIETRADE_LINE_TO_MACHINE: dict[str, str] = {
+    "AUTO-TIE BALER": "AUTO TIE BALER",
+    "BALER 1": "BALER 1", "BALER1": "BALER 1",
+    "BALER 2": "BALER 2", "BALER2": "BALER 2",
+    "GUILLOTINE": "GUILLOTINE",
+    "SHREDDER": "SHREDDER",
+    "AVANGARD (OLD)": "AVANGUARD DENSIFIER (OLD)",
+    "GREEN MAX (NEW)": "GREEN MAX DENSIFIER (NEW)",
+    "EXTRUDER": "EXTRUDER",
+    "SHREDDER/GRINDER": "GRINDER",
+    "SMALL GRINDER": "SMALL GRINDER",
+}
+
+# Working hours of each shift as hours after midnight of the shift's date
+# (3rd shift runs into the next morning). Used to split a job's output
+# between two API polls across the shifts that ran in between.
+SHIFT_HOURS: dict[str, tuple[int, int]] = {"1st": (7, 15), "2nd": (15, 23), "3rd": (23, 31)}
+
+# Where the poller drops a copy of the freshly built pilot page so it can be
+# opened from a phone through OneDrive. Set to None to disable.
+LIVE_PAGE_COPY = Path.home() / "Library" / "CloudStorage" / "OneDrive-PlusMaterials" / "Walton Live" / "production.html"

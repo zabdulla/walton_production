@@ -1,58 +1,45 @@
 #!/usr/bin/env bash
 #
-# Install the Walton weekly update launchd job.
-# Schedules src/weekly_update.py to run every Monday at 12:00 PM local time.
+# Install one of the Walton launchd jobs (re-running is safe: the existing job is replaced).
 #
-# Re-running this script is safe: it removes any existing job first.
+#   scripts/install_schedule.sh                 # weekly_update  (Mondays 12:00)
+#   scripts/install_schedule.sh cietrade_poll   # cieTrade poller (every 10 minutes)
+#   scripts/install_schedule.sh daily_update    # daily dashboard update (07:30)
+#   scripts/install_schedule.sh all
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-TEMPLATE="$PROJECT_ROOT/scripts/com.walton.weekly_update.plist"
-DEST="$HOME/Library/LaunchAgents/com.walton.weekly_update.plist"
-LABEL="com.walton.weekly_update"
+JOB="${1:-weekly_update}"
 
-if [ ! -f "$TEMPLATE" ]; then
-    echo "ERROR: Template not found: $TEMPLATE" >&2
-    exit 1
-fi
+install_one() {
+    local name="$1"
+    local template="$PROJECT_ROOT/scripts/com.walton.$name.plist"
+    local dest="$HOME/Library/LaunchAgents/com.walton.$name.plist"
+    local label="com.walton.$name"
+    if [ ! -f "$template" ]; then
+        echo "ERROR: Template not found: $template" >&2
+        exit 1
+    fi
+    mkdir -p "$HOME/Library/LaunchAgents" "$PROJECT_ROOT/logs"
+    sed -e "s|__PROJECT_ROOT__|$PROJECT_ROOT|g" -e "s|__HOME__|$HOME|g" "$template" > "$dest"
+    if launchctl list | grep -q "$label"; then
+        launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
+        sleep 1
+    fi
+    launchctl bootstrap "gui/$(id -u)" "$dest"
+    launchctl enable "gui/$(id -u)/$label"
+    echo "✓ $label installed ($dest)"
+}
 
-echo "→ Generating launchd plist with paths substituted..."
-mkdir -p "$HOME/Library/LaunchAgents"
-mkdir -p "$PROJECT_ROOT/logs"
-
-# Substitute placeholders → real paths
-sed -e "s|__PROJECT_ROOT__|$PROJECT_ROOT|g" \
-    -e "s|__HOME__|$HOME|g" \
-    "$TEMPLATE" > "$DEST"
-
-echo "  written → $DEST"
-
-# Unload existing job (if any) before reloading
-if launchctl list | grep -q "$LABEL"; then
-    echo "→ Unloading existing job..."
-    launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-    # Give launchd a moment to fully unregister the previous instance,
-    # otherwise bootstrap can fail with "Input/output error".
-    sleep 1
-fi
-
-echo "→ Loading job into launchd..."
-launchctl bootstrap "gui/$(id -u)" "$DEST"
-launchctl enable "gui/$(id -u)/$LABEL"
+case "$JOB" in
+    all) for j in weekly_update cietrade_poll daily_update; do install_one "$j"; done ;;
+    weekly_update|cietrade_poll|daily_update) install_one "$JOB" ;;
+    *) echo "unknown job: $JOB (weekly_update | cietrade_poll | daily_update | all)" >&2; exit 1 ;;
+esac
 
 echo
-echo "✓ Installed. Schedule: every Monday 12:00 PM local time."
-echo
-echo "Manual trigger (test it now):"
-echo "  launchctl kickstart -k gui/$(id -u)/$LABEL"
-echo
-echo "Check status:"
-echo "  launchctl print gui/$(id -u)/$LABEL | grep -E 'state|last_exit_status'"
-echo
-echo "View logs:"
-echo "  tail -f $PROJECT_ROOT/logs/weekly_stdout.log"
-echo "  tail -f $PROJECT_ROOT/logs/weekly_update.log"
-echo
-echo "Uninstall:"
-echo "  scripts/uninstall_schedule.sh"
+echo "Manual trigger:   launchctl kickstart -k gui/$(id -u)/com.walton.<job>"
+echo "Status:           launchctl print gui/$(id -u)/com.walton.<job> | grep -E 'state|last_exit_status'"
+echo "Logs:             tail -f $PROJECT_ROOT/logs/*.log"
+echo "Uninstall:        scripts/uninstall_schedule.sh <job>"
