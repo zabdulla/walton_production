@@ -132,6 +132,24 @@ that produced this shift but has been quiet for `LIVE_QUIET_MINUTES` is flagged.
 To recreate the gist: `gh gist create --filename live.json data/cietrade/live.json`, then put
 the id in `config.LIVE_GIST_ID`.
 
+## Inbound dashboard — `src/cietrade_inbound.py`
+
+In cieTrade the purchase order is the promise and the **PR worksheet is the receipt**, with the
+receiver's gross / tare / net per grade line. `TradingInquiry` (Status=ALL, DateType=SHIP)
+returns those lines with the PO number and date, supplier, receiving warehouse, product, units,
+price and posting status; `ListOrders` (Source=PO, Status=OPEN) gives the orders still expected.
+
+    python3 src/cietrade_inbound.py                 # -> reports/inbound.html (local only, gitignored)
+    python3 src/cietrade_inbound.py --days 60 --out ~/Desktop/inbound.html
+
+The page filters by warehouse, department, window and open-PO age, and shows weekly lbs by
+supplier, loads per day, grade mix, a supplier table (loads, avg load, tare %, PO-to-receipt
+lead time, unposted), the inbound due board (open POs with nothing received) and the receipts
+log with data flags (no tare, no gross, net > gross, EA/KG units, no PO, received before the
+PO). Bulk "Processing Input" adjustment lines booked as PR lines are excluded. The page holds
+supplier names and volumes, so it is not copied into `docs/` (the public site) by default.
+The full endpoint reference is `explorations/cietrade_ops/API_REFERENCE.md`.
+
 ## Operations
 
     gh workflow run cietrade-poll.yml             # poll + rebuild + deploy now; runs every 10 min on its own
