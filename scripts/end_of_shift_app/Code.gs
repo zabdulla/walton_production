@@ -140,8 +140,60 @@ function submitReport(p) {
       e.getRange(e.getLastRow() + 1, 1, out.length, ENTRY_HEADERS.length).setValues(out);
     }
     ss.getSheetByName('Submissions').appendRow([now, id, p.date, p.shift, by, notes, out.length, prev ? 'yes' : '']);
+    notify_(p, rows, notes, by, now, !!prev, ss.getUrl());
     return { ok: true, id: id, entries: out.length, replaced: !!prev };
   } finally {
     lock.releaseLock();
   }
+}
+
+// ---- submission notice: a few lines by email, the moment a report is filed ----
+// Recipient: script property NOTIFY_EMAIL, else the account the app runs as.
+// Never fatal — a mail problem must not fail the submit.
+function notifyRecipient_() {
+  return PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL') || Session.getEffectiveUser().getEmail();
+}
+
+function summaryLines_(p, rows, notes, by, now, replaced) {
+  var tz = Session.getScriptTimeZone();
+  var day = Utilities.formatDate(new Date(p.date + 'T12:00:00'), tz, 'EEE MMM d');
+  var head = day + ', ' + p.shift + ' shift — filed' + (by ? ' by ' + by : '') + ' at ' + Utilities.formatDate(now, tz, 'h:mm a')
+           + (replaced ? ' (replaces an earlier report)' : '');
+  var lines = rows.map(function (m) {
+    var bits = [];
+    if (num_(m.machineHours) !== '') bits.push(num_(m.machineHours) + ' h');
+    if (num_(m.manHours) !== '') bits.push(num_(m.manHours) + ' man-h');
+    if (String(m.operators || '').trim()) bits.push(String(m.operators).trim());
+    if (String(m.material || '').trim()) bits.push(String(m.material).trim());
+    var dt = num_(m.downtimeMinutes);
+    if (dt !== '' && dt > 0) bits.push('down ' + dt + ' min' + (String(m.downtimeReason || '').trim() ? ' (' + String(m.downtimeReason).trim() + ')' : ''));
+    if (String(m.comments || '').trim()) bits.push('"' + String(m.comments).trim() + '"');
+    return m.machine + ': ' + bits.join(' · ');
+  });
+  if (notes) lines.push('Shift notes: ' + notes);
+  return { subject: 'End of Shift · ' + day + ' · ' + p.shift + (by ? ' · ' + by : '') + (replaced ? ' · revised' : ''),
+           head: head, lines: lines };
+}
+
+function notify_(p, rows, notes, by, now, replaced, sheetUrl) {
+  try {
+    var s = summaryLines_(p, rows, notes, by, now, replaced);
+    MailApp.sendEmail({
+      to: notifyRecipient_(),
+      subject: s.subject,
+      body: s.head + '\n\n' + s.lines.join('\n') + '\n\n' + sheetUrl,
+      name: 'Walton End of Shift'
+    });
+  } catch (e) {
+    console.error('notify failed: ' + e);
+  }
+}
+
+// Run this once from the editor after pasting a new Code.gs: it triggers the
+// mail permission prompt and sends a sample notice to the recipient.
+function sendTestNotification() {
+  var sample = { date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), shift: '1st', submittedBy: 'Test' };
+  var rows = [{ machine: 'Extruder', ran: true, machineHours: 7.5, manHours: 15, operators: 'Tony, Daniel', material: 'BOPP', downtimeMinutes: 30, downtimeReason: 'Blades', comments: '' }];
+  notify_(sample, rows, 'Sample notice — the app emails this summary on every submission.', 'Test', new Date(), false, getSpreadsheet_().getUrl());
+  return 'Sent to ' + notifyRecipient_();
 }
