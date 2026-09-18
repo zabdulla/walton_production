@@ -72,8 +72,12 @@ jobs:
         run: pip install -r requirements.lock
 
       - name: Warn if the gist token is missing
-        if: ${{ secrets.GIST_TOKEN == '' }}
-        run: echo "::warning::GIST_TOKEN secret is not set — the dashboards still deploy, but the Live card's gist is not refreshed."
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          if [ -z "$GIST_TOKEN" ]; then
+            echo "::warning::GIST_TOKEN secret is not set — the dashboards still deploy, but the Live card's gist is not refreshed."
+          fi
 
       - name: Configure git identity
         run: |
