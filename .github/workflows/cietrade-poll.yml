@@ -28,10 +28,16 @@ name: cieTrade poll
 # WALTON_LABOR_SHEET_ID pull End of Shift hours from the web app's sheet
 # (setup/LABOR_CAPTURE.md). See setup/CIETRADE_API.md.
 #
-# GitHub may delay a scheduled run by a few minutes under load; the poller
+# Timing: GitHub's cron is unreliable for this repo — its scheduled runs have
+# been 3-4 hours late (heartbeat, weekly fallback) and a 10-minute schedule
+# went hours without firing at all. So each run keeps the chain going itself:
+# the `next` job waits ~8 minutes and dispatches the following run (the
+# workflow-level concurrency group makes it queue until this one finishes).
+# The cron stays as a backstop that re-seeds the chain if it ever breaks,
+# and `gh workflow run cietrade-poll.yml` seeds it by hand. The poller
 # credits each change to the window between the polls that actually ran, so
-# a late poll shifts nothing. Pages' 10-builds-per-hour limit does not apply
-# to deployments made from a workflow.
+# an uneven gap shifts nothing. Pages' 10-builds-per-hour limit does not
+# apply to deployments made from a workflow.
 
 on:
   schedule:
@@ -45,6 +51,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: write   # the `next` job dispatches the following run
 
 concurrency:
   group: cietrade-poll
@@ -183,6 +190,22 @@ jobs:
         run: |
           echo "::error::The cieTrade poll failed — see the poll step above (credentials? API down?)."
           exit 1
+
+  next:
+    # Keep the 10-minute cadence without trusting GitHub's cron: wait, then
+    # dispatch the next run. Runs even when the poll failed (a transient API
+    # error must not stop the chain), but not when this run was cancelled.
+    needs: poll
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Wait, then dispatch the next poll
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 480
+          gh workflow run cietrade-poll.yml --repo "$GITHUB_REPOSITORY" --ref main
 
   deploy:
     needs: poll
