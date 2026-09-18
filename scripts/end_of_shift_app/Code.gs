@@ -189,11 +189,14 @@ function notify_(p, rows, notes, by, now, replaced, sheetUrl) {
   }
 }
 
-// Run this once from the editor after pasting a new Code.gs: it triggers the
-// mail permission prompt and sends a sample notice to the recipient.
+// Run this once from the editor after pasting a new Code.gs. It calls MailApp
+// directly (no try/catch) so a missing mail permission surfaces as the
+// editor's "Authorization required" dialog instead of a swallowed error.
 function sendTestNotification() {
   var sample = { date: Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), shift: '1st', submittedBy: 'Test' };
   var rows = [{ machine: 'Extruder', ran: true, machineHours: 7.5, manHours: 15, operators: 'Tony, Daniel', material: 'BOPP', downtimeMinutes: 30, downtimeReason: 'Blades', comments: '' }];
-  notify_(sample, rows, 'Sample notice — the app emails this summary on every submission.', 'Test', new Date(), false, getSpreadsheet_().getUrl());
+  var s = summaryLines_(sample, rows, 'Sample notice — the app emails this summary on every submission.', 'Test', new Date(), false);
+  MailApp.sendEmail({ to: notifyRecipient_(), subject: s.subject, body: s.head + '\n\n' + s.lines.join('\n') + '\n\n' + getSpreadsheet_().getUrl(), name: 'Walton End of Shift' });
+  console.log('Sent to ' + notifyRecipient_());
   return 'Sent to ' + notifyRecipient_();
 }
