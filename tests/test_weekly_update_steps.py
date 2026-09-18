@@ -143,3 +143,21 @@ def test_git_pull_step_is_fast_forward_only_and_never_fatal(monkeypatch) -> None
     monkeypatch.setattr(wu, "run_cmd", lambda cmd, **kw: (1, "", "fatal: Not possible to fast-forward, aborting."))
     r = wu.step_git_pull()
     assert r["ok"] is False and "fast-forward" in r["msg"]
+
+
+def test_no_commit_mode_neither_pulls_nor_commits(monkeypatch) -> None:
+    """The cloud poll workflow builds with --daily --no-commit and decides itself what to commit."""
+    import sys
+    git_calls: list[str] = []
+    monkeypatch.setattr(wu, "step_git_pull", lambda: git_calls.append("pull"))
+    monkeypatch.setattr(wu, "step_git_commit_push", lambda **kw: git_calls.append("commit"))
+    monkeypatch.setattr(wu, "check_dependencies", lambda: [])
+    monkeypatch.setattr(wu, "setup_file_logger", lambda: None)
+    monkeypatch.setattr(wu, "send_notification", lambda *a, **k: None)
+    monkeypatch.setattr(wu, "step_aggregate", lambda: {"ok": True, "records": 0, "pre_snapshot": None})
+    monkeypatch.setattr(wu, "step_cietrade_rows", lambda: {"ok": True, "rows": 0, "days": 0, "with_hours": 0})
+    monkeypatch.setattr(wu, "step_validate", lambda: {"ok": True, "blocked": False, "issues": []})
+    monkeypatch.setattr(wu, "step_build_dashboards", lambda: {"ok": True, "built": ["Daily"], "failed": []})
+    monkeypatch.setattr(sys, "argv", ["weekly_update.py", "--daily", "--no-commit"])
+    assert wu.main() == 0
+    assert git_calls == []
