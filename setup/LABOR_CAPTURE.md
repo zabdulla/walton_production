@@ -62,6 +62,9 @@ Deploy once (about five minutes):
    ```
 5. Pull: `python3 src/labor_sheet.py --dry-run`, then without the flag to land rows.
    Shift notes are read from the `Submissions` tab automatically.
+6. Share the short link <https://zabdulla.github.io/walton_production/shift> (or print
+   `docs/shift/qr.png`); `docs/shift/index.html` forwards to the web app's URL, so a
+   redeploy only means editing that one file.
 
 Why one page instead of the earlier one-submission-per-machine Form: the supervisors
 already think in the paper sheet's shape, and the machines that didn't run cost nothing

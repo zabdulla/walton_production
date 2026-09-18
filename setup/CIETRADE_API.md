@@ -58,6 +58,11 @@ Live card's gist is not refreshed, and the run prints a warning. A failed poll, 
 blocked by validation, turns the run red, so GitHub's failed-workflow email is the alarm.
 `TZ=America/New_York` in the workflow keeps snapshot timestamps in plant time.
 
+Cadence: GitHub's cron has proven hours late for this repository, so each run dispatches the
+next one after an 8-minute wait (the `next` job); the cron only re-seeds the chain if it
+breaks. If the Actions tab shows no run in the last 20 minutes, seed it by hand:
+`gh workflow run cietrade-poll.yml`.
+
 **One writer.** With the cloud poller enabled, uninstall the Mac's poller and daily job
 (`scripts/uninstall_schedule.sh cietrade_poll` and `... daily_update`); a second poller
 appending to the same files would make every push conflict. The Monday weekly run stays on
