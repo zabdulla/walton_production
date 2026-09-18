@@ -21,8 +21,17 @@ cares which route a row came from:
 A second sheet, `shift_notes`, holds writing outside the grid ("Steven A. was
 unloading / dumping trash") — labor that belongs to the shift, not a machine.
 
-**Nothing in the weekly run reads this file yet.** Wiring it in is the next step once
-either route has a few weeks of real submissions.
+`src/cietrade_daily.py` reads this file: a (date, shift, machine) row with an entry gets its
+hours, crew, operators, material and comments from here, next to the cieTrade pounds. The
+cloud poll workflow (`.github/workflows/cietrade-poll.yml`) pulls the web app's sheet before
+every rebuild, so a report filed on a phone is on the dashboard within ten minutes. It needs
+two repository secrets, made once on the Mac after the app is deployed (step 5 below):
+
+```bash
+python3 src/labor_sheet.py --dry-run                                   # browser consent once -> sheets_token.json
+gh secret set SHEETS_TOKEN_JSON < ~/.config/walton/sheets_token.json
+gh secret set WALTON_LABOR_SHEET_ID --body "<spreadsheet id>"
+```
 
 ## Route 1 — the End of Shift web app (target state)
 
