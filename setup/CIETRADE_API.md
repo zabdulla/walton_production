@@ -65,9 +65,12 @@ the Mac (Gmail workbooks, payroll) and pulls `main` (fast-forward only) before i
 Running the poller by hand on the Mac is still fine for a `--dry-run`. `--rebuild` (pilot
 page + OneDrive copy) is a Mac-only convenience; the public dashboard has replaced it.
 
-Not yet in the cloud build: End of Shift hours (`data/labor_entries.xlsx` is local to the
-Mac). Rows deployed from the cloud carry output only until the labor sheet is pulled there
-too (`src/labor_sheet.py` with the sheet's credentials as secrets).
+End of Shift hours: each run also pulls the web app's log sheet (`src/labor_sheet.py`) into
+`data/labor_entries.xlsx` before building, when the secrets `SHEETS_TOKEN_JSON` (the
+read-only Sheets token from a one-time `python3 src/labor_sheet.py --dry-run` on the Mac,
+`~/.config/walton/sheets_token.json`) and `WALTON_LABOR_SHEET_ID` (the sheet's ID) exist.
+Without them, or if Sheets is down, the run warns and rows carry output only, as before.
+The landing file itself stays out of the repo (operator names). See `setup/LABOR_CAPTURE.md`.
 
 `--backfill-posted` fetches every posting since 2026-01-01 (run once; done 2026-09-17).
 `--dry-run` calls the API and writes nothing.
