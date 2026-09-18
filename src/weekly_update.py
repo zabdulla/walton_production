@@ -10,6 +10,7 @@ the typical GH Actions push conflict.
 Usage:
     python3 src/weekly_update.py                # full run
     python3 src/weekly_update.py --no-push      # build but skip git push
+    python3 src/weekly_update.py --daily --no-commit   # build only (the cloud poll workflow commits/deploys itself)
     python3 src/weekly_update.py --no-fetch     # skip Gmail fetch (rebuild only)
     python3 src/weekly_update.py --dry-run      # show what would happen
 """
@@ -543,6 +544,27 @@ def step_build_dashboards() -> dict[str, Any]:
     return results
 
 
+def step_git_pull() -> dict[str, Any]:
+    """Fast-forward main from origin before building.
+
+    The cieTrade poller runs in GitHub Actions (.github/workflows/cietrade-poll.yml)
+    and commits data/cietrade/ every ten minutes; without this pull the build
+    would derive today's rows from whatever polls this machine last fetched.
+    Fast-forward only: local commits are never rewritten, and a failure (offline,
+    diverged) is logged and the run continues on the data it has — the push step
+    still rebases on its own.
+    """
+    result = {"ok": True, "updated": False, "msg": ""}
+    rc, out, err = run_cmd(["git", "pull", "--ff-only", "origin", "main"], capture=True, timeout=120)
+    if rc != 0:
+        result.update(ok=False, msg=(err or out).strip()[:200])
+        log_warn(f"git pull failed — building on local data: {result['msg']}")
+        return result
+    result["updated"] = "Already up to date" not in out
+    log_ok("origin/main pulled" + ("" if result["updated"] else " (already up to date)"))
+    return result
+
+
 def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update") -> dict[str, Any]:
     """Stage tracked + new files, commit if anything changed, push with rebase retry."""
     result = {"ok": True, "committed": False, "pushed": False, "files": 0, "msg": ""}
@@ -651,6 +673,8 @@ def main() -> int:
                         help="Skip Gmail fetch step (rebuild from existing data)")
     parser.add_argument("--no-push", action="store_true",
                         help="Build and commit but skip git push")
+    parser.add_argument("--no-commit", action="store_true",
+                        help="Build only: no pull, no commit, no push (the caller decides what to commit)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Fetch step runs in --list mode; no aggregate/build/commit")
     parser.add_argument("--daily", action="store_true",
@@ -684,6 +708,13 @@ def main() -> int:
         return 2
 
     summary: dict[str, Any] = {}
+
+    # Step 0: Pull — the cloud poller commits cieTrade data between runs
+    if args.no_push or args.no_commit:
+        log_info(dim("(--no-push / --no-commit: not pulling origin/main either)"))
+        summary["pull"] = {"ok": True, "updated": False, "msg": "skipped"}
+    else:
+        summary["pull"] = step_git_pull()
 
     # Step 1: Fetch
     log_step(1, 7, "Fetching new emails from Gmail")
@@ -770,7 +801,11 @@ def main() -> int:
 
     # Step 7: Commit + push
     log_step(7, 7, "Committing changes to git")
-    summary["git"] = step_git_commit_push(no_push=args.no_push, label="Daily auto-update" if args.daily else "Weekly auto-update")
+    if args.no_commit:
+        log_info("  " + dim("(--no-commit, leaving the working tree for the caller)"))
+        summary["git"] = {"ok": True, "committed": False, "pushed": False, "files": 0, "msg": "skipped"}
+    else:
+        summary["git"] = step_git_commit_push(no_push=args.no_push, label="Daily auto-update" if args.daily else "Weekly auto-update")
 
     # Final summary
     elapsed = time.time() - started
@@ -793,6 +828,8 @@ def main() -> int:
         print(green(f"committed + pushed ({summary['git']['files']} files)"))
     elif summary["git"].get("committed"):
         print(yellow("committed (not pushed)"))
+    elif args.no_commit:
+        print(dim("left uncommitted (--no-commit)"))
     else:
         print(dim("no changes"))
     print(f"  Runtime: {elapsed:.1f}s")

@@ -42,6 +42,7 @@ PDFs (Walton-only, department-filtered) into `data/aggregated_payroll.xlsx`
 | launchd (this Mac) | Mon 12:00 local | `src/weekly_update.py` end-to-end; macOS notification |
 | Cloud fallback | Mon 18:00 UTC | `.github/workflows/weekly-cloud.yml` — runs the same pipeline headless in Actions if the local run didn't publish (Gmail creds from repo secrets; payroll skipped, roster is local-only) |
 | Heartbeat | Tue 14:00 UTC | `.github/workflows/heartbeat.yml` opens an issue if Monday's data never landed |
+| cieTrade poll | every 10 min | `.github/workflows/cietrade-poll.yml` polls cieTrade in Actions, commits the poll log, rebuilds every dashboard from it and deploys the site — the poll log is the official data set and no Mac needs to be awake (`setup/CIETRADE_API.md`) |
 
 CI (`.github/workflows/build-dashboard.yml`) is **verify-only**: tests + build +
 smoke on every push. It never commits back (that pattern caused chronic rebase

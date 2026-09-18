@@ -28,20 +28,49 @@ never placed in a URL or a log line.
 
 ## The poller — `src/cietrade_poll.py`
 
-Every 10 minutes (launchd `com.walton.cietrade_poll`):
+**The poll log is the official data set; everything on the dashboard is derived from it after
+every poll.** The poller runs every 10 minutes, around the clock, in GitHub Actions
+(`.github/workflows/cietrade-poll.yml`). It used to run on one Mac via launchd
+(`com.walton.cietrade_poll`), which meant it stopped whenever that laptop slept, and the
+dashboards were rebuilt only once a day at 07:30 by another launchd job. Each cloud run now:
 
-1. fetch every unposted job (`Status=WORK`) — the open-jobs snapshot;
-2. fetch jobs posted in the last 14 days (`DateType=POST`);
-3. append one line to `data/cietrade/polls.jsonl` (also on failure);
-4. when the open-jobs list differs from the previous poll, append it to
+1. fetches every unposted job (`Status=WORK`) — the open-jobs snapshot;
+2. fetches jobs posted in the last 14 days (`DateType=POST`);
+3. appends one line to `data/cietrade/polls.jsonl` (also on failure);
+4. when the open-jobs list differs from the previous poll, appends it to
    `data/cietrade/snapshots/<date>.csv` stamped with the poll time;
-5. upsert postings into `data/cietrade/posted.csv` (First Seen / Last Seen, edits flagged);
-6. rebuild the pilot page and copy it to `config.LIVE_PAGE_COPY` (a OneDrive folder, so it opens
-   on a phone).
+5. upserts postings into `data/cietrade/posted.csv` (First Seen / Last Seen, edits flagged);
+6. republishes the live feed to the gist (see *Live feed* below);
+7. commits `data/cietrade/` to `main` — the runner is discarded after every run, and the
+   snapshots are the one thing that cannot be re-fetched;
+8. rebuilds the dashboards from the fresh log (`src/weekly_update.py --daily --no-commit`:
+   cieTrade rows → validate → build) and deploys `docs/` to GitHub Pages straight from the
+   runner, so week at a glance, the daily table and the Live card all move together;
+9. once a day, when the committed aggregate is more than 20 hours old, also commits the
+   derived record (`data/aggregated_daily_data.xlsx`, `docs/`), so the repo keeps a daily
+   snapshot without a 600 KB workbook landing 144 times a day.
+
+The workflow needs three repository secrets (Settings > Secrets and variables > Actions):
+`CIETRADE_USER_ID` and `CIETRADE_API_KEY` (the same values as `cietrade.json`), and
+`GIST_TOKEN`, a classic personal access token with only the `gist` scope (the built-in
+`GITHUB_TOKEN` cannot edit gists). Without `GIST_TOKEN` the dashboards still deploy but the
+Live card's gist is not refreshed, and the run prints a warning. A failed poll, or a build
+blocked by validation, turns the run red, so GitHub's failed-workflow email is the alarm.
+`TZ=America/New_York` in the workflow keeps snapshot timestamps in plant time.
+
+**One writer.** With the cloud poller enabled, uninstall the Mac's poller and daily job
+(`scripts/uninstall_schedule.sh cietrade_poll` and `... daily_update`); a second poller
+appending to the same files would make every push conflict. The Monday weekly run stays on
+the Mac (Gmail workbooks, payroll) and pulls `main` (fast-forward only) before it builds.
+Running the poller by hand on the Mac is still fine for a `--dry-run`. `--rebuild` (pilot
+page + OneDrive copy) is a Mac-only convenience; the public dashboard has replaced it.
+
+Not yet in the cloud build: End of Shift hours (`data/labor_entries.xlsx` is local to the
+Mac). Rows deployed from the cloud carry output only until the labor sheet is pulled there
+too (`src/labor_sheet.py` with the sheet's credentials as secrets).
 
 `--backfill-posted` fetches every posting since 2026-01-01 (run once; done 2026-09-17).
-`--dry-run` calls the API and writes nothing. All three data files are small text and are
-committed by the daily update — the snapshots are the one thing that cannot be re-fetched.
+`--dry-run` calls the API and writes nothing.
 
 ## The model — `src/cietrade_model.py`
 
@@ -62,10 +91,10 @@ From `config.CIETRADE_FROM_DATE` on, every run regenerates one aggregate row per
 workbook convention (rolls in as `Actual_Input`, no `Actual_Output`). Rows carry
 `Source = cietrade`; weeks that ever get a workbook again win over cieTrade rows.
 
-`src/weekly_update.py --daily` (launchd `com.walton.daily_update`, 07:30) runs: cieTrade rows →
-validate → build dashboards → commit + push, which republishes
-<https://zabdulla.github.io/walton_production/>. The Monday weekly run does the same plus the
-Gmail fetch and payroll.
+`src/weekly_update.py --daily --no-commit` runs after every cloud poll: cieTrade rows →
+validate → build dashboards, and the workflow deploys the result to
+<https://zabdulla.github.io/walton_production/>. The Monday weekly run on the Mac does the
+same plus the Gmail fetch and payroll, then commits and pushes.
 
 ## Weekly routine for the office
 
@@ -81,8 +110,8 @@ Gmail fetch and payroll.
 ## Live feed — `src/cietrade_live.py`
 
 After every poll the poller rewrites `data/cietrade/live.json` (gitignored) and republishes
-it to the gist named by `config.LIVE_GIST_ID` through `gh api` (the machine is already signed
-in). The dashboard's **Live** card embeds the copy present at build time and then fetches
+it to the gist named by `config.LIVE_GIST_ID` through `gh api` (in Actions `GH_TOKEN` is the
+`GIST_TOKEN` secret; on a Mac `gh` is already signed in). The dashboard's **Live** card embeds the copy present at build time and then fetches
 the gist on load and every five minutes, so the public page is current without a redeploy.
 
 A change is a job's gain between two polls; the window starts at the previous poll (or at
@@ -97,9 +126,11 @@ the id in `config.LIVE_GIST_ID`.
 
 ## Operations
 
-    scripts/install_schedule.sh cietrade_poll     # every 10 min
-    scripts/install_schedule.sh daily_update      # 07:30 daily
-    launchctl kickstart -k gui/$(id -u)/com.walton.cietrade_poll
-    tail -f logs/cietrade_poll_stdout.log
+    gh workflow run cietrade-poll.yml             # poll + rebuild + deploy now; runs every 10 min on its own
+    gh run list --workflow cietrade-poll.yml -L 5 # recent runs and whether they failed
+    tail -1 data/cietrade/polls.jsonl             # last poll on main (after git pull)
+    scripts/uninstall_schedule.sh cietrade_poll   # the Mac poller and daily job must stay off
+    scripts/uninstall_schedule.sh daily_update    #   while the cloud workflow runs
+    python3 src/weekly_update.py --daily --no-commit   # what the cloud builds, locally, without committing
     python3 src/cietrade_daily.py --dry-run       # what the next daily run would write
     python3 explorations/cietrade_pilot/build.py  # rebuild the pilot page by hand

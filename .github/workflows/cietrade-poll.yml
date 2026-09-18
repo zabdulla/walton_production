@@ -1,0 +1,183 @@
+name: cieTrade poll
+
+# The poll log is the official data set; everything else is derived from it.
+# Every ten minutes, around the clock, this workflow:
+#   1. polls cieTrade (src/cietrade_poll.py) and republishes the Live card's gist;
+#   2. commits data/cietrade/ (polls.jsonl, snapshots/, posted.csv) to main —
+#      the runner is discarded after each run and the snapshots cannot be
+#      re-fetched;
+#   3. rebuilds the dashboards from the fresh poll log
+#      (src/weekly_update.py --daily --no-commit) and deploys docs/ to GitHub
+#      Pages straight from the runner, so week at a glance, the daily table
+#      and the rest move with every poll, not once a day;
+#   4. once a day (when the committed aggregate is older than 20 hours) also
+#      commits the derived record — aggregated_daily_data.xlsx, docs/ — so the
+#      repo keeps a daily snapshot without a 600 KB workbook landing 144 times
+#      a day.
+#
+# It used to run on one Mac via launchd and stopped whenever the laptop slept.
+# Single writer: with this enabled, uninstall the Mac's poller and daily job
+# (scripts/uninstall_schedule.sh cietrade_poll; ... daily_update). The Monday
+# weekly run on the Mac (Gmail workbooks, payroll) still works: it pulls main
+# before building.
+#
+# Secrets: CIETRADE_USER_ID, CIETRADE_API_KEY (the poller's credentials) and
+# GIST_TOKEN (a classic PAT with the `gist` scope; the built-in GITHUB_TOKEN
+# cannot edit gists). Without GIST_TOKEN the Live card is not refreshed, but
+# the deployed dashboards still are. See setup/CIETRADE_API.md.
+#
+# GitHub may delay a scheduled run by a few minutes under load; the poller
+# credits each change to the window between the polls that actually ran, so
+# a late poll shifts nothing. Pages' 10-builds-per-hour limit does not apply
+# to deployments made from a workflow.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: cietrade-poll
+  cancel-in-progress: false
+
+env:
+  TZ: America/New_York   # the poller stamps snapshots with local (plant) time
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      deploy: ${{ steps.build.outcome == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies (locked)
+        run: pip install -r requirements.lock
+
+      - name: Warn if the gist token is missing
+        if: ${{ secrets.GIST_TOKEN == '' }}
+        run: echo "::warning::GIST_TOKEN secret is not set — the dashboards still deploy, but the Live card's gist is not refreshed."
+
+      - name: Configure git identity
+        run: |
+          git config user.name "walton-cietrade-poll[bot]"
+          git config user.email "walton-cietrade-poll@users.noreply.github.com"
+
+      - name: Poll cieTrade and publish the live feed
+        id: poll
+        continue-on-error: true   # a failed poll is still logged and committed below
+        env:
+          CIETRADE_USER_ID: ${{ secrets.CIETRADE_USER_ID }}
+          CIETRADE_API_KEY: ${{ secrets.CIETRADE_API_KEY }}
+          GH_TOKEN: ${{ secrets.GIST_TOKEN || github.token }}
+        run: python3 src/cietrade_poll.py
+
+      - name: Commit the poll log
+        run: |
+          git add data/cietrade/polls.jsonl data/cietrade/posted.csv data/cietrade/snapshots
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            exit 0
+          fi
+          git commit -q -m "cieTrade poll $(date '+%Y-%m-%d %H:%M')" -m "Automated via .github/workflows/cietrade-poll.yml"
+          # Another writer (the Mac's weekly run, or a queued poll) may have
+          # pushed meanwhile; the poll only appends, so a rebase is clean.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — rebasing on origin/main"
+            git fetch origin main
+            GIT_EDITOR=true git rebase origin/main || { git rebase --abort; exit 1; }
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push the poll log after 3 attempts"
+          exit 1
+
+      - name: Rebuild the dashboards from the poll log
+        id: build
+        if: steps.poll.outcome == 'success'
+        env:
+          WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
+        run: python3 src/weekly_update.py --daily --no-commit
+
+      - name: Commit the daily record when the committed one is a day old
+        if: steps.build.outcome == 'success'
+        run: |
+          last=$(git log -1 --format=%ct -- data/aggregated_daily_data.xlsx)
+          age_h=$(( ( $(date +%s) - last ) / 3600 ))
+          echo "Committed aggregate is ${age_h}h old."
+          if [ "$age_h" -lt 20 ]; then
+            exit 0
+          fi
+          git add data/aggregated_daily_data.xlsx data/aggregated_notes.xlsx data/cietrade_status.json docs/index.html docs/daily.html
+          if git diff --cached --quiet; then
+            echo "Record unchanged."
+            exit 0
+          fi
+          git commit -q -m "Daily auto-update $(date '+%Y-%m-%d')" -m "Automated via .github/workflows/cietrade-poll.yml (record of the derived data; the site is deployed from the runner every poll)."
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — rebasing on origin/main"
+            git fetch origin main
+            GIT_EDITOR=true git rebase --autostash origin/main || { git rebase --abort; exit 1; }
+            sleep $((attempt * 5))
+          done
+          echo "::warning::Could not push the daily record; the site was still rebuilt and will be deployed."
+
+      - name: Upload docs/ for Pages
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Fail the run if the poll itself failed
+        if: steps.poll.outcome == 'failure'
+        run: |
+          echo "::error::The cieTrade poll failed — see the poll step above (credentials? API down?)."
+          exit 1
+
+  deploy:
+    needs: poll
+    if: needs.poll.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Same group as deploy-pages.yml: never queue more than one deploy; the newest content wins.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 90
+
+      - name: Deploy to GitHub Pages (retry)
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
