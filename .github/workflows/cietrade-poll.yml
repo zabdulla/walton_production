@@ -1,0 +1,105 @@
+name: cieTrade poll
+
+# The cieTrade poller used to run only on one Mac via launchd, so it stopped
+# whenever that laptop slept and the dashboard's Live card went stale. This
+# workflow runs the same poll (src/cietrade_poll.py) in Actions every ten
+# minutes, around the clock, and:
+#   - republishes data/cietrade/live.json to the gist the Live card reads;
+#   - commits data/cietrade/ (polls.jsonl, snapshots/, posted.csv) back to
+#     main, because the runner is thrown away after each run and the
+#     snapshots cannot be re-fetched.
+#
+# Single writer: once this is enabled, uninstall the Mac poller
+# (scripts/uninstall_schedule.sh cietrade_poll). Two pollers appending to
+# the same files would make the Mac's daily push conflict every morning.
+# The Mac's daily update pulls main before it builds, so it sees these polls.
+#
+# Secrets: CIETRADE_USER_ID, CIETRADE_API_KEY (the poller's credentials) and
+# GIST_TOKEN (a classic PAT with the `gist` scope; the built-in GITHUB_TOKEN
+# cannot edit gists). Without GIST_TOKEN the poll log still lands in the
+# repo but the Live card is not refreshed. See setup/CIETRADE_API.md.
+#
+# GitHub may delay a scheduled run by a few minutes under load; the poller
+# credits each change to the window between the polls that actually ran,
+# so a late poll shifts nothing.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cietrade-poll
+  cancel-in-progress: false
+
+env:
+  TZ: America/New_York   # the poller stamps snapshots with local (plant) time
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies (locked)
+        run: pip install -r requirements.lock
+
+      - name: Warn if the gist token is missing
+        if: ${{ secrets.GIST_TOKEN == '' }}
+        run: echo "::warning::GIST_TOKEN secret is not set — the poll log is kept but the dashboard's Live card will not be refreshed."
+
+      - name: Poll cieTrade and publish the live feed
+        id: poll
+        continue-on-error: true   # a failed poll is still logged and committed below
+        env:
+          CIETRADE_USER_ID: ${{ secrets.CIETRADE_USER_ID }}
+          CIETRADE_API_KEY: ${{ secrets.CIETRADE_API_KEY }}
+          GH_TOKEN: ${{ secrets.GIST_TOKEN || github.token }}
+        run: python3 src/cietrade_poll.py
+
+      - name: Commit the poll log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "walton-cietrade-poll[bot]"
+          git config user.email "walton-cietrade-poll@users.noreply.github.com"
+          git add data/cietrade/polls.jsonl data/cietrade/posted.csv data/cietrade/snapshots
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            exit 0
+          fi
+          git commit -q -m "cieTrade poll $(date '+%Y-%m-%d %H:%M')" -m "Automated via .github/workflows/cietrade-poll.yml"
+          # Another writer (the Mac's daily update, or a queued poll) may have
+          # pushed meanwhile; the poll only appends, so a rebase is clean.
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push rejected (attempt $attempt) — rebasing on origin/main"
+            git fetch origin main
+            GIT_EDITOR=true git rebase origin/main || { git rebase --abort; exit 1; }
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not push the poll log after 3 attempts"
+          exit 1
+
+      - name: Fail the run if the poll itself failed
+        if: steps.poll.outcome == 'failure'
+        run: |
+          echo "::error::The cieTrade poll failed — see the poll step above (credentials? API down?)."
+          exit 1

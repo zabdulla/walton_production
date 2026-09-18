@@ -126,3 +126,20 @@ def test_aggregate_step_contains_growth_error(monkeypatch, tmp_path) -> None:
 
     result = wu.step_aggregate()
     assert result["ok"] is False
+
+
+def test_git_pull_step_is_fast_forward_only_and_never_fatal(monkeypatch) -> None:
+    """The cloud poller commits between runs; a pull that cannot fast-forward must warn, not abort."""
+    calls: list[list[str]] = []
+
+    def fake_run_cmd(cmd, capture=True, timeout=600, extra_env=None):
+        calls.append(cmd)
+        return 0, "Already up to date.\n", ""
+    monkeypatch.setattr(wu, "run_cmd", fake_run_cmd)
+    r = wu.step_git_pull()
+    assert calls == [["git", "pull", "--ff-only", "origin", "main"]]
+    assert r == {"ok": True, "updated": False, "msg": ""}
+
+    monkeypatch.setattr(wu, "run_cmd", lambda cmd, **kw: (1, "", "fatal: Not possible to fast-forward, aborting."))
+    r = wu.step_git_pull()
+    assert r["ok"] is False and "fast-forward" in r["msg"]

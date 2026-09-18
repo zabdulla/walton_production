@@ -543,6 +543,27 @@ def step_build_dashboards() -> dict[str, Any]:
     return results
 
 
+def step_git_pull() -> dict[str, Any]:
+    """Fast-forward main from origin before building.
+
+    The cieTrade poller runs in GitHub Actions (.github/workflows/cietrade-poll.yml)
+    and commits data/cietrade/ every ten minutes; without this pull the build
+    would derive today's rows from whatever polls this machine last fetched.
+    Fast-forward only: local commits are never rewritten, and a failure (offline,
+    diverged) is logged and the run continues on the data it has — the push step
+    still rebases on its own.
+    """
+    result = {"ok": True, "updated": False, "msg": ""}
+    rc, out, err = run_cmd(["git", "pull", "--ff-only", "origin", "main"], capture=True, timeout=120)
+    if rc != 0:
+        result.update(ok=False, msg=(err or out).strip()[:200])
+        log_warn(f"git pull failed — building on local data: {result['msg']}")
+        return result
+    result["updated"] = "Already up to date" not in out
+    log_ok("origin/main pulled" + ("" if result["updated"] else " (already up to date)"))
+    return result
+
+
 def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update") -> dict[str, Any]:
     """Stage tracked + new files, commit if anything changed, push with rebase retry."""
     result = {"ok": True, "committed": False, "pushed": False, "files": 0, "msg": ""}
@@ -684,6 +705,13 @@ def main() -> int:
         return 2
 
     summary: dict[str, Any] = {}
+
+    # Step 0: Pull — the cloud poller commits cieTrade data between runs
+    if args.no_push:
+        log_info(dim("(--no-push: not pulling origin/main either)"))
+        summary["pull"] = {"ok": True, "updated": False, "msg": "skipped"}
+    else:
+        summary["pull"] = step_git_pull()
 
     # Step 1: Fetch
     log_step(1, 7, "Fetching new emails from Gmail")
