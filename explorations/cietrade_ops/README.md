@@ -1,23 +1,41 @@
 # cieTrade operations pilot (local only)
 
 What else the cieTrade API can feed besides converting jobs — receiving, purchase and
-sales orders, shipments, inventory — for Walton Logistics and the Plus Monroe warehouse.
-Nothing here is published: `out/` is gitignored and the page is opened from disk.
+sales orders, loads and shipments, inventory — for the Monroe sites and Walton Logistics.
+Nothing here is published: `out/` is gitignored and the page is opened from disk. The repo
+is public, so no cieTrade rows, supplier names or volumes are committed; only code.
 
-    python3 explorations/cietrade_ops/explore.py     # probe candidate endpoints, save samples to out/
-    python3 explorations/cietrade_ops/build.py       # render out/cietrade_ops_pilot.html
-    open explorations/cietrade_ops/out/cietrade_ops_pilot.html
+    python3 explorations/cietrade_ops/explore.py     # probe the documented endpoints, save samples to out/
+    python3 explorations/cietrade_ops/build.py       # raw profile of every endpoint that answered -> out/cietrade_ops_pilot.html
+    python3 explorations/cietrade_ops/pilot.py       # curated page from out/analysis/*.json (see below)
 
-`explore.py` needs the same credentials as the poller (`~/.config/walton/cietrade.json`).
-It tries the screen names cieTrade would expose as `List<Screen>` (see `CANDIDATES`),
-records HTTP status, error text, columns and row counts in `out/discovery.json`, and keeps
-the rows in `out/samples/`. Re-run with `--endpoint Name --param k=v` once the real names
-are known; cieTrade's own docs (<https://cietrade.helpscoutdocs.com/>, the API category)
-list them.
+`explore.py` needs the poller's credentials (`~/.config/walton/cietrade.json`, or the
+`CIETRADE_USER_ID` / `CIETRADE_API_KEY` environment variables). It probes every documented
+read endpoint (`API_REFERENCE.md`, distilled from cieTrade's help center) with the parameters
+each needs, records HTTP status, error text, columns and row counts in `out/discovery.json`,
+and keeps the rows in `out/samples/`. `--endpoint Name --param k=v --days N` for one call.
 
-## What we know today
+`out/analysis/{inbound,orders,onhand,loads}.{json,md}` are aggregates and findings produced
+by four analysis passes on 2026-09-18 (inbound receipt lots, PO/SO headers joined to receipts,
+on-hand lots with days of supply from converting-job input, worksheets/trading lines). They
+are not yet scripted: to refresh, re-run those passes or promote the views that earn their
+keep into `src/`.
 
-Only `ListConvertingJobs` is documented and used. Per job it returns: job number and
+## What answered (2026-09-18)
+
+| Endpoint | What it is | Needs |
+|---|---|---|
+| ListConvertingJobs | one row per converting job (already the production feed) | dates |
+| ListInventory | one row per lot: PR-* purchase receipts (inbound loads, PO link, gross/tare/net, supplier, warehouse, age, on-hand) and CJ-* job outputs | DateFrom/DateTo (received_date) |
+| ListOrders / ListOrderDetails | PO and SO headers / grade lines | Source=PO or SO |
+| ListWorksheets / ListWorksheetDetails / ListWorksheetExpenses | one row per load (receipt, inventory sale, brokerage), lines, freight | Status=ALL to include unposted |
+| TradingInquiry | per-line trading view with PO/SO links, dates, weights, margin | Status=ALL |
+| ListAdjustments, ListDispatchJobs | answer but empty for us | dates / Type |
+| ListAccounts, ListAccountLocations, ListContacts | master data | — |
+
+## ListConvertingJobs
+
+Per job it returns: job number and
 date, warehouse and warehouse status, machine (with shift in the name), status (WORK /
 POSTED), post date, start/end/elapsed time, UOM, input/output/yield-loss quantities and
 units, department, description, input/output value and expenses, two user-defined fields,
