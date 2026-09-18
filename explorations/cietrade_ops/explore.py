@@ -33,20 +33,21 @@ SAMPLES = OUT / "samples"
 sys.path.insert(0, str(HERE.parents[1] / "src"))
 import cietrade_api as api  # noqa: E402
 
-# Screen names to try. cieTrade's inquiry screens; the API mirrors them one per
-# endpoint. Unknown names come back as HTTP 404 / non-JSON and are recorded as such.
-CANDIDATES = [
-    "ListConvertingJobs",                                    # known — the control
-    "ListReceipts", "ListReceivings", "ListReceivingTickets", "ListInboundLoads", "ListInbound",
-    "ListShipments", "ListShippingTickets", "ListOutboundLoads", "ListOutbound", "ListDeliveries",
-    "ListPurchaseOrders", "ListPOs", "ListPurchaseContracts", "ListSalesOrders", "ListSOs", "ListSalesContracts",
-    "ListOrders", "ListContracts", "ListLoads", "ListTickets", "ListScaleTickets", "ListWeighTickets",
-    "ListInventory", "ListInventoryOnHand", "ListOnHand", "ListInventoryLots", "ListLots", "ListStock", "ListBales",
-    "ListTransfers", "ListInventoryTransfers", "ListAdjustments", "ListInventoryAdjustments",
-    "ListInvoices", "ListBills", "ListPayments", "ListPurchaseInvoices", "ListSalesInvoices",
-    "ListCustomers", "ListVendors", "ListSuppliers", "ListAccounts", "ListProducts", "ListItems", "ListMaterials",
-    "ListWarehouses", "ListLocations", "ListTrucks", "ListCarriers", "ListDispatch", "ListDispatches",
-    "ListPackingLists", "ListBillsOfLading", "ListBOLs", "ListQuotes", "ListPricing",
+# Documented read endpoints (explorations/cietrade_ops/API_REFERENCE.md) with the
+# parameters each one needs beyond UserID and the date window. Probed 2026-09-18:
+# all of these answer. Unknown names come back HTTP 404 {"Message": ...}.
+CANDIDATES: list[tuple[str, dict]] = [
+    ("ListConvertingJobs", {}),
+    ("ListInventory", {}),                                   # lots: PR-* receipts, CJ-* job outputs; DateFrom/DateTo required
+    ("ListOrders", {"Source": "PO"}), ("ListOrders", {"Source": "SO"}),
+    ("ListOrderDetails", {"Source": "PO"}), ("ListOrderDetails", {"Source": "SO"}),
+    ("ListWorksheets", {"Status": "ALL"}), ("ListWorksheetDetails", {"Status": "ALL"}), ("ListWorksheetExpenses", {"Status": "ALL"}),
+    ("TradingInquiry", {"Status": "ALL"}),
+    ("ListAdjustments", {"Type": "P"}), ("ListAdjustments", {"Type": "S"}),
+    ("ListDispatchJobs", {}),
+    ("ListAccounts", {}), ("ListAccountLocations", {}), ("ListContacts", {}),
+    ("ListAccountsReceivable", {}), ("ListCustomerLedger", {}), ("ListBillingSheets", {}), ("ListBillingSheetCharges", {}),
+    ("VoucherInquiry", {}), ("PostedPayables", {}), ("ListServices", {}), ("ListServiceExpenses", {}), ("SystemLog", {}),
 ]
 
 
@@ -77,13 +78,15 @@ def call(creds: dict, endpoint: str, params: dict, timeout: int = 120) -> dict:
         rec["kind"] = rec["kind"] if rec["error"] else "non-json"
         rec["error"] = rec["error"] or f"non-JSON ({len(body)} bytes): {body[:100]!r}"
         return rec
+    if rec["error"]:                       # HTTP 4xx/5xx with a JSON body ({"Message": ...}) is still an error
+        return rec
     if isinstance(data, dict):
         data = [data]
     if not isinstance(data, list):
         rec["kind"], rec["error"] = "unexpected", f"JSON {type(data).__name__}"
         return rec
-    if data and isinstance(data[0], dict) and "ERROR" in data[0]:
-        rec["kind"], rec["error"] = "api-error", str(data[0]["ERROR"])[:300]
+    if data and isinstance(data[0], dict) and ("ERROR" in data[0] or "INPUT ERROR" in data[0]):
+        rec["kind"], rec["error"] = "api-error", str(data[0].get("ERROR") or data[0].get("INPUT ERROR"))[:300]
         return rec
     rec["kind"], rec["rows"] = "ok", len(data)
     cols: list[str] = []
@@ -105,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--list", action="store_true", help="print the candidate endpoints and exit")
     args = ap.parse_args(argv)
     if args.list:
-        print("\n".join(CANDIDATES))
+        print("\n".join(f"{ep} {p or ''}".rstrip() for ep, p in CANDIDATES))
         return 0
     creds = api.load_credentials()
     since = (datetime.now() - timedelta(days=args.days)).strftime("%m/%d/%Y")
@@ -113,23 +116,26 @@ def main(argv: list[str] | None = None) -> int:
     for kv in args.param:
         k, _, v = kv.partition("=")
         base[k] = v
-    targets = [args.endpoint] if args.endpoint else CANDIDATES
+    targets = [(args.endpoint, {})] if args.endpoint else CANDIDATES
     OUT.mkdir(exist_ok=True)
     SAMPLES.mkdir(exist_ok=True)
     disc_path = OUT / "discovery.json"
     discovery = json.loads(disc_path.read_text()) if disc_path.exists() else {"probed_at": None, "endpoints": {}}
     print(f"{'endpoint':28} {'http':>4} {'kind':16} {'rows':>6}  columns / error")
-    for ep in targets:
-        rec = call(creds, ep, base)
+    for ep, extra in targets:
+        rec = call(creds, ep, {**base, **extra})
         if rec["kind"] == "api-error" and not args.no_date and "date" in (rec["error"] or "").lower():
             rec = call(creds, ep, {k: v for k, v in base.items() if k not in ("DateFrom", "DateTo")})   # some screens take no dates
         detail = ", ".join(rec["columns"][:12]) + (" …" if len(rec["columns"]) > 12 else "") if rec["kind"] == "ok" else (rec["error"] or "")
         print(f"{ep:28} {str(rec['http'] or '-'):>4} {rec['kind']:16} {rec['rows']:>6}  {detail[:110]}")
         sample = rec.pop("sample")
+        # one file per (endpoint, parameters) so ListOrders?Source=PO and ?Source=SO coexist
+        tag = "_".join(f"{k}-{v}" for k, v in sorted(rec["params"].items()) if k not in ("DateFrom", "DateTo"))
+        key = f"{ep}[{tag}]" if tag else ep
         if sample is not None:
-            (SAMPLES / f"{ep}.json").write_text(json.dumps(sample, indent=1))
-            rec["sample_file"] = f"samples/{ep}.json"
-        discovery["endpoints"][ep] = rec
+            (SAMPLES / f"{key}.json").write_text(json.dumps(sample, indent=1))
+            rec["sample_file"] = f"samples/{key}.json"
+        discovery["endpoints"][key] = rec
         time.sleep(0.3)
     discovery["probed_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     discovery["window_from"] = None if args.no_date else since
