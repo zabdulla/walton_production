@@ -33,7 +33,10 @@ name: cieTrade poll
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Offset from :00/:10/:20 — GitHub drops or delays scheduled runs most at
+    # the crowded round minutes, and a new schedule only registers once the
+    # workflow file changes on the default branch.
+    - cron: '4,14,24,34,44,54 * * * *'
   workflow_dispatch:
 
 permissions:
