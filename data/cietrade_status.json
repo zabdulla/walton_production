@@ -1,10 +1,10 @@
 {
- "data_through": "2026-09-20",
- "last_poll": "2026-09-20T20:13:14",
- "last_snapshot": "2026-09-20T03:30:01",
- "polls": 395,
- "open_jobs": 14,
- "open_lbs": 378228,
+ "data_through": "2026-09-21",
+ "last_poll": "2026-09-21T11:57:25",
+ "last_snapshot": "2026-09-21T11:57:25",
+ "polls": 498,
+ "open_jobs": 15,
+ "open_lbs": 142173,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -17,9 +17,55 @@
   "2026-12-25",
   "2027-01-01"
  ],
- "awaiting": [],
+ "awaiting": [
+  [
+   "2026-09-21",
+   "2nd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-09-21",
+   "2nd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-09-21",
+   "2nd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-09-21",
+   "2nd",
+   "GRINDER"
+  ],
+  [
+   "2026-09-21",
+   "2nd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-09-21",
+   "2nd",
+   "SHREDDER"
+  ],
+  [
+   "2026-09-21",
+   "3rd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-09-21",
+   "3rd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-09-21",
+   "3rd",
+   "GUILLOTINE"
+  ]
+ ],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING"
  ],
- "generated": "2026-09-20T20:13:33"
+ "generated": "2026-09-21T12:00:15"
 }
