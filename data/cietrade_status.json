@@ -1,8 +1,8 @@
 {
  "data_through": "2026-09-20",
- "last_poll": "2026-09-20T00:08:48",
- "last_snapshot": "2026-09-20T00:08:48",
- "polls": 264,
+ "last_poll": "2026-09-20T20:13:14",
+ "last_snapshot": "2026-09-20T03:30:01",
+ "polls": 395,
  "open_jobs": 14,
  "open_lbs": 378228,
  "from_date": "2026-08-24",
@@ -21,5 +21,5 @@
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING"
  ],
- "generated": "2026-09-20T00:09:06"
+ "generated": "2026-09-20T20:13:33"
 }
