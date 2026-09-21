@@ -497,3 +497,4 @@
 {"ts": "2026-09-21T11:48:15", "ok": false, "ms": 19828, "changed": false, "error": "HTTPError: HTTP Error 500: Internal Server Error"}
 {"ts": "2026-09-21T11:57:25", "ok": true, "ms": 10130, "changed": true, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 142173.0, "open_hash": "9af2af8cc8d04b82", "posted_recent": 43, "posted_new": 8, "posted_changed": 0, "posted_total": 1945}
 {"ts": "2026-09-21T12:06:51", "ok": true, "ms": 1314, "changed": true, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 143673.0, "open_hash": "1f08f55a34e51f38", "posted_recent": 43, "posted_new": 0, "posted_changed": 0, "posted_total": 1945}
+{"ts": "2026-09-21T12:16:11", "ok": false, "ms": 15727, "changed": false, "error": "HTTPError: HTTP Error 500: Internal Server Error"}
