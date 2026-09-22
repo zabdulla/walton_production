@@ -60,3 +60,6 @@ data/labor_entries.xlsx
 explorations/cietrade_pilot/out/
 data/cietrade/live.json
 explorations/cietrade_ops/out/
+
+# Chart image the poll workflow exports for the daily email (served from the site, rebuilt every poll)
+docs/charts/
