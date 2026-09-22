@@ -151,7 +151,9 @@ jobs:
         if: steps.poll.outcome == 'success'
         env:
           WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
-        run: python3 src/weekly_update.py --daily --no-commit
+        run: |
+          python3 src/weekly_update.py --daily --no-commit
+          python3 src/daily_digest.py --publish     # yesterday's digest page for the site (docs/digest/)
 
       - name: Send the daily digest once a day
         # After 06:00 plant time, once per day: yesterday's pounds, the week so far,
@@ -183,7 +185,7 @@ jobs:
           if [ "$age_h" -lt 20 ]; then
             exit 0
           fi
-          git add data/aggregated_daily_data.xlsx data/aggregated_notes.xlsx data/cietrade_status.json docs/index.html docs/daily.html
+          git add data/aggregated_daily_data.xlsx data/aggregated_notes.xlsx data/cietrade_status.json docs/index.html docs/daily.html docs/digest
           if git diff --cached --quiet; then
             echo "Record unchanged."
             exit 0
