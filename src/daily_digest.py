@@ -40,6 +40,7 @@ STATUS_PATH = DATA_DIR / "cietrade_status.json"
 OUT_DIR = PROJECT_ROOT / "reports" / "digest"
 STATE_PATH = DATA_DIR / "digest_state.json"
 DASHBOARD_URL = "https://zabdulla.github.io/walton_production/"
+DOCS_DIGEST = PROJECT_ROOT / "docs" / "digest"
 SEND_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 SEND_TOKEN_PATH = WALTON_CONFIG_DIR / "gmail_send_token.json"
 CREDENTIALS_PATH = WALTON_CONFIG_DIR / "gmail_credentials.json"
@@ -129,6 +130,25 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
     eos = (status.get("end_of_shift") or {})
     reports = [r for r in eos.get("reports", []) if r.get("date") == for_date.isoformat()]
     filed = {r["shift"]: r for r in reports}
+    # one block per shift: every machine that produced or was reported, with the form's row beside the pounds
+    shift_blocks = []
+    for sh in SHIFTS:
+        rep = filed.get(sh)
+        form = {m["machine"]: m for m in rep["machines"]} if rep else {}
+        srows = today_rows[today_rows["Shift"].astype(str) == sh]
+        lbs_by = srows.groupby("Machine_Name")["lbs"].sum().to_dict()
+        names = sorted({m for m, v in lbs_by.items() if v > 0} | set(form), key=lambda m: -(lbs_by.get(m, 0) + (1 if m in form else 0)))
+        items = []
+        for m in names:
+            f = form.get(m, {})
+            items.append({"machine": m, "lbs": round(float(lbs_by.get(m, 0.0))), "machine_h": f.get("machine_hours"), "man_h": f.get("man_hours"),
+                          "operators": f.get("operators", ""), "material": f.get("material", ""), "downtime_min": f.get("downtime_min", 0),
+                          "reason": f.get("reason", ""), "comment": f.get("comment", "")})
+        shift_blocks.append({"shift": sh, "by": rep["by"] if rep else None, "filed_at": (rep or {}).get("filed_at", ""),
+                             "lbs": round(float(srows["lbs"].sum())), "machine_h": round(sum((f.get("machine_hours") or 0) for f in form.values()), 1),
+                             "man_h": round(sum((f.get("man_hours") or 0) for f in form.values()), 1),
+                             "downtime_min": int(sum((f.get("downtime_min") or 0) for f in form.values())),
+                             "notes": (rep or {}).get("notes", []), "rows": items})
     downtime = [{"shift": r["shift"], "machine": m["machine"], "min": m["downtime_min"], "reason": m.get("reason", ""), "comment": m.get("comment", ""), "operators": m.get("operators", "")}
                 for r in reports for m in r["machines"] if m.get("downtime_min") or m.get("comment")]
     notes = [{"shift": r["shift"], "note": n} for r in reports for n in r.get("notes", [])]
@@ -137,7 +157,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
     return {"date": for_date.isoformat(), "day_label": day.strftime("%A, %B %-d"), "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "day_total": day_total, "day_avg4": day_avg4, "rows": rows, "week": {"monday": monday.strftime("%Y-%m-%d"), "days": [x.strftime("%a %-d") for x in wdays],
             "rows": week_rows, "total": week_total, "workdays_elapsed": workdays_elapsed},
-            "trend": trend, "machine_trend": machine_trend,
+            "trend": trend, "machine_trend": machine_trend, "shifts": shift_blocks,
             "eos": {"filed": {s: (filed[s]["by"] if s in filed else None) for s in SHIFTS}, "machine_h": round(eos_hours, 1), "man_h": round(eos_man, 1),
                     "downtime": downtime, "notes": notes, "downtime_total": sum(x["min"] for x in downtime)},
             "status": {"last_poll": status.get("last_poll"), "awaiting": [a for a in status.get("awaiting", []) if a and a[0] == for_date.isoformat()]},
@@ -212,54 +232,70 @@ def _delta(cur: float, base: float) -> str:
     return f'<span style="color:{col};font-weight:600">{pct:+.0f}%</span> <span style="color:#66707c">vs 4-wk avg {_n(base)}</span>'
 
 
-def render_email(dg: dict, image_src: str = "cid:trend.png") -> str:
+def render_email(dg: dict, image_src: str = "cid:trend.png", page_url: str | None = None) -> str:
+    """Email-safe HTML: nested tables, every style inline, 640px wide. Also used for the hosted page."""
     e = _h.escape
-    td = 'style="padding:6px 8px;border-bottom:1px solid #e3e6ea;font-size:13px"'
-    tdn = 'style="padding:6px 8px;border-bottom:1px solid #e3e6ea;font-size:13px;text-align:right;font-variant-numeric:tabular-nums"'
-    th = 'style="padding:6px 8px;border-bottom:2px solid #e3e6ea;font-size:11px;color:#66707c;text-transform:uppercase;letter-spacing:.04em;text-align:left"'
-    thn = th.replace("text-align:left", "text-align:right")
-    h2 = 'style="font-size:16px;margin:26px 0 8px;color:#1a1d21"'
-    tile = 'style="display:inline-block;min-width:130px;padding:10px 14px;margin:0 8px 8px 0;border:1px solid #e3e6ea;border-radius:10px;vertical-align:top"'
-    eos = dg["eos"]
-    filed_txt = " · ".join(f"{s}: <b>{e(by)}</b>" if by else f'{s}: <span style="color:#b42318">missing</span>' for s, by in eos["filed"].items())
-    tiles = "".join(f'<div {tile}><div style="font-size:22px;font-weight:700">{v}</div><div style="font-size:12px;color:#66707c">{l}</div></div>'
-                    for v, l in [(f'{_n(dg["day_total"])} lbs', "produced"), (_delta(dg["day_total"], dg["day_avg4"]), "against the same weekday"),
-                                 (f'{eos["machine_h"]:g} h', "machine hours reported"), (f'{eos["man_h"]:g} h', "man hours reported"),
-                                 (f'{eos["downtime_total"]} min', "downtime reported")])
-    mrows = "".join(f'<tr><td {td}><b>{e(r["machine"])}</b></td>' + "".join(f'<td {tdn}>{_n(v) if v else "–"}</td>' for v in r["shifts"])
-                    + f'<td {tdn}><b>{_n(r["total"])}</b></td><td {tdn}>{_n(r["avg4"]) if r["avg4"] else "–"}</td>'
-                    + f'<td {tdn}>{r["machine_h"]:g}</td><td {tdn}>{r["man_h"]:g}</td><td {tdn}>{_n(r["lbs_per_mh"]) if r["lbs_per_mh"] else "–"}</td></tr>' for r in dg["rows"])
+    F = "font-family:Arial,Helvetica,sans-serif;"
+    cell = f'style="{F}font-size:13px;color:#1a1d21;padding:7px 8px;border-bottom:1px solid #e6e8eb;vertical-align:top"'
+    num = f'style="{F}font-size:13px;color:#1a1d21;padding:7px 8px;border-bottom:1px solid #e6e8eb;text-align:right;white-space:nowrap;vertical-align:top"'
+    head = f'style="{F}font-size:11px;color:#6b7280;padding:6px 8px;border-bottom:2px solid #d9dde2;text-align:left;text-transform:uppercase"'
+    headn = head.replace("text-align:left", "text-align:right")
+    h2 = f'style="{F}font-size:16px;font-weight:bold;color:#1a1d21;margin:0;padding:24px 0 8px"'
+    small = f'style="{F}font-size:12px;color:#6b7280"'
+    shift_bar = f'style="{F}font-size:13px;font-weight:bold;color:#1a1d21;background:#f1f3f5;padding:8px"'
+    def n(v):
+        return "" if v in (None, "", 0, 0.0) else f"{int(round(float(v))):,}"
+    def hrs(v):
+        return "" if v in (None, "") else f"{float(v):g}"
+    delta = ""
+    if dg["day_avg4"]:
+        pct = 100 * (dg["day_total"] - dg["day_avg4"]) / dg["day_avg4"]
+        delta = f' &nbsp;<span style="color:{"#0a7d2c" if pct >= 0 else "#c0392b"};font-weight:bold">{pct:+.0f}%</span> <span style="color:#6b7280">vs the 4-week average for a {e(dg["day_label"].split(",")[0])} ({n(dg["day_avg4"])} lbs)</span>'
+    # yesterday: one table, a bar per shift, one row per machine with the form's details
+    body_rows = []
+    for b in dg["shifts"]:
+        filed = f'filed by {e(b["by"])}' if b["by"] else '<span style="color:#c0392b">no End of Shift report</span>'
+        hours = f' &nbsp;·&nbsp; {b["machine_h"]:g} machine h &nbsp;·&nbsp; {b["man_h"]:g} man h' if b["by"] else ""
+        down = f' &nbsp;·&nbsp; <span style="color:#c0392b">{b["downtime_min"]} min down</span>' if b["downtime_min"] else ""
+        body_rows.append(f'<tr><td colspan="8" {shift_bar}>{e(b["shift"])} shift &nbsp;·&nbsp; {n(b["lbs"]) or "0"} lbs &nbsp;·&nbsp; {filed}{hours}{down}</td></tr>')
+        for r in b["rows"]:
+            dt = (f'{r["downtime_min"]} min' + (f' · {e(r["reason"])}' if r["reason"] else "")) if r["downtime_min"] else ""
+            body_rows.append(f'<tr><td {cell}>{e(r["machine"])}</td><td {num}>{n(r["lbs"])}</td><td {num}>{hrs(r["machine_h"])}</td><td {num}>{hrs(r["man_h"])}</td>'
+                             f'<td {cell}>{e(r["operators"])}</td><td {cell}>{e(r["material"])}</td><td {cell}>{dt}</td><td {cell}><span style="color:#4b5563">{e(r["comment"])}</span></td></tr>')
+        for note in b["notes"]:
+            body_rows.append(f'<tr><td colspan="8" {cell}><span style="color:#6b7280">Shift note:</span> {e(note)}</td></tr>')
     wk = dg["week"]
-    wrows = "".join(f'<tr><td {td}><b>{e(r["machine"])}</b></td>' + "".join(f'<td {tdn}>{_n(v) if v else "–"}</td>' for v in r["days"])
-                    + f'<td {tdn}><b>{_n(r["wtd"])}</b></td><td {tdn}>{(_n(r["pace"]) + (" ✓" if r["wtd"] >= r["pace"] else "")) if r["pace"] else "–"}</td></tr>' for r in wk["rows"])
-    dt = "".join(f'<li style="margin:4px 0"><span style="color:#66707c">{e(x["shift"])} · {e(x["machine"])}</span> '
-                 + (f'<b>{x["min"]} min down</b>' + (f' ({e(x["reason"])})' if x["reason"] else "") if x["min"] else "")
-                 + (f' {e(x["comment"])}' if x["comment"] else "") + (f' <span style="color:#66707c">— {e(x["operators"])}</span>' if x["operators"] else "") + "</li>" for x in eos["downtime"])
-    notes = "".join(f'<li style="margin:4px 0"><span style="color:#66707c">{e(n["shift"])}</span> {e(n["note"])}</li>' for n in eos["notes"])
-    trows = "".join(f'<tr><td {td}><b>{e(r["machine"])}</b></td><td {tdn}>{_n(r["last_week"])}</td><td {tdn}>{_n(r["avg4"])}</td><td {tdn}>{_n(r["wtd"])}</td><td {tdn}>{_n(r["target"]) if r["target"] else "–"}</td></tr>' for r in dg["machine_trend"])
-    awaiting = len(dg["status"]["awaiting"])
-    return f"""<!DOCTYPE html><html><body style="margin:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1d21">
-<div style="max-width:720px;margin:0 auto;background:#fff;padding:24px 28px">
-<div style="font-size:12px;color:#66707c">Walton production · daily digest</div>
-<h1 style="font-size:22px;margin:4px 0 2px">{e(dg["day_label"])}</h1>
-<div style="font-size:13px;color:#66707c;margin-bottom:14px">Full detail on the <a href="{dg["url"]}" style="color:#1f6feb">production dashboard</a> · End of Shift: {filed_txt}</div>
-<div>{tiles}</div>
-<h2 {h2}>Yesterday by machine</h2>
-<table cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse"><tr><th {th}>machine</th><th {thn}>1st</th><th {thn}>2nd</th><th {thn}>3rd</th><th {thn}>day lbs</th><th {thn}>4-wk avg</th><th {thn}>machine h</th><th {thn}>man h</th><th {thn}>lbs / mach h</th></tr>{mrows}
-<tr><td {td}><b>Plant</b></td><td {tdn}></td><td {tdn}></td><td {tdn}></td><td {tdn}><b>{_n(dg["day_total"])}</b></td><td {tdn}>{_n(dg["day_avg4"])}</td><td {tdn}>{eos["machine_h"]:g}</td><td {tdn}>{eos["man_h"]:g}</td><td {tdn}></td></tr></table>
-<div style="font-size:12px;color:#66707c;margin-top:6px">Pounds from cieTrade converting jobs; hours from the End of Shift forms.{" " + str(awaiting) + " shift-machine cells were still awaiting a poll or posting when this was built." if awaiting else ""}</div>
-<h2 {h2}>Week at a glance <span style="font-weight:400;color:#66707c;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}</span></h2>
-<table cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse"><tr><th {th}>machine</th>{"".join(f"<th {thn}>{e(x)}</th>" for x in wk["days"])}<th {thn}>week to date</th><th {thn}>target pace</th></tr>{wrows}
-<tr><td {td}><b>Plant</b></td>{"".join(f"<td {tdn}></td>" for _ in wk["days"])}<td {tdn}><b>{_n(wk["total"])}</b></td><td {tdn}></td></tr></table>
-<div style="font-size:12px;color:#66707c;margin-top:6px">Target pace = weekly target × {wk["workdays_elapsed"]}/5 workdays elapsed.</div>
-<h2 {h2}>End of Shift reports</h2>
-<div style="font-size:13px"><b>Downtime and comments</b><ul style="margin:6px 0 10px 18px;padding:0">{dt or '<li style="color:#66707c">none reported</li>'}</ul>
-<b>Shift notes</b><ul style="margin:6px 0 0 18px;padding:0">{notes or '<li style="color:#66707c">none</li>'}</ul></div>
-<h2 {h2}>Weekly trend</h2>
-<img src="{image_src}" alt="Weekly plant output with 4-week average" width="700" style="width:100%;max-width:700px;height:auto;border:1px solid #e3e6ea;border-radius:8px">
-<table cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin-top:10px"><tr><th {th}>machine</th><th {thn}>last week</th><th {thn}>4-wk avg</th><th {thn}>this week to date</th><th {thn}>weekly target</th></tr>{trows}</table>
-<div style="font-size:12px;color:#66707c;margin-top:18px;border-top:1px solid #e3e6ea;padding-top:10px">Built {e(dg["generated"])} from cieTrade polls through {e(str(dg["status"]["last_poll"] or "")[:16].replace("T", " "))}. <a href="{dg["url"]}" style="color:#1f6feb">Open the production dashboard</a> for the live view, every shift's form and the week table.</div>
-</div></body></html>"""
+    wrows = "".join(f'<tr><td {cell}>{e(r["machine"])}</td>' + "".join(f'<td {num}>{n(v)}</td>' for v in r["days"]) + f'<td {num}><b>{n(r["wtd"])}</b></td></tr>' for r in wk["rows"])
+    wrows += f'<tr><td {cell}><b>Plant</b></td>' + "".join(f'<td {num}></td>' for _ in wk["days"]) + f'<td {num}><b>{n(wk["total"])}</b></td></tr>'
+    page_link = f' &nbsp;·&nbsp; <a href="{page_url}" style="color:#1f6feb">this digest as a web page</a>' if page_url else ""
+    return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Walton production · {e(dg["day_label"])}</title></head>
+<body style="margin:0;padding:0;background:#f3f4f6">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6"><tr><td align="center" style="padding:16px 8px">
+<table role="presentation" width="680" cellspacing="0" cellpadding="0" style="max-width:680px;width:100%;background:#ffffff;border:1px solid #e6e8eb;border-radius:8px">
+<tr><td style="padding:22px 24px 6px">
+  <div {small}>Walton production · daily digest</div>
+  <div style="{F}font-size:24px;font-weight:bold;color:#1a1d21;padding:2px 0 4px">{e(dg["day_label"])}</div>
+  <div style="{F}font-size:15px;color:#1a1d21"><b>{n(dg["day_total"]) or "0"} lbs</b> produced{delta}</div>
+  <div {small} style="padding-top:6px"><a href="{dg["url"]}" style="color:#1f6feb">Open the production dashboard</a>{page_link}</div>
+</td></tr>
+<tr><td style="padding:0 24px">
+  <div {h2}>By shift and machine</div>
+  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse"><tr><th {head}>machine</th><th {headn}>lbs</th><th {headn}>machine h</th><th {headn}>man h</th><th {head}>operators</th><th {head}>material</th><th {head}>downtime</th><th {head}>comments</th></tr>{"".join(body_rows)}</table>
+  <div {small} style="padding-top:6px">Pounds from cieTrade converting jobs; hours, operators, material, downtime and comments from the End of Shift forms.</div>
+</td></tr>
+<tr><td style="padding:0 24px">
+  <div {h2}>Week at a glance <span style="font-weight:normal;color:#6b7280;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}</span></div>
+  <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse"><tr><th {head}>machine</th>{"".join(f"<th {headn}>{e(x)}</th>" for x in wk["days"])}<th {headn}>week to date</th></tr>{wrows}</table>
+</td></tr>
+<tr><td style="padding:0 24px 8px">
+  <div {h2}>Weekly trend</div>
+  <img src="{image_src}" alt="Weekly plant output, 8 weeks, with the 4-week average" width="632" style="display:block;width:100%;max-width:632px;height:auto;border:1px solid #e6e8eb;border-radius:6px">
+  <div {small} style="padding-top:6px">Bars are weekly plant output; the line is the 4-week average of completed weeks; the last bar is this week through {e(dg["day_label"].split(",")[0])}.</div>
+</td></tr>
+<tr><td style="padding:14px 24px 20px;border-top:1px solid #e6e8eb">
+  <div {small}>Built {e(dg["generated"])} from cieTrade polls through {e(str(dg["status"]["last_poll"] or "")[:16].replace("T", " "))}. <a href="{dg["url"]}" style="color:#1f6feb">Production dashboard</a> for the live view and every shift's full form.</div>
+</td></tr>
+</table></td></tr></table></body></html>"""
 
 
 # ---------------------------------------------------------------- send (Gmail API, send scope only)
@@ -329,6 +365,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--to", help="comma-separated recipients (default: env DIGEST_TO)")
     ap.add_argument("--send-if-due", action="store_true", help="send once per day after DIGEST_SEND_HOUR (default 6) local time")
     ap.add_argument("--authorize", action="store_true", help="one-time browser consent for gmail.send")
+    ap.add_argument("--publish", action="store_true", help="also write docs/digest/<date>.html, .png and latest.html for the site")
     args = ap.parse_args(argv)
     if args.authorize:
         print(f"token saved to {authorize()}"); return 0
@@ -345,11 +382,19 @@ def main(argv: list[str] | None = None) -> int:
     html_path.write_text(render_email(dg, image_src=f"{day}.png"))
     (args.out / f"{day}.json").write_text(json.dumps(dg, indent=1, default=str))
     print(f"{dg['day_label']}: {dg['day_total']:,} lbs, {len(dg['rows'])} machines, EOS {sum(1 for v in dg['eos']['filed'].values() if v)}/3 shifts -> {html_path}")
+    page_url = f"{DASHBOARD_URL}digest/{day}.html"
+    if args.publish:
+        DOCS_DIGEST.mkdir(parents=True, exist_ok=True)
+        (DOCS_DIGEST / f"{day}.png").write_bytes(png.read_bytes())
+        page = render_email(dg, image_src=f"{day}.png")
+        (DOCS_DIGEST / f"{day}.html").write_text(page)
+        (DOCS_DIGEST / "latest.html").write_text(page.replace(f'src="{day}.png"', f'src="{day}.png"'))
+        print(f"published docs/digest/{day}.html (+ latest.html)")
     if args.send or args.send_if_due:
         to = [x.strip() for x in (args.to or os.environ.get("DIGEST_TO", "")).split(",") if x.strip()]
         if not to:
             print("no recipients (use --to or DIGEST_TO)"); return 2
-        mid = send(to, f"Walton production · {dg['day_label']} · {dg['day_total']:,} lbs", render_email(dg), png)
+        mid = send(to, f"Walton production · {dg['day_label']} · {dg['day_total']:,} lbs", render_email(dg, page_url=page_url), png)
         print(f"sent {mid} to {', '.join(to)}")
         if args.send_if_due:
             mark_sent()

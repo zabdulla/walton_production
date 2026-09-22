@@ -52,7 +52,7 @@ def test_build_digest_day_week_trend_and_eos() -> None:
 def test_render_email_and_chart(tmp_path) -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
     html = dd.render_email(dg, image_src="cid:trend.png")
-    assert "Monday, September 21" in html and "cid:trend.png" in html and dd.DASHBOARD_URL in html and "missing" in html and "Blades" in html
+    assert "Monday, September 21" in html and "cid:trend.png" in html and dd.DASHBOARD_URL in html and "no End of Shift report" in html and "Blades" in html
     png = dd.draw_trend_png(dg["trend"], tmp_path / "t.png")
     assert png.exists() and png.stat().st_size > 1000
 
