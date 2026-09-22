@@ -56,8 +56,6 @@ packaging==26.2
     #   pytest
 pandas==2.3.3
     # via -r requirements.txt
-kaleido==0.2.1
-    # via -r requirements.txt
 plotly==5.24.1
     # via -r requirements.txt
 pluggy==1.6.0

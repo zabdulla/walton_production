@@ -153,16 +153,13 @@ The full endpoint reference is `explorations/cietrade_ops/API_REFERENCE.md`.
 ## Daily email — `src/daily_digest.py`
 
 One email about yesterday, sent by the cloud workflow once a day after 06:00 plant time,
-in three parts: week at a glance as a card per shift (pounds by machine and day, week to
-date, shift total), yesterday's three End of Shift reports laid out like the dashboard's
-submitted forms, and the dashboard's "Weekly Metrics by Machine" chart (actual output,
-4-week average) attached inline. A banner at the top and bottom links to the dashboard,
-where every other detail lives. Nothing is stored on the site: the workflow exports the
-chart image to `docs/charts/weekly_metrics.png` on every poll (deployed, not committed)
-so the email can also reference it by URL.
+in two parts: week at a glance as a card per shift (pounds by machine and day, week to
+date, shift total) and yesterday's three End of Shift reports laid out like the
+dashboard's submitted forms. A banner at the top and bottom links to the dashboard, where
+every other detail and every chart lives. The email carries no images and nothing is
+stored on the site for it.
 
-    python3 src/daily_digest.py                        # preview: reports/digest/<date>.html + .png (gitignored)
-    python3 src/daily_digest.py --chart docs/charts/weekly_metrics.png   # just the chart PNG
+    python3 src/daily_digest.py                        # preview: reports/digest/<date>.html (gitignored)
     python3 src/daily_digest.py --send --to me@x.com   # send now through the Gmail API
 
 Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fetch):
