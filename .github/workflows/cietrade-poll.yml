@@ -153,6 +153,27 @@ jobs:
           WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
         run: python3 src/weekly_update.py --daily --no-commit
 
+      - name: Send the daily digest once a day
+        # After 06:00 plant time, once per day: yesterday's pounds, the week so far,
+        # End of Shift hours and notes, the weekly trend. Needs GMAIL_SEND_TOKEN_JSON
+        # (gmail.send consent, see setup/CIETRADE_API.md) and DIGEST_TO. Never fatal.
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        env:
+          GMAIL_SEND_TOKEN_JSON: ${{ secrets.GMAIL_SEND_TOKEN_JSON }}
+          DIGEST_TO: ${{ secrets.DIGEST_TO }}
+          DIGEST_SEND_HOUR: ${{ vars.DIGEST_SEND_HOUR || '6' }}
+        run: |
+          if [ -z "$GMAIL_SEND_TOKEN_JSON" ] || [ -z "$DIGEST_TO" ]; then
+            echo "digest not configured (GMAIL_SEND_TOKEN_JSON / DIGEST_TO)"; exit 0
+          fi
+          python3 src/daily_digest.py --send-if-due
+          if ! git diff --quiet -- data/digest_state.json; then
+            git add data/digest_state.json
+            git commit -q -m "Daily digest sent $(date '+%Y-%m-%d')"
+            git push origin HEAD:main || { git fetch origin main && GIT_EDITOR=true git rebase --autostash origin/main && git push origin HEAD:main; }
+          fi
+
       - name: Commit the daily record when the committed one is a day old
         if: steps.build.outcome == 'success'
         run: |
