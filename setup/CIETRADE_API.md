@@ -150,6 +150,26 @@ PO). Bulk "Processing Input" adjustment lines booked as PR lines are excluded. T
 supplier names and volumes, so it is not copied into `docs/` (the public site) by default.
 The full endpoint reference is `explorations/cietrade_ops/API_REFERENCE.md`.
 
+## Daily digest — `src/daily_digest.py`
+
+One email about yesterday, sent by the cloud workflow once a day after 06:00 plant time:
+pounds by machine and shift against the 4-week average for that weekday, the week so far
+against target pace, what the End of Shift forms reported (hours per machine, pounds per
+machine hour, downtime, comments, shift notes, missing shifts), the weekly trend as an inline
+chart, and a link to the dashboard.
+
+    python3 src/daily_digest.py                        # reports/digest/<date>.html + .png, no send
+    python3 src/daily_digest.py --send --to me@x.com   # send now through the Gmail API
+
+Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fetch):
+
+    python3 src/daily_digest.py --authorize            # browser consent for gmail.send only -> ~/.config/walton/gmail_send_token.json
+    gh secret set GMAIL_SEND_TOKEN_JSON < ~/.config/walton/gmail_send_token.json
+    gh secret set DIGEST_TO --body "you@plusmaterials.com,them@plusmaterials.com"
+
+`data/digest_state.json` (committed) records the last send so the ten-minute chain sends
+exactly once a day; the repository variable `DIGEST_SEND_HOUR` moves the hour.
+
 ## Operations
 
     gh workflow run cietrade-poll.yml             # poll + rebuild + deploy now; runs every 10 min on its own
