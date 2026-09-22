@@ -107,7 +107,41 @@ def end_of_shift_html(status: dict | None) -> str:
     extra += '<div><h3>Downtime and comments</h3><ul class="eos-list">' + (recent or '<li class="eos-off">none reported</li>') + '</ul></div>'
     extra += '<div><h3>Shift notes</h3><ul class="eos-list">' + (notes or '<li class="eos-off">none</li>') + '</ul></div></div>'
     foot = f'<p class="await-note">{eos["filed"]} of the last {len(eos["days"]) * 3} shifts filed · {eos["entries"]} machine rows on file</p>'
-    return head + table + extra + foot + "</section>"
+    return head + table + extra + foot + submitted_forms_html(eos) + "</section>"
+
+
+def submitted_forms_html(eos: dict) -> str:
+    """Every submitted End of Shift form, newest first, laid out like the paper sheet."""
+    import html as _h
+    reports = eos.get("reports") or []
+    if not reports:
+        return ""
+    def day(d: str) -> str:
+        return datetime.strptime(d, "%Y-%m-%d").strftime("%A %b %-d")
+    def hrs(v) -> str:
+        return "" if v in (None, "", 0, 0.0) else f"{float(v):g}"
+    cards = []
+    for i, r in enumerate(reports):
+        rows = "".join(
+            f'<tr><td class="m">{_h.escape(m["machine"])}</td><td class="num">{hrs(m["machine_hours"])}</td><td class="num">{hrs(m["man_hours"])}</td>'
+            f'<td>{_h.escape(m["operators"])}</td><td>{_h.escape(m["material"])}</td>'
+            f'<td class="num">{m["downtime_min"] or ""}</td><td>{_h.escape(m["reason"])}</td><td class="c">{_h.escape(m["comment"])}</td></tr>'
+            for m in r["machines"])
+        tot_mh = sum(m["machine_hours"] for m in r["machines"]); tot_man = sum(m["man_hours"] for m in r["machines"]); tot_dt = sum(m["downtime_min"] for m in r["machines"])
+        notes = "".join(f"<li>{_h.escape(n)}</li>" for n in r.get("notes", []))
+        filed = f' · filed {_h.escape(r["filed_at"])}' if r.get("filed_at") else ""
+        cards.append(
+            f'<details class="eos-form" data-date="{r["date"]}"{" open" if i < 3 else ""}><summary><span class="eos-form-title">{day(r["date"])} · {_h.escape(r["shift"])} shift</span>'
+            f'<span class="eos-form-meta">{_h.escape(r["by"])}{filed} · {len(r["machines"])} machines · {tot_mh:g} machine h · {tot_man:g} man h'
+            + (f' · <b>{tot_dt} min down</b>' if tot_dt else "") + '</span></summary>'
+            '<div class="table-wrap"><table class="eos-sheet"><thead><tr><th>machine</th><th class="num">machine h</th><th class="num">man h</th><th>operators</th><th>material</th><th class="num">down min</th><th>reason</th><th>comments</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div>' + (f'<div class="eos-form-notes"><b>Shift notes</b><ul>{notes}</ul></div>' if notes else "") + '</details>')
+    return ('<div class="card-head eos-forms-head"><div><h3>All submitted forms</h3><p class="lede">Each report as the supervisor filed it, newest first. The latest three are open; tap a heading to expand another.</p></div>'
+            '<div class="filters"><label>Show <select class="sel" id="eosDays"><option value="7">last 7 days</option><option value="14">last 14 days</option><option value="28" selected>last 28 days</option></select></label></div></div>'
+            f'<div id="eosForms">{"".join(cards)}</div>'
+            '<script>(function(){var s=document.getElementById("eosDays");if(!s)return;var asOf=new Date("' + eos["as_of"] + 'T12:00:00");'
+            'function apply(){var n=+s.value;document.querySelectorAll("#eosForms .eos-form").forEach(function(d){var dt=new Date(d.dataset.date+"T12:00:00");d.style.display=((asOf-dt)/864e5<n)?"":"none";});}'
+            's.addEventListener("change",apply);apply();})();</script>')
 
 
 EOS_CSS = r"""
@@ -121,6 +155,19 @@ EOS_CSS = r"""
     #eosCard h3 { font-size:13px; margin:0 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
     #eosCard ul.eos-list { margin:0; padding:0 0 0 16px; font-size:13px; } #eosCard ul.eos-list li { margin:4px 0; }
     #eosCard .eos-when { color:var(--muted); font-size:12px; margin-right:6px; } #eosCard .eos-who { color:var(--muted); }
+    #eosCard .eos-forms-head { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+    #eosCard .eos-forms-head h3 { text-transform:none; letter-spacing:0; font-size:15px; color:var(--text); }
+    #eosCard details.eos-form { border:1px solid var(--border); border-radius:10px; padding:8px 12px; margin:8px 0; }
+    #eosCard details.eos-form summary { cursor:pointer; list-style:none; display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; }
+    #eosCard details.eos-form summary::-webkit-details-marker { display:none; }
+    #eosCard details.eos-form summary::before { content:"\25B8"; color:var(--muted); margin-right:6px; }
+    #eosCard details.eos-form[open] summary::before { content:"\25BE"; }
+    #eosCard .eos-form-title { font-weight:600; } #eosCard .eos-form-meta { font-size:12px; color:var(--muted); }
+    #eosCard table.eos-sheet { width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }
+    #eosCard table.eos-sheet th { font-size:11px; color:var(--muted); font-weight:600; text-align:left; padding:4px 8px; text-transform:uppercase; letter-spacing:.03em; }
+    #eosCard table.eos-sheet td { padding:6px 8px; border-top:1px solid var(--border); vertical-align:top; }
+    #eosCard table.eos-sheet td.m { font-weight:600; white-space:nowrap; } #eosCard table.eos-sheet td.c { color:var(--muted); }
+    #eosCard .eos-form-notes { margin:8px 0 4px; font-size:13px; } #eosCard .eos-form-notes ul { margin:4px 0 0 18px; padding:0; }
 """
 
 
