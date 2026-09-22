@@ -152,7 +152,7 @@ The full endpoint reference is `explorations/cietrade_ops/API_REFERENCE.md`.
 
 ## Daily email — `src/daily_digest.py`
 
-One email about yesterday, sent by the cloud workflow once a day after 06:00 plant time,
+One email about yesterday, sent by the cloud workflow once a day after 07:00 plant time,
 in two parts: week at a glance as a card per shift (pounds by machine and day, week to
 date, shift total) and yesterday's three End of Shift reports laid out like the
 dashboard's submitted forms. A banner at the top and bottom links to the dashboard, where
