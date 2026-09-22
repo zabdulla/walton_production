@@ -153,12 +153,18 @@ The full endpoint reference is `explorations/cietrade_ops/API_REFERENCE.md`.
 ## Daily digest — `src/daily_digest.py`
 
 One email about yesterday, sent by the cloud workflow once a day after 06:00 plant time:
-pounds by machine and shift against the 4-week average for that weekday, the week so far
-against target pace, what the End of Shift forms reported (hours per machine, pounds per
-machine hour, downtime, comments, shift notes, missing shifts), the weekly trend as an inline
-chart, and a link to the dashboard.
+one table of the day by shift and machine (pounds from cieTrade; machine and man hours,
+operators, material, downtime and comments from the End of Shift forms; which shifts are
+missing), the week at a glance, and the dashboard's own "Weekly Metrics by Machine" chart
+(actual output, 4-week average, last 20 weeks) exported to PNG with kaleido, plus links to
+the dashboard and to the hosted copy of the digest.
+
+Mail clients cannot run tabs or dropdowns, so the email stacks the three shifts. The hosted
+copy, `docs/digest/<date>.html` (also `latest.html`, linked from the dashboard header), has
+shift tabs, a day picker over every published digest, and the live interactive chart.
 
     python3 src/daily_digest.py                        # reports/digest/<date>.html + .png, no send
+    python3 src/daily_digest.py --publish              # also docs/digest/<date>.html, .png, latest.html (the workflow does this every poll)
     python3 src/daily_digest.py --send --to me@x.com   # send now through the Gmail API
 
 Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fetch):
