@@ -626,6 +626,10 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
     df["Date"] = pd.to_datetime(df["Date"])
 
     unmapped = _check_unmapped_products(df)
+    # cieTrade rows carry the End of Shift app's free-text material; a new spelling
+    # there is a mapping chore, not a reason to hold the whole dashboard.
+    workbook_rows = df[df["Source"].fillna("workbook") != "cietrade"] if "Source" in df.columns else df
+    unmapped_blocking = _check_unmapped_products(workbook_rows)
     missing_weeks = _check_missing_weeks(df)
     latest_week_shifts = _check_latest_week_shifts(df)
     output_anomalies = _check_weekly_output_anomalies(df)
@@ -642,6 +646,7 @@ def run_validation(path: Path = DEFAULT_AGGREGATED_DATA) -> dict[str, Any]:
     results = {
         "total_rows": len(df),
         "unmapped_products": unmapped,
+        "unmapped_products_blocking": unmapped_blocking,
         "missing_weeks": missing_weeks,
         "latest_week_shifts": latest_week_shifts,
         "output_anomalies": output_anomalies,
@@ -928,10 +933,12 @@ def gating_decision(results: dict[str, Any]) -> tuple[bool, list[str]]:
     push steps.
 
     Blocking rules (any one triggers a block):
-      • Unmapped products with >= 5 rows total — small counts are tolerable
-        because the typo map catches them next time someone reviews; a flood
-        of unmapped rows means a new product type appeared and charts will
-        be silently wrong until added.
+      • Unmapped products with >= 5 rows total on WORKBOOK rows — small counts
+        are tolerable because the typo map catches them next time someone
+        reviews; a flood of unmapped rows means a new product type appeared
+        and charts will be silently wrong until added. cieTrade rows are
+        exempt: their material is free text from the End of Shift app and a
+        new spelling is a mapping chore, reported as a warning.
       • Duplicate rows detected after aggregation — aggregation already
         dedups, so duplicates here mean the dedup key is missing a column.
       • Excessive growth-sanity failure — handled at write time by atomic.py.
@@ -951,7 +958,7 @@ def gating_decision(results: dict[str, Any]) -> tuple[bool, list[str]]:
     """
     reasons: list[str] = []
 
-    unmapped = results.get("unmapped_products") or []
+    unmapped = results.get("unmapped_products_blocking", results.get("unmapped_products")) or []
     unmapped_total_rows = sum(item.get("count", 0) for item in unmapped)
     if unmapped_total_rows >= 5:
         reasons.append(

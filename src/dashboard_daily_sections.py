@@ -69,6 +69,61 @@ def status_line_html(status: dict | None, total_weeks: int, last_date: str) -> s
     return " · ".join(parts)
 
 
+def end_of_shift_html(status: dict | None) -> str:
+    """The End of Shift card: who filed which shift over the last week, latest downtime
+    and comments, shift notes. Static HTML from the status file."""
+    import html as _h
+    eos = (status or {}).get("end_of_shift")
+    head = ('<section class="card" id="eosCard"><div class="card-head"><div><h2>End of Shift reports</h2>'
+            '<p class="lede">Filed by supervisors from their phones (<a href="shift/">the End of Shift form</a>). Hours, crew, operators, material and downtime '
+            'flow into the rows above within ten minutes of a submission; a missing shift means nobody has filed it yet.</p></div></div>')
+    if not eos:
+        return head + '<p class="await-note">No submissions have reached the dashboard yet.</p></section>'
+    def day(d: str) -> str:
+        return datetime.strptime(d, "%Y-%m-%d").strftime("%a %b %-d")
+    rows = []
+    for g in eos["days"]:
+        wd = datetime.strptime(g["date"], "%Y-%m-%d").weekday()
+        cells = []
+        for sh in ("1st", "2nd", "3rd"):
+            v = g["shifts"].get(sh, {"filed": False})
+            if v.get("filed"):
+                cells.append(f'<td class="filed"><span class="pill exact">{_h.escape(v.get("by") or "filed")}</span>'
+                             f'<div class="eos-sub">{v["machines"]} machines · {v["machine_hours"]:g} machine h · {v["man_hours"]:g} man h'
+                             + (f' · <b>{v["downtime_min"]} min down</b>' if v.get("downtime_min") else "") + '</div></td>')
+            elif wd >= 5:
+                cells.append('<td class="eos-off">—</td>')
+            else:
+                cells.append('<td><span class="pill await">missing</span></td>')
+        rows.append(f'<tr><td class="eos-day">{day(g["date"])}</td>{"".join(cells)}</tr>')
+    table = ('<div class="table-wrap"><table class="eos"><thead><tr><th>day</th><th>1st shift</th><th>2nd shift</th><th>3rd shift</th></tr></thead>'
+             f'<tbody>{"".join(rows)}</tbody></table></div>')
+    recent = "".join(f'<li><span class="eos-when">{day(r["date"])} · {_h.escape(r["shift"])} · {_h.escape(r["machine"])}</span> '
+                     + (f'<b>{r["downtime_min"]} min down</b>' + (f' ({_h.escape(r["reason"])})' if r.get("reason") else "") if r.get("downtime_min") else "")
+                     + (f' {_h.escape(r["comment"])}' if r.get("comment") else "")
+                     + (f' <span class="eos-who">— {_h.escape(r["operator"])}</span>' if r.get("operator") else "") + "</li>" for r in eos.get("recent", []))
+    notes = "".join(f'<li><span class="eos-when">{day(n["date"])} · {_h.escape(n["shift"])}</span> {_h.escape(n["note"])}</li>' for n in eos.get("notes", []))
+    extra = '<div class="eos-cols">'
+    extra += '<div><h3>Downtime and comments</h3><ul class="eos-list">' + (recent or '<li class="eos-off">none reported</li>') + '</ul></div>'
+    extra += '<div><h3>Shift notes</h3><ul class="eos-list">' + (notes or '<li class="eos-off">none</li>') + '</ul></div></div>'
+    foot = f'<p class="await-note">{eos["filed"]} of the last {len(eos["days"]) * 3} shifts filed · {eos["entries"]} machine rows on file</p>'
+    return head + table + extra + foot + "</section>"
+
+
+EOS_CSS = r"""
+    #eosCard table.eos { width:100%; border-collapse:collapse; }
+    #eosCard table.eos th { font-size:12px; color:var(--muted); font-weight:600; text-align:left; padding:6px 8px; }
+    #eosCard table.eos td { padding:8px; border-top:1px solid var(--border); vertical-align:top; font-size:13px; }
+    #eosCard td.eos-day { white-space:nowrap; color:var(--muted); font-size:12px; }
+    #eosCard td.eos-off, #eosCard .eos-off { color:var(--muted); }
+    #eosCard .eos-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+    #eosCard .eos-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; margin-top:14px; }
+    #eosCard h3 { font-size:13px; margin:0 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    #eosCard ul.eos-list { margin:0; padding:0 0 0 16px; font-size:13px; } #eosCard ul.eos-list li { margin:4px 0; }
+    #eosCard .eos-when { color:var(--muted); font-size:12px; margin-right:6px; } #eosCard .eos-who { color:var(--muted); }
+"""
+
+
 DAILY_CSS = r"""
     #weekCard .filters, #dailyCard .filters { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; }
     #weekCard .filters label, #dailyCard .filters label { font-size:12px; color:var(--muted); font-weight:500; display:inline-flex; align-items:center; gap:8px; margin:0; }

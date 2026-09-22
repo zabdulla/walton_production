@@ -134,11 +134,58 @@ def daily_rows(res: dict, labor_path: Path = LABOR_ENTRIES_PATH, from_date: str 
     return rows_df, pd.DataFrame(notes, columns=["Date", "Shift", "Machine_Name", "Input_Item", "Operator", "Note", "Category"]), warnings
 
 
-def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE) -> dict:
-    """What the dashboards need to know beyond the rows: freshness, open jobs, and the
-    shift-days that have no figure yet (awaiting a poll or a posting) or were closed."""
+def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.Timestamp | None = None, days: int = 7) -> dict:
+    """What the End of Shift app has delivered: per day and shift, who filed and what it
+    covered; the latest downtime and comments; the shift notes. Aggregates only."""
+    as_of = pd.Timestamp(as_of or pd.Timestamp.now()).normalize()
+    e = entries.copy() if entries is not None and len(entries) else pd.DataFrame(columns=["Date", "Shift", "Machine_Name"])
+    if len(e):
+        e["Date"] = pd.to_datetime(e["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        for c in ("Machine_Hours", "Man_Hours", "Downtime_Minutes"):
+            e[c] = pd.to_numeric(e.get(c), errors="coerce").fillna(0.0)
+        for c in ("Operator", "Downtime_Reason", "Comment", "Submitted_By"):
+            e[c] = e[c].fillna("").astype(str).str.strip() if c in e.columns else ""
+    days_list = [(as_of - pd.Timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
+    grid = []
+    for d in days_list:
+        row = {"date": d, "shifts": {}}
+        for sh in ("1st", "2nd", "3rd"):
+            sub = e[(e["Date"] == d) & (e["Shift"].astype(str) == sh)] if len(e) else e
+            if len(sub):
+                by = next((str(v) for v in sub.get("Submitted_By", pd.Series(dtype=str)).dropna() if str(v).strip()), "")
+                row["shifts"][sh] = {"filed": True, "by": by, "machines": int(sub["Machine_Name"].nunique()),
+                                     "machine_hours": round(float(sub["Machine_Hours"].sum()), 1), "man_hours": round(float(sub["Man_Hours"].sum()), 1),
+                                     "downtime_min": int(sub["Downtime_Minutes"].sum())}
+            else:
+                row["shifts"][sh] = {"filed": False}
+        grid.append(row)
+    recent = []
+    if len(e):
+        ev = e[(e["Downtime_Minutes"] > 0) | (e["Comment"] != "")]
+        ev = ev.sort_values(["Date", "Shift"], ascending=False).head(10)
+        for r in ev.itertuples(index=False):
+            recent.append({"date": r.Date, "shift": str(r.Shift), "machine": str(r.Machine_Name), "operator": str(getattr(r, "Operator", "") or ""),
+                           "hours": round(float(r.Machine_Hours), 2), "downtime_min": int(r.Downtime_Minutes),
+                           "reason": str(getattr(r, "Downtime_Reason", "") or ""), "comment": str(getattr(r, "Comment", "") or "")})
+    shift_notes = []
+    if notes is not None and len(notes):
+        n = notes.copy(); n["Date"] = pd.to_datetime(n["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
+        for r in n.sort_values("Date", ascending=False).head(6).itertuples(index=False):
+            if str(r.Note or "").strip():
+                shift_notes.append({"date": r.Date, "shift": str(r.Shift), "note": str(r.Note)})
+    filed = sum(1 for g in grid for v in g["shifts"].values() if v["filed"])
+    return {"as_of": as_of.strftime("%Y-%m-%d"), "days": grid, "filed": filed, "entries": int(len(e)),
+            "last_filed": (max(e["Date"]) if len(e) else None), "recent": recent, "notes": shift_notes}
+
+
+def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Path = LABOR_ENTRIES_PATH) -> dict:
+    """What the dashboards need to know beyond the rows: freshness, open jobs, the
+    shift-days that have no figure yet (awaiting a poll or a posting) or were closed,
+    and what the End of Shift app has delivered."""
     cov = res["cov"]
     meta = res["meta"]
+    entries, notes = load_entries(labor_path) if Path(labor_path).exists() else (None, None)
+    eos = end_of_shift_summary(entries, notes, as_of=pd.Timestamp(meta.get("data_through")) if meta.get("data_through") else None)
     recent = cov[cov["Date"] >= pd.Timestamp(from_date)]
     awaiting = recent[recent["mode"] == "not yet posted"]
     awaiting_cells = sorted({(d.strftime("%Y-%m-%d"), s, CIETRADE_LINE_TO_MACHINE.get(ln, ln))
@@ -149,6 +196,7 @@ def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE) -> dict:
         "open_jobs": meta.get("open_jobs", 0), "open_lbs": round(float(meta.get("open_lbs", 0.0))),
         "from_date": from_date, "closures": meta.get("closures", []),
         "awaiting": [list(c) for c in awaiting_cells], "warnings": list(meta.get("warnings", [])),
+        "end_of_shift": eos,
         "generated": pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S"),
     }
 

@@ -53,3 +53,17 @@ def test_load_status_tolerates_missing_file(tmp_path) -> None:
     assert ds.load_status(tmp_path / "none.json") is None
     (tmp_path / "s.json").write_text('{"open_jobs": 3}')
     assert ds.load_status(tmp_path / "s.json") == {"open_jobs": 3}
+
+
+def test_end_of_shift_card_shows_filed_and_missing_shifts() -> None:
+    from dashboard_daily_sections import end_of_shift_html
+    status = {"end_of_shift": {"as_of": "2026-09-21", "filed": 1, "entries": 3, "last_filed": "2026-09-21",
+                               "days": [{"date": "2026-09-21", "shifts": {"1st": {"filed": True, "by": "Tim", "machines": 5, "machine_hours": 32.0, "man_hours": 39.0, "downtime_min": 120},
+                                                                          "2nd": {"filed": False}, "3rd": {"filed": False}}},
+                                        {"date": "2026-09-20", "shifts": {"1st": {"filed": False}, "2nd": {"filed": False}, "3rd": {"filed": False}}}],
+                               "recent": [{"date": "2026-09-21", "shift": "1st", "machine": "AUTO TIE BALER", "operator": "Tony", "hours": 5.25, "downtime_min": 120, "reason": "Other", "comment": "track fix"}],
+                               "notes": [{"date": "2026-09-21", "shift": "2nd", "note": "Steven A was unloading"}]}}
+    html = end_of_shift_html(status)
+    assert "Tim" in html and "5 machines" in html and "120 min down" in html and html.count("pill await\">missing") == 2   # Sat 20th shows — not missing
+    assert "Steven A was unloading" in html and "track fix" in html
+    assert "No submissions" in end_of_shift_html({"end_of_shift": None}) and "No submissions" in end_of_shift_html(None)
