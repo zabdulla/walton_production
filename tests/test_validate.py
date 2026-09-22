@@ -374,3 +374,20 @@ def test_output_anomaly_skips_short_history() -> None:
     from validate_data import _check_weekly_output_anomalies
     df = _weekly_df([10_000, 1_000])
     assert _check_weekly_output_anomalies(df) == []
+
+
+def test_gating_ignores_unmapped_products_on_cietrade_rows() -> None:
+    """End of Shift materials are free text; a new spelling warns but never blocks publication."""
+    from validate_data import gating_decision
+    results = {"unmapped_products": [{"product": "Toll bags", "count": 6}], "unmapped_products_blocking": [],
+               "duplicates_count": 0, "payroll": {}, "weekday_mismatches": []}
+    block, reasons = gating_decision(results)
+    assert not any("unmapped" in r for r in reasons)
+    results["unmapped_products_blocking"] = [{"product": "Brand New Stuff", "count": 6}]
+    block, reasons = gating_decision(results)
+    assert block and any("unmapped" in r for r in reasons)
+
+
+def test_end_of_shift_materials_are_mapped() -> None:
+    df = pd.DataFrame({"Output_Product": ["Mixed Plastic", "Toll bags", "Hdpe", "HDPE", "Cardboard", "EPS fines", "Ricoh Slabs/BOPP", "BOPP resin", "BOPP slabs", "Cores", "SBS", "LDPE", "PET regrind", "HIPS"]})
+    assert _check_unmapped_products(df) == []

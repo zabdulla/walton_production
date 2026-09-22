@@ -33,6 +33,7 @@ def render_dashboard(
     daily_css: str = "",
     daily_html: str = "",
     daily_js: str = "",
+    eos_html: str = "",
     status_line: str = "",
     live_css: str = "",
     live_html: str = "",
@@ -214,6 +215,7 @@ def render_dashboard(
       </div>
     </div>
 {daily_html}
+{eos_html}
     <!-- Standard view (profit-producing output only) -->
     <div id="view-standard">
       <section class="card">

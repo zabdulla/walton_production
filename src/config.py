@@ -105,10 +105,18 @@ PRODUCT_TYPO_MAP: dict[str, str] = {
     "PP Shreds": "PP shreds",
     "HDPE bales": "HD Bales",
     "OCC bales": "OCC Bales",
+    # End of Shift app "Material run" spellings (free text on a phone) -> product names
+    "Mixed Plastic": "Mixed plastic", "Mixed plastics": "Mixed plastic",
+    "Cardboard": "OCC Bales", "SBS": "SBS bales", "LDPE": "LD Bales",
+    "HDPE": "HDPE shreds", "Hdpe": "HDPE shreds", "HIPS": "HIPS regrinds", "PET regrind": "PET regrinds",
+    "Ricoh Slabs": "BOPP slabs", "Ricoh Slabs/BOPP": "BOPP slabs", "Ricoh slabs": "BOPP slabs",
+    "EPS fines": "EPS",
 }
 
 # Map cleaned product names → standardized categories
 PRODUCT_CATEGORY_MAP: dict[str, str] = {
+    # End of Shift materials with no workbook precedent
+    "Mixed plastic": "Mixed - Bales", "Toll bags": "Toll Bag Bales", "Cores": "Core Bales",
     # LDPE
     "LD Bales": "LDPE - Bales", "LD Nylon Bales": "LDPE - Bales",
     "Mix Film Bales": "LDPE - Bales",

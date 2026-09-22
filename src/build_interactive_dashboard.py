@@ -32,7 +32,7 @@ from config import (
 )
 from dashboard_common import SHIFT_METRICS, SHIFT_COLORS
 from dashboard_daily_sections import (
-    DAILY_CSS, DAILY_HTML, build_daily_payload, daily_script, load_status, status_line_html,
+    DAILY_CSS, DAILY_HTML, EOS_CSS, build_daily_payload, daily_script, end_of_shift_html, load_status, status_line_html,
 )
 from dashboard_live_section import LIVE_CSS, LIVE_HTML, live_script, load_live
 from interactive_template import render_dashboard
@@ -1066,8 +1066,9 @@ def main(input_path: Path, output_path: Path) -> None:
             latest_data_date=weekly_std["Week_Start"].max().strftime("%Y-%m-%d"),
             labor_html=labor_html,
             capture_html=capture_html,
-            daily_css=DAILY_CSS,
+            daily_css=DAILY_CSS + EOS_CSS,
             daily_html=DAILY_HTML,
+            eos_html=end_of_shift_html(status),
             daily_js=daily_script(daily_payload),
             status_line=status_line_html(status, total_weeks, last_date),
             live_css=LIVE_CSS,

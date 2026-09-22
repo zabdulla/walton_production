@@ -224,3 +224,21 @@ def test_daily_rows_carry_basis_and_status_lists_awaiting_cells(tmp_path) -> Non
     res = _fake_res(); res["meta"].update(data_through="2026-09-15", open_jobs=2, open_lbs=1234.5, closures=["2026-09-07"])
     st = daily.build_status(res)
     assert st["awaiting"] == [["2026-09-15", "2nd", "GRINDER"]] and st["open_lbs"] == 1234 and st["closures"] == ["2026-09-07"]
+
+
+def test_end_of_shift_summary_grid_and_recent(tmp_path) -> None:
+    import pandas as pd
+    entries = pd.DataFrame([
+        {"Date": "2026-09-21", "Shift": "1st", "Machine_Name": "EXTRUDER", "Machine_Hours": 7.5, "Man_Hours": 14.5, "Operator": "Steven, Daniel", "Downtime_Minutes": 0, "Downtime_Reason": "", "Comment": "", "Submitted_By": "Tim"},
+        {"Date": "2026-09-21", "Shift": "1st", "Machine_Name": "AUTO TIE BALER", "Machine_Hours": 5.25, "Man_Hours": 5.25, "Operator": "Tony", "Downtime_Minutes": 120, "Downtime_Reason": "Other", "Comment": "track", "Submitted_By": "Tim"},
+        {"Date": "2026-09-18", "Shift": "3rd", "Machine_Name": "GUILLOTINE", "Machine_Hours": 7, "Man_Hours": 7, "Operator": "Daniel", "Downtime_Minutes": 0, "Downtime_Reason": "", "Comment": "", "Submitted_By": "Connor"},
+    ])
+    notes = pd.DataFrame([{"Date": "2026-09-21", "Shift": "2nd", "Note": "cleaning", "Source": "form", "Captured_At": ""}])
+    s = daily.end_of_shift_summary(entries, notes, as_of=pd.Timestamp("2026-09-21"), days=4)
+    assert [g["date"] for g in s["days"]] == ["2026-09-21", "2026-09-20", "2026-09-19", "2026-09-18"]
+    mon = s["days"][0]["shifts"]
+    assert mon["1st"] == {"filed": True, "by": "Tim", "machines": 2, "machine_hours": 12.8, "man_hours": 19.8, "downtime_min": 120}
+    assert mon["2nd"] == {"filed": False} and s["days"][3]["shifts"]["3rd"]["by"] == "Connor"
+    assert s["filed"] == 2 and s["entries"] == 3 and s["recent"][0]["downtime_min"] == 120 and s["notes"][0]["note"] == "cleaning"
+    empty = daily.end_of_shift_summary(None, None, as_of=pd.Timestamp("2026-09-21"), days=2)
+    assert empty["filed"] == 0 and len(empty["days"]) == 2
