@@ -153,11 +153,10 @@ jobs:
           WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
         run: |
           python3 src/weekly_update.py --daily --no-commit
-          python3 src/daily_digest.py --chart docs/charts/weekly_metrics.png   # the weekly chart as an image, for the daily email
 
       - name: Send the daily digest once a day
-        # After 06:00 plant time, once per day: week at a glance per shift, yesterday's
-        # End of Shift reports, the weekly chart. Needs GMAIL_SEND_TOKEN_JSON
+        # After 06:00 plant time, once per day: week at a glance per shift and yesterday's
+        # End of Shift reports. Needs GMAIL_SEND_TOKEN_JSON
         # (gmail.send consent, see setup/CIETRADE_API.md) and DIGEST_TO. Never fatal.
         if: steps.build.outcome == 'success'
         continue-on-error: true

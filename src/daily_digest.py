@@ -1,25 +1,22 @@
-"""Daily production email: yesterday, in three parts.
+"""Daily production email: yesterday, in two parts.
 
 1. Week at a glance, one card per shift (1st, 2nd, 3rd): pounds per machine per
    day for the current week through yesterday, week-to-date, plant total.
 2. Yesterday's three End of Shift reports, each laid out like the dashboard's
    submitted forms (machine, machine h, man h, operators, material, downtime,
    reason, comments, shift notes). A shift nobody filed says so.
-3. The dashboard's "Weekly Metrics by Machine" chart (Actual Output, 4-wk
-   average, last 20 weeks) as an inline image.
 
-Everything else lives on the dashboard, and the email says so with a link.
+Everything else, charts included, lives on the dashboard, and the email says so
+with a link at the top and the bottom. No images: nothing to load or block.
 
-    python3 src/daily_digest.py                       # preview: reports/digest/<date>.html and .png for yesterday (gitignored)
+    python3 src/daily_digest.py                       # preview: reports/digest/<date>.html for yesterday (gitignored)
     python3 src/daily_digest.py --date 2026-09-21     # a specific production day
-    python3 src/daily_digest.py --chart docs/charts/weekly_metrics.png   # just the chart PNG (the workflow does this every poll)
     python3 src/daily_digest.py --send --to you@x.com # build and send through the Gmail API
     python3 src/daily_digest.py --send-if-due         # cloud: send once a day after DIGEST_SEND_HOUR local (recipients from DIGEST_TO)
     python3 src/daily_digest.py --authorize           # one-time consent for the gmail.send scope (browser)
 
 Inputs: data/aggregated_daily_data.xlsx (pounds per shift-day-machine) and
-data/cietrade_status.json (End of Shift reports). The chart is exported with
-kaleido; if the exporter cannot start, a Pillow chart of plant output stands in.
+data/cietrade_status.json (End of Shift reports).
 """
 from __future__ import annotations
 
@@ -30,7 +27,6 @@ import json
 import os
 import sys
 from datetime import date, datetime, timedelta
-from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -45,7 +41,6 @@ STATUS_PATH = DATA_DIR / "cietrade_status.json"
 OUT_DIR = PROJECT_ROOT / "reports" / "digest"
 STATE_PATH = DATA_DIR / "digest_state.json"
 DASHBOARD_URL = "https://zabdulla.github.io/walton_production/"
-CHART_URL = DASHBOARD_URL + "charts/weekly_metrics.png"
 SEND_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 SEND_TOKEN_PATH = WALTON_CONFIG_DIR / "gmail_send_token.json"
 CREDENTIALS_PATH = WALTON_CONFIG_DIR / "gmail_credentials.json"
@@ -112,109 +107,12 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
                         "machine_h": round(sum((m["machine_hours"] or 0) for m in machines), 2),
                         "man_h": round(sum((m["man_hours"] or 0) for m in machines), 2),
                         "downtime_min": int(sum(m["downtime_min"] for m in machines))})
-    # plant output by week, for the fallback chart only
-    hist = d[d["Date"] <= day].copy()
-    hist["wk"] = hist["Date"] - pd.to_timedelta(hist["Date"].dt.weekday, unit="D")
-    weekly = hist.groupby("wk")["lbs"].sum().sort_index().tail(8)
-    completed = weekly[weekly.index < monday]
-    avg_line = completed.rolling(4, min_periods=1).mean()
-    trend = [{"week": w.strftime("%Y-%m-%d"), "lbs": round(float(v)), "partial": bool(w == monday),
-              "avg4": (round(float(avg_line.get(w))) if w in avg_line.index else None)} for w, v in weekly.items()]
     return {"date": for_date.isoformat(), "day_label": day.strftime("%A, %B %-d"), "generated": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "day_total": plant_days[-1] if plant_days else 0,
             "week": {"monday": monday.strftime("%Y-%m-%d"), "days": [x.strftime("%a %-d") for x in wdays], "plant_days": plant_days,
                      "plant_wtd": sum(plant_days), "by_shift": week_by_shift},
-            "reports": reports, "trend": trend,
+            "reports": reports,
             "status": {"last_poll": status.get("last_poll")}, "url": DASHBOARD_URL}
-
-
-# ---------------------------------------------------------------- chart (the dashboard's weekly figure)
-
-def weekly_figure(df: pd.DataFrame, weeks: int | None = None):
-    """The dashboard's "Weekly Metrics by Machine" chart, exactly as built there: aggregate_weekly ->
-    add_running_averages -> build_interactive_fig, trimmed to the traces the dashboard shows by default
-    (first key metric's 4-wk average per machine) and to its default range."""
-    import plotly.graph_objects as go
-    from build_interactive_dashboard import add_running_averages, aggregate_weekly, build_interactive_fig, clean_product_names
-    from config import ALL_METRICS, DEFAULT_WEEKS, RUNNING_AVG_WINDOW
-    d = clean_product_names(df.copy())
-    for c in ("Man_Hours", "Machine_Hours", "Actual_Input", "Actual_Output"):
-        d[c] = pd.to_numeric(d[c], errors="coerce").fillna(0.0)
-    d = d[(d["Man_Hours"] > 0) | (d["Machine_Hours"] > 0) | (d["Actual_Input"] > 0) | (d["Actual_Output"] > 0)]
-    weekly = add_running_averages(aggregate_weekly(d), metrics=list(ALL_METRICS.keys()), window=RUNNING_AVG_WINDOW)
-    full = build_interactive_fig(weekly)
-    fig = go.Figure(data=[t for t in full.data if t.visible is True], layout=full.layout)
-    starts = sorted(weekly["Week_Start"].unique())
-    if starts:
-        cutoff = starts[-(weeks or DEFAULT_WEEKS):][0]
-        fig.update_xaxes(range=[pd.Timestamp(cutoff) - pd.Timedelta(days=3), pd.Timestamp(starts[-1]) + pd.Timedelta(days=3)])
-    fig.update_layout(margin=dict(t=60, r=20, b=40, l=70), legend=dict(orientation="h", x=0, y=-0.28, xanchor="left", yanchor="top", title=None),
-                      plot_bgcolor="#ffffff", paper_bgcolor="#ffffff")
-    return fig
-
-
-def write_figure_png(fig, path: Path, width: int = 1100, height: int = 520) -> Path:
-    """PNG through kaleido (0.2.x). Raises if the exporter is missing; callers fall back to draw_trend_png."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fig.write_image(str(path), format="png", width=width, height=height, scale=2)
-    return path
-
-
-def chart_png(df: pd.DataFrame, trend: list[dict], path: Path) -> Path:
-    """The dashboard figure as a PNG, or the Pillow fallback."""
-    try:
-        return write_figure_png(weekly_figure(df), path)
-    except Exception as exc:  # kaleido missing or its chromium cannot start on this host
-        print(f"kaleido export failed ({exc.__class__.__name__}: {str(exc)[:120]}); using the Pillow fallback chart")
-        return draw_trend_png(trend, path)
-
-
-# ---------------------------------------------------------------- fallback chart (Pillow)
-
-def draw_trend_png(trend: list[dict], path: Path, width: int = 1000, height: int = 380) -> Path:
-    from PIL import Image, ImageDraw, ImageFont
-
-    def font(size: int, bold: bool = False):
-        for name in (["DejaVuSans-Bold.ttf", "Arial Bold.ttf"] if bold else ["DejaVuSans.ttf", "Arial.ttf"]):
-            try:
-                return ImageFont.truetype(name, size)
-            except OSError:
-                continue
-        return ImageFont.load_default()
-
-    img = Image.new("RGB", (width, height), "white")
-    dr = ImageDraw.Draw(img)
-    left, right, top, bottom = 90, 30, 40, 70
-    pw, ph = width - left - right, height - top - bottom
-    vals = [t["lbs"] for t in trend] + [t["avg4"] or 0 for t in trend]
-    ymax = max(vals + [1]) * 1.15
-
-    def y(v): return top + ph - ph * v / ymax
-    for i in range(5):
-        v = ymax * i / 4
-        dr.line([(left, y(v)), (width - right, y(v))], fill="#e5e7eb", width=1)
-        dr.text((left - 10, y(v)), f"{v / 1000:,.0f}k", fill="#6b7280", font=font(13), anchor="rm")
-    n = max(len(trend), 1)
-    slot = pw / n
-    bw = slot * 0.6
-    pts = []
-    for i, t in enumerate(trend):
-        x0 = left + slot * i + (slot - bw) / 2
-        col = "#9ec5b5" if t["partial"] else "#0b6e4f"
-        dr.rectangle([x0, y(t["lbs"]), x0 + bw, y(0)], fill=col)
-        dr.text((x0 + bw / 2, y(t["lbs"]) - 6), f"{t['lbs'] / 1000:,.0f}k", fill="#111827", font=font(12), anchor="mb")
-        dr.text((x0 + bw / 2, top + ph + 8), datetime.strptime(t["week"], "%Y-%m-%d").strftime("%b %-d"), fill="#6b7280", font=font(12), anchor="mt")
-        if t["avg4"] is not None:
-            pts.append((x0 + bw / 2, y(t["avg4"])))
-    if len(pts) > 1:
-        dr.line(pts, fill="#eb6834", width=3)
-        for p in pts:
-            dr.ellipse([p[0] - 4, p[1] - 4, p[0] + 4, p[1] + 4], fill="#eb6834")
-    dr.text((left, 12), "Weekly plant output (lbs)", fill="#111827", font=font(15, True))
-    dr.text((width - right, 12), "line: 4-week average of completed weeks", fill="#6b7280", font=font(12), anchor="ra")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    img.save(path, optimize=True)
-    return path
 
 
 # ---------------------------------------------------------------- email (inline styles only: mail clients strip stylesheets)
@@ -283,7 +181,7 @@ def _report_card(r: dict, e) -> str:
     return _card(f'{e(r["shift"])} shift', meta, table)
 
 
-def render_email(dg: dict, image_src: str = "cid:trend.png") -> str:
+def render_email(dg: dict) -> str:
     e = _h.escape
     wk = dg["week"]
     h2 = f'style="{F}font-size:17px;font-weight:bold;color:#1a1d21;margin:0;padding:22px 0 10px"'
@@ -311,10 +209,6 @@ def render_email(dg: dict, image_src: str = "cid:trend.png") -> str:
 <tr><td style="padding:0 24px">
   <div {h2}>End of Shift reports <span style="font-weight:normal;color:#6b7280;font-size:13px">{e(dg["day_label"])}, as filed by the supervisors</span></div>
   {report_cards}
-</td></tr>
-<tr><td style="padding:0 24px 8px">
-  <div {h2}>Weekly metrics by machine <span style="font-weight:normal;color:#6b7280;font-size:13px">actual output, 4-week average</span></div>
-  <img src="{image_src}" alt="Actual Output (Lbs) (4-wk avg) by Machine" width="632" style="display:block;width:100%;max-width:632px;height:auto;border:1px solid #e6e8eb;border-radius:6px">
 </td></tr>
 <tr><td style="padding:14px 24px 20px;border-top:1px solid #e6e8eb">
   {link}
@@ -348,20 +242,17 @@ def authorize() -> Path:
     return SEND_TOKEN_PATH
 
 
-def build_message(to: list[str], subject: str, html: str, png: Path, sender: str = "me") -> dict:
-    msg = MIMEMultipart("related")
+def build_message(to: list[str], subject: str, html: str) -> dict:
+    msg = MIMEMultipart("alternative")
     msg["To"], msg["Subject"] = ", ".join(to), subject
-    alt = MIMEMultipart("alternative"); msg.attach(alt)
-    alt.attach(MIMEText("Walton daily production email. Open in an HTML mail client, or see " + DASHBOARD_URL, "plain"))
-    alt.attach(MIMEText(html, "html"))
-    img = MIMEImage(png.read_bytes(), _subtype="png"); img.add_header("Content-ID", "<trend.png>"); img.add_header("Content-Disposition", "inline", filename="trend.png")
-    msg.attach(img)
+    msg.attach(MIMEText("Walton daily production email. Open in an HTML mail client, or see " + DASHBOARD_URL, "plain"))
+    msg.attach(MIMEText(html, "html"))
     return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
 
-def send(to: list[str], subject: str, html: str, png: Path) -> str:
+def send(to: list[str], subject: str, html: str) -> str:
     svc = gmail_send_service()
-    r = svc.users().messages().send(userId="me", body=build_message(to, subject, html, png)).execute()
+    r = svc.users().messages().send(userId="me", body=build_message(to, subject, html)).execute()
     return r.get("id", "")
 
 
@@ -385,8 +276,7 @@ def mark_sent(state_path: Path = STATE_PATH, now: datetime | None = None) -> Non
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--date", help="production day (default: yesterday, or the latest day with rows before it)")
-    ap.add_argument("--out", type=Path, default=OUT_DIR, help="preview folder for <date>.html and <date>.png (gitignored)")
-    ap.add_argument("--chart", type=Path, help="write only the weekly chart PNG here (e.g. docs/charts/weekly_metrics.png) and exit")
+    ap.add_argument("--out", type=Path, default=OUT_DIR, help="preview folder for <date>.html (gitignored)")
     ap.add_argument("--send", action="store_true", help="send through the Gmail API")
     ap.add_argument("--to", help="comma-separated recipients (default: env DIGEST_TO)")
     ap.add_argument("--send-if-due", action="store_true", help="send once per day after DIGEST_SEND_HOUR (default 6) local time")
@@ -401,20 +291,16 @@ def main(argv: list[str] | None = None) -> int:
     df, status = load_inputs()
     day = pick_day(df, datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else None)
     dg = build_digest(df, status, day)
-    if args.chart:
-        chart_png(df, dg["trend"], args.chart)
-        print(f"chart -> {args.chart}"); return 0
     args.out.mkdir(parents=True, exist_ok=True)
-    png = chart_png(df, dg["trend"], args.out / f"{day}.png")
     html_path = args.out / f"{day}.html"
-    html_path.write_text(render_email(dg, image_src=f"{day}.png"))
+    html_path.write_text(render_email(dg))
     filed = sum(1 for r in dg["reports"] if r["filed"])
     print(f"{dg['day_label']}: {dg['day_total']:,} lbs, EOS {filed}/3 shifts -> {html_path}")
     if args.send or args.send_if_due:
         to = [x.strip() for x in (args.to or os.environ.get("DIGEST_TO", "")).split(",") if x.strip()]
         if not to:
             print("no recipients (use --to or DIGEST_TO)"); return 2
-        mid = send(to, f"Walton production · {dg['day_label']} · {dg['day_total']:,} lbs", render_email(dg), png)
+        mid = send(to, f"Walton production · {dg['day_label']} · {dg['day_total']:,} lbs", render_email(dg))
         print(f"sent {mid} to {', '.join(to)}")
         if args.send_if_due:
             mark_sent()

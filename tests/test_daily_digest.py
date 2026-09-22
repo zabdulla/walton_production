@@ -39,7 +39,7 @@ def test_pick_day_falls_back_to_latest_day_with_rows() -> None:
     assert dd.pick_day(df, date(2026, 9, 20)) == date(2026, 9, 18)      # weekend -> Friday
 
 
-def test_build_digest_week_by_shift_reports_and_trend() -> None:
+def test_build_digest_week_by_shift_and_reports() -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
     assert dg["day_total"] == 22000 and dg["week"]["days"] == ["Mon 21"] and dg["week"]["plant_wtd"] == 22000
     first = dg["week"]["by_shift"][0]
@@ -50,27 +50,18 @@ def test_build_digest_week_by_shift_reports_and_trend() -> None:
     reps = {r["shift"]: r for r in dg["reports"]}
     assert reps["1st"]["filed"] and reps["1st"]["by"] == "Tim" and reps["1st"]["downtime_min"] == 60 and reps["1st"]["notes"] == ["clean-up"]
     assert reps["1st"]["machines"][0]["reason"] == "Blades" and not reps["2nd"]["filed"] and not reps["3rd"]["filed"]
-    assert dg["trend"][-1]["partial"] and dg["trend"][-1]["lbs"] == 22000            # today's rows (Sep 22) excluded
-    assert len(dg["trend"]) == 6 and dg["trend"][-2]["avg4"] is not None
 
 
-def test_render_email_and_chart(tmp_path) -> None:
+def test_render_email() -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
-    html = dd.render_email(dg, image_src="cid:trend.png")
-    assert "Monday, September 21" in html and "cid:trend.png" in html and dd.DASHBOARD_URL in html
-    assert "All the details live on the production dashboard" in html
-    assert html.index("Week at a glance") < html.index("End of Shift reports") < html.index("Weekly metrics by machine")
+    html = dd.render_email(dg)
+    assert "Monday, September 21" in html and dd.DASHBOARD_URL in html
+    assert html.count("All the details live on the production dashboard") == 2
+    assert html.index("Week at a glance") < html.index("End of Shift reports")
     assert "No End of Shift report was filed" in html and "Blades" in html and "clean-up" in html
-    assert "<style" not in html and "table-layout:fixed" in html          # inline styles only: mail clients strip stylesheets
-    png = dd.draw_trend_png(dg["trend"], tmp_path / "t.png")            # the fallback chart
-    assert png.exists() and png.stat().st_size > 1000
-
-
-def test_weekly_figure_is_the_dashboard_chart() -> None:
-    fig = dd.weekly_figure(_df())
-    assert sorted(t.name for t in fig.data) == ["EXTRUDER", "GUILLOTINE"]          # one visible trace per machine
-    assert all(t.meta["metric"] == "Actual_Output_RA" for t in fig.data)            # the dashboard's default metric, 4-wk average
-    assert "4-wk avg" in fig.layout.title.text
+    assert "<img" not in html and "<style" not in html and "table-layout:fixed" in html   # no images; inline styles only
+    msg = dd.build_message(["a@x.com"], "s", html)
+    assert "raw" in msg
 
 
 def test_send_gate_once_per_day_after_hour(tmp_path) -> None:
