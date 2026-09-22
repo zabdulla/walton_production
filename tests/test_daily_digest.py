@@ -20,7 +20,11 @@ def _df():
                 rows.append({"Date": d, "Shift": sh, "Machine_Name": "EXTRUDER", "Actual_Output": 5000 + 100 * wk, "Actual_Input": 0, "Machine_Hours": 7, "Man_Hours": 14})
                 rows.append({"Date": d, "Shift": sh, "Machine_Name": "GUILLOTINE", "Actual_Output": 0, "Actual_Input": 6000, "Machine_Hours": 0, "Man_Hours": 0})
     rows.append({"Date": pd.Timestamp("2026-09-22"), "Shift": "1st", "Machine_Name": "EXTRUDER", "Actual_Output": 9999, "Actual_Input": 0, "Machine_Hours": 1, "Man_Hours": 1})
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df["Week_Start"] = df["Date"] - pd.to_timedelta(df["Date"].dt.weekday, unit="D")      # the aggregate's own columns
+    df["Labor_Cost"] = df["Man_Hours"] * 20.0
+    df["Total_Expense"] = df["Labor_Cost"]
+    return df
 
 
 STATUS = {"last_poll": "2026-09-22T05:55:00", "awaiting": [], "end_of_shift": {"reports": [
@@ -53,8 +57,21 @@ def test_render_email_and_chart(tmp_path) -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
     html = dd.render_email(dg, image_src="cid:trend.png")
     assert "Monday, September 21" in html and "cid:trend.png" in html and dd.DASHBOARD_URL in html and "no End of Shift report" in html and "Blades" in html
-    png = dd.draw_trend_png(dg["trend"], tmp_path / "t.png")
+    assert "<style" not in html and "table-layout:fixed" in html          # inline styles only: mail clients strip stylesheets
+    png = dd.draw_trend_png(dg["trend"], tmp_path / "t.png")            # the fallback chart
     assert png.exists() and png.stat().st_size > 1000
+
+
+def test_weekly_figure_is_the_dashboard_chart_and_page_has_tabs() -> None:
+    df = _df()
+    fig = dd.weekly_figure(df)
+    assert sorted(t.name for t in fig.data) == ["EXTRUDER", "GUILLOTINE"]          # one visible trace per machine
+    assert all(t.meta["metric"] == "Actual_Output_RA" for t in fig.data)            # the dashboard's default metric, 4-wk average
+    assert "4-wk avg" in fig.layout.title.text
+    dg = dd.build_digest(df, STATUS, date(2026, 9, 21))
+    page = dd.render_page(dg, '<div id="weeklyFig"></div>', ["2026-09-18", "2026-09-21"], png_name="2026-09-21.png")
+    assert page.count('class="panel"') == 4 and 'data-tab="2nd"' in page and 'id="dayPick"' in page and "2026-09-18" in page
+    assert "Blades" in page and "clean-up" in page and 'id="weeklyFig"' in page
 
 
 def test_send_gate_once_per_day_after_hour(tmp_path) -> None:
