@@ -242,3 +242,19 @@ def test_end_of_shift_summary_grid_and_recent(tmp_path) -> None:
     assert s["filed"] == 2 and s["entries"] == 3 and s["recent"][0]["downtime_min"] == 120 and s["notes"][0]["note"] == "cleaning"
     empty = daily.end_of_shift_summary(None, None, as_of=pd.Timestamp("2026-09-21"), days=2)
     assert empty["filed"] == 0 and len(empty["days"]) == 2
+
+
+def test_end_of_shift_summary_keeps_full_reports(tmp_path) -> None:
+    import pandas as pd
+    entries = pd.DataFrame([
+        {"Date": "2026-09-21", "Shift": "1st", "Machine_Name": "EXTRUDER", "Machine_Hours": 7.0, "Man_Hours": 14.5, "Operator": "Steven, Daniel", "Material": "BOPP resin", "Downtime_Minutes": 60, "Downtime_Reason": "Waiting on material", "Comment": None, "Submitted_By": "Tim", "Captured_At": "9/21/2026", "Source": "form"},
+        {"Date": "2026-09-21", "Shift": "1st", "Machine_Name": "AUTO TIE BALER", "Machine_Hours": 5.25, "Man_Hours": 5.25, "Operator": "Tony", "Material": "Mixed Plastic", "Downtime_Minutes": 0, "Downtime_Reason": None, "Comment": "track", "Submitted_By": "Tim", "Captured_At": "9/21/2026", "Source": "form"},
+        {"Date": "2026-08-01", "Shift": "2nd", "Machine_Name": "SHREDDER", "Machine_Hours": 6, "Man_Hours": 6, "Operator": "Kevin", "Material": "HDPE", "Downtime_Minutes": 0, "Downtime_Reason": None, "Comment": None, "Submitted_By": "Montez", "Captured_At": "", "Source": "form"},
+    ])
+    notes = pd.DataFrame([{"Date": "2026-09-21", "Shift": "1st", "Note": "cleaning", "Source": "form", "Captured_At": ""}])
+    s = daily.end_of_shift_summary(entries, notes, as_of=pd.Timestamp("2026-09-21"), days=2, report_days=28)
+    assert len(s["reports"]) == 1                      # the August report is outside the 28-day window
+    r = s["reports"][0]
+    assert r["date"] == "2026-09-21" and r["shift"] == "1st" and r["by"] == "Tim" and r["filed_at"] == "9/21/2026" and r["notes"] == ["cleaning"]
+    assert [m["machine"] for m in r["machines"]] == ["AUTO TIE BALER", "EXTRUDER"]
+    assert r["machines"][1] == {"machine": "EXTRUDER", "machine_hours": 7.0, "man_hours": 14.5, "operators": "Steven, Daniel", "material": "BOPP resin", "downtime_min": 60, "reason": "Waiting on material", "comment": ""}

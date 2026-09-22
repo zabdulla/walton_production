@@ -134,7 +134,8 @@ def daily_rows(res: dict, labor_path: Path = LABOR_ENTRIES_PATH, from_date: str 
     return rows_df, pd.DataFrame(notes, columns=["Date", "Shift", "Machine_Name", "Input_Item", "Operator", "Note", "Category"]), warnings
 
 
-def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.Timestamp | None = None, days: int = 7) -> dict:
+def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.Timestamp | None = None, days: int = 7,
+                         report_days: int = 28) -> dict:
     """What the End of Shift app has delivered: per day and shift, who filed and what it
     covered; the latest downtime and comments; the shift notes. Aggregates only."""
     as_of = pd.Timestamp(as_of or pd.Timestamp.now()).normalize()
@@ -143,7 +144,7 @@ def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.T
         e["Date"] = pd.to_datetime(e["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
         for c in ("Machine_Hours", "Man_Hours", "Downtime_Minutes"):
             e[c] = pd.to_numeric(e.get(c), errors="coerce").fillna(0.0)
-        for c in ("Operator", "Downtime_Reason", "Comment", "Submitted_By"):
+        for c in ("Operator", "Downtime_Reason", "Comment", "Submitted_By", "Material"):
             e[c] = e[c].fillna("").astype(str).str.strip() if c in e.columns else ""
     days_list = [(as_of - pd.Timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)]
     grid = []
@@ -173,9 +174,30 @@ def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.T
         for r in n.sort_values("Date", ascending=False).head(6).itertuples(index=False):
             if str(r.Note or "").strip():
                 shift_notes.append({"date": r.Date, "shift": str(r.Shift), "note": str(r.Note)})
+    # every submitted form of the last ``report_days`` days, as filed: one report per (date, shift)
+    reports = []
+    if len(e):
+        cutoff = (as_of - pd.Timedelta(days=report_days - 1)).strftime("%Y-%m-%d")
+        note_idx: dict[tuple, list] = {}
+        if notes is not None and len(notes):
+            n = notes.copy(); n["Date"] = pd.to_datetime(n["Date"], errors="coerce").dt.strftime("%Y-%m-%d")
+            for r in n.itertuples(index=False):
+                if str(r.Note or "").strip():
+                    note_idx.setdefault((r.Date, str(r.Shift)), []).append(str(r.Note).strip())
+        recent_e = e[e["Date"] >= cutoff]
+        for (d, sh), sub in recent_e.groupby(["Date", "Shift"], sort=False):
+            sub = sub.sort_values("Machine_Name")
+            filed_at = next((str(v) for v in sub.get("Captured_At", pd.Series(dtype=str)).dropna() if str(v).strip()), "")
+            reports.append({"date": d, "shift": str(sh), "by": next((v for v in sub["Submitted_By"] if v), ""), "filed_at": filed_at,
+                            "source": str(sub["Source"].iloc[0]) if "Source" in sub.columns else "",
+                            "machines": [{"machine": str(r.Machine_Name), "machine_hours": round(float(r.Machine_Hours), 2), "man_hours": round(float(r.Man_Hours), 2),
+                                          "operators": r.Operator, "material": str(getattr(r, "Material", "") or "").replace("nan", ""),
+                                          "downtime_min": int(r.Downtime_Minutes), "reason": r.Downtime_Reason, "comment": r.Comment} for r in sub.itertuples(index=False)],
+                            "notes": note_idx.get((d, str(sh)), [])})
+        reports.sort(key=lambda r: (r["date"], {"1st": 1, "2nd": 2, "3rd": 3}.get(r["shift"], 0)), reverse=True)
     filed = sum(1 for g in grid for v in g["shifts"].values() if v["filed"])
     return {"as_of": as_of.strftime("%Y-%m-%d"), "days": grid, "filed": filed, "entries": int(len(e)),
-            "last_filed": (max(e["Date"]) if len(e) else None), "recent": recent, "notes": shift_notes}
+            "last_filed": (max(e["Date"]) if len(e) else None), "recent": recent, "notes": shift_notes, "reports": reports}
 
 
 def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Path = LABOR_ENTRIES_PATH) -> dict:

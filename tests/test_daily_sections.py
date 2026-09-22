@@ -67,3 +67,18 @@ def test_end_of_shift_card_shows_filed_and_missing_shifts() -> None:
     assert "Tim" in html and "5 machines" in html and "120 min down" in html and html.count("pill await\">missing") == 2   # Sat 20th shows — not missing
     assert "Steven A was unloading" in html and "track fix" in html
     assert "No submissions" in end_of_shift_html({"end_of_shift": None}) and "No submissions" in end_of_shift_html(None)
+
+
+def test_submitted_forms_render_every_machine_row() -> None:
+    from dashboard_daily_sections import submitted_forms_html
+    eos = {"as_of": "2026-09-21", "reports": [
+        {"date": "2026-09-21", "shift": "1st", "by": "Tim", "filed_at": "9/21/2026", "source": "form",
+         "machines": [{"machine": "EXTRUDER", "machine_hours": 7.0, "man_hours": 14.5, "operators": "Steven, Daniel", "material": "BOPP resin", "downtime_min": 60, "reason": "Waiting on material", "comment": ""},
+                      {"machine": "GUILLOTINE", "machine_hours": 7.25, "man_hours": 7.25, "operators": "Vince", "material": "Ricoh Slabs/BOPP", "downtime_min": 0, "reason": "", "comment": ""}],
+         "notes": ["Steven A was unloading"]},
+        {"date": "2026-09-18", "shift": "3rd", "by": "Connor", "filed_at": "", "source": "form", "machines": [], "notes": []}]}
+    html = submitted_forms_html(eos)
+    assert html.count("<details") == 2 and "Monday Sep 21" in html and "Friday Sep 18" in html and "1st shift" in html and "3rd shift" in html
+    assert "EXTRUDER" in html and "Steven, Daniel" in html and "Waiting on material" in html and "Ricoh Slabs/BOPP" in html
+    assert "2 machines" in html and "14.25 machine h" in html and "21.75 man h" in html and "60 min down" in html and "Steven A was unloading" in html
+    assert submitted_forms_html({"as_of": "2026-09-21", "reports": []}) == ""
