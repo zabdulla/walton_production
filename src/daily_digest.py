@@ -279,13 +279,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=OUT_DIR, help="preview folder for <date>.html (gitignored)")
     ap.add_argument("--send", action="store_true", help="send through the Gmail API")
     ap.add_argument("--to", help="comma-separated recipients (default: env DIGEST_TO)")
-    ap.add_argument("--send-if-due", action="store_true", help="send once per day after DIGEST_SEND_HOUR (default 6) local time")
+    ap.add_argument("--send-if-due", action="store_true", help="send once per day after DIGEST_SEND_HOUR (default 7) local time")
     ap.add_argument("--authorize", action="store_true", help="one-time browser consent for gmail.send")
     args = ap.parse_args(argv)
     if args.authorize:
         print(f"token saved to {authorize()}"); return 0
     if args.send_if_due:
-        ok, why = due_now(send_hour=int(os.environ.get("DIGEST_SEND_HOUR", "6")))
+        ok, why = due_now(send_hour=int(os.environ.get("DIGEST_SEND_HOUR", "7")))
         if not ok:
             print(f"digest not sent: {why}"); return 0
     df, status = load_inputs()
