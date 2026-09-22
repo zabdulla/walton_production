@@ -150,21 +150,19 @@ PO). Bulk "Processing Input" adjustment lines booked as PR lines are excluded. T
 supplier names and volumes, so it is not copied into `docs/` (the public site) by default.
 The full endpoint reference is `explorations/cietrade_ops/API_REFERENCE.md`.
 
-## Daily digest — `src/daily_digest.py`
+## Daily email — `src/daily_digest.py`
 
-One email about yesterday, sent by the cloud workflow once a day after 06:00 plant time:
-one table of the day by shift and machine (pounds from cieTrade; machine and man hours,
-operators, material, downtime and comments from the End of Shift forms; which shifts are
-missing), the week at a glance, and the dashboard's own "Weekly Metrics by Machine" chart
-(actual output, 4-week average, last 20 weeks) exported to PNG with kaleido, plus links to
-the dashboard and to the hosted copy of the digest.
+One email about yesterday, sent by the cloud workflow once a day after 06:00 plant time,
+in three parts: week at a glance as a card per shift (pounds by machine and day, week to
+date, shift total), yesterday's three End of Shift reports laid out like the dashboard's
+submitted forms, and the dashboard's "Weekly Metrics by Machine" chart (actual output,
+4-week average) attached inline. A banner at the top and bottom links to the dashboard,
+where every other detail lives. Nothing is stored on the site: the workflow exports the
+chart image to `docs/charts/weekly_metrics.png` on every poll (deployed, not committed)
+so the email can also reference it by URL.
 
-Mail clients cannot run tabs or dropdowns, so the email stacks the three shifts. The hosted
-copy, `docs/digest/<date>.html` (also `latest.html`, linked from the dashboard header), has
-shift tabs, a day picker over every published digest, and the live interactive chart.
-
-    python3 src/daily_digest.py                        # reports/digest/<date>.html + .png, no send
-    python3 src/daily_digest.py --publish              # also docs/digest/<date>.html, .png, latest.html (the workflow does this every poll)
+    python3 src/daily_digest.py                        # preview: reports/digest/<date>.html + .png (gitignored)
+    python3 src/daily_digest.py --chart docs/charts/weekly_metrics.png   # just the chart PNG
     python3 src/daily_digest.py --send --to me@x.com   # send now through the Gmail API
 
 Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fetch):

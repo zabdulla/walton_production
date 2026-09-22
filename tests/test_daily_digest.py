@@ -39,39 +39,38 @@ def test_pick_day_falls_back_to_latest_day_with_rows() -> None:
     assert dd.pick_day(df, date(2026, 9, 20)) == date(2026, 9, 18)      # weekend -> Friday
 
 
-def test_build_digest_day_week_trend_and_eos() -> None:
+def test_build_digest_week_by_shift_reports_and_trend() -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
-    ex = next(r for r in dg["rows"] if r["machine"] == "EXTRUDER")
-    assert ex["shifts"] == [5000, 5000, 0] and ex["total"] == 10000 and ex["machine_h"] == 14 and ex["lbs_per_mh"] == 714
-    assert ex["avg4"] == 10500                                            # previous four Mondays: 5100..5400 per shift, two shifts
-    gu = next(r for r in dg["rows"] if r["machine"] == "GUILLOTINE")
-    assert gu["total"] == 12000                                           # rolls counted in when no output is booked
-    assert dg["day_total"] == 22000 and dg["week"]["days"] == ["Mon 21"] and dg["week"]["total"] == 22000
-    assert next(r for r in dg["week"]["rows"] if r["machine"] == "EXTRUDER")["pace"] == 20000
-    assert dg["trend"][-1]["partial"] and dg["trend"][-1]["lbs"] == 22000     # today's rows (Sep 22) excluded
+    assert dg["day_total"] == 22000 and dg["week"]["days"] == ["Mon 21"] and dg["week"]["plant_wtd"] == 22000
+    first = dg["week"]["by_shift"][0]
+    assert first["shift"] == "1st" and first["wtd"] == 11000 and first["day"] == 11000
+    assert [r["machine"] for r in first["rows"]] == ["GUILLOTINE", "EXTRUDER"]          # rolls counted in when no output is booked
+    assert next(r for r in first["rows"] if r["machine"] == "EXTRUDER")["days"] == [5000]
+    assert dg["week"]["by_shift"][2]["rows"] == [] and dg["week"]["by_shift"][2]["wtd"] == 0
+    reps = {r["shift"]: r for r in dg["reports"]}
+    assert reps["1st"]["filed"] and reps["1st"]["by"] == "Tim" and reps["1st"]["downtime_min"] == 60 and reps["1st"]["notes"] == ["clean-up"]
+    assert reps["1st"]["machines"][0]["reason"] == "Blades" and not reps["2nd"]["filed"] and not reps["3rd"]["filed"]
+    assert dg["trend"][-1]["partial"] and dg["trend"][-1]["lbs"] == 22000            # today's rows (Sep 22) excluded
     assert len(dg["trend"]) == 6 and dg["trend"][-2]["avg4"] is not None
-    assert dg["eos"]["filed"] == {"1st": "Tim", "2nd": None, "3rd": None} and dg["eos"]["downtime_total"] == 60 and dg["eos"]["notes"] == [{"shift": "1st", "note": "clean-up"}]
 
 
 def test_render_email_and_chart(tmp_path) -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
     html = dd.render_email(dg, image_src="cid:trend.png")
-    assert "Monday, September 21" in html and "cid:trend.png" in html and dd.DASHBOARD_URL in html and "no End of Shift report" in html and "Blades" in html
+    assert "Monday, September 21" in html and "cid:trend.png" in html and dd.DASHBOARD_URL in html
+    assert "All the details live on the production dashboard" in html
+    assert html.index("Week at a glance") < html.index("End of Shift reports") < html.index("Weekly metrics by machine")
+    assert "No End of Shift report was filed" in html and "Blades" in html and "clean-up" in html
     assert "<style" not in html and "table-layout:fixed" in html          # inline styles only: mail clients strip stylesheets
     png = dd.draw_trend_png(dg["trend"], tmp_path / "t.png")            # the fallback chart
     assert png.exists() and png.stat().st_size > 1000
 
 
-def test_weekly_figure_is_the_dashboard_chart_and_page_has_tabs() -> None:
-    df = _df()
-    fig = dd.weekly_figure(df)
+def test_weekly_figure_is_the_dashboard_chart() -> None:
+    fig = dd.weekly_figure(_df())
     assert sorted(t.name for t in fig.data) == ["EXTRUDER", "GUILLOTINE"]          # one visible trace per machine
     assert all(t.meta["metric"] == "Actual_Output_RA" for t in fig.data)            # the dashboard's default metric, 4-wk average
     assert "4-wk avg" in fig.layout.title.text
-    dg = dd.build_digest(df, STATUS, date(2026, 9, 21))
-    page = dd.render_page(dg, '<div id="weeklyFig"></div>', ["2026-09-18", "2026-09-21"], png_name="2026-09-21.png")
-    assert page.count('class="panel"') == 4 and 'data-tab="2nd"' in page and 'id="dayPick"' in page and "2026-09-18" in page
-    assert "Blades" in page and "clean-up" in page and 'id="weeklyFig"' in page
 
 
 def test_send_gate_once_per_day_after_hour(tmp_path) -> None:

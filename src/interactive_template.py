@@ -164,7 +164,6 @@ def render_dashboard(
     <p class="subtitle">{status_line or f"Use controls below to adjust view. {total_weeks} weeks of data available."}</p>
     <a href="daily.html" class="nav-link">View Daily Details</a>
     <a href="#liveCard" class="nav-link secondary">Live feed &darr;</a>
-    <a href="digest/latest.html" class="nav-link secondary">Daily digest</a>
   </header>
   <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>
   <script>
