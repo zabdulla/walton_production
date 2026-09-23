@@ -114,6 +114,16 @@ def test_poll_records_failures_without_raising(poll_dirs) -> None:
     assert json.loads((poll_dirs / "polls.jsonl").read_text().splitlines()[-1])["ok"] is False
 
 
+def test_main_still_publishes_the_live_feed_after_a_failed_poll(poll_dirs, monkeypatch) -> None:
+    """A cieTrade outage must show on the site as an outage, not as a frozen feed."""
+    calls = []
+    monkeypatch.setattr(poll.api, "list_converting_jobs", lambda creds, **f: (_ for _ in ()).throw(ConnectionError("HTTP Error 404")))
+    monkeypatch.setattr(poll.cietrade_live, "write_live", lambda: calls.append("write") or {"changes_today": 0, "lbs_today": 0, "api_down_since": "x"})
+    monkeypatch.setattr(poll.cietrade_live, "publish", lambda: calls.append("publish") or True)
+    assert poll.main([]) == 1                                    # the run still reports the failure
+    assert calls == ["write", "publish"]
+
+
 def test_upsert_posted_keeps_first_seen_and_flags_edits(tmp_path) -> None:
     path = tmp_path / "posted.csv"
     rows = api.normalize([job(7, "GUILLOTINE (1ST SHIFT)", "2026-09-08", "2:38PM", 1000, status="Posted", post="2026-09-11")])

@@ -187,13 +187,16 @@ def main(argv: list[str] | None = None) -> int:
                  rec["open_jobs"], rec["monroe_open"], f"{rec['open_lbs']:,.0f}", rec.get("posted_recent", 0),
                  rec.get("posted_new", 0), rec.get("posted_changed", 0),
                  "snapshot appended" if rec["changed"] else "no change", rec["ms"])
-    if rec["ok"] and not args.dry_run:
+    if not args.dry_run:
+        # Published after a failed poll as well: the feed then carries api_down_since and the error,
+        # so the dashboard says "cieTrade unavailable since ..." instead of looking frozen.
         try:
             live = cietrade_live.write_live()
             published = cietrade_live.publish()
-            LOG.info("live feed: %d changes today, %s lbs · %s", live["changes_today"], f"{live['lbs_today']:,}",
-                     "published" if published else "not published")
-        except Exception as e:  # noqa: BLE001 — the poll itself succeeded
+            LOG.info("live feed: %d changes today, %s lbs · %s%s", live["changes_today"], f"{live['lbs_today']:,}",
+                     "published" if published else "not published",
+                     "" if rec["ok"] else f" · cieTrade unavailable since {live.get('api_down_since')}")
+        except Exception as e:  # noqa: BLE001 — never mask the poll result
             LOG.error("live feed failed: %s", e)
     if args.rebuild and rec["ok"] and not args.dry_run:
         LOG.info("pilot page %s", "rebuilt" if rebuild_pilot() else "NOT rebuilt")

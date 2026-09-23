@@ -91,7 +91,13 @@ LIVE_JS = r"""
     line2.textContent = `${fmt(L.lbs_today)} lbs entered today · ${L.open_jobs} open jobs, ${fmt(L.open_lbs)} lbs not yet posted`;
     meta.appendChild(line2);
     if (stale || !L.poll_ok) { const w = document.createElement("div"); w.className = "live-warn";
-      w.textContent = !L.poll_ok ? "⚠ the last poll failed — figures may be behind" : `⚠ feed is ${ago(ageMin)} — the poller may have stopped`; meta.appendChild(w); }
+      if (!L.poll_ok) {
+        const since = L.api_down_since ? clock(parseTs(L.api_down_since)) : "the last poll";
+        const thru = L.last_ok_poll ? ` Figures are through ${clock(parseTs(L.last_ok_poll))}; the poller keeps retrying every 10 min.` : "";
+        const why = L.last_error ? ` (${L.last_error})` : "";
+        w.textContent = `⚠ cieTrade API unavailable since ${since}${why}.${thru}`;
+      } else { w.textContent = `⚠ feed is ${ago(ageMin)} — the poller may have stopped`; }
+      meta.appendChild(w); }
 
     // tiles
     const tiles = document.getElementById("liveTiles"); tiles.replaceChildren();
