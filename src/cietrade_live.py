@@ -57,11 +57,27 @@ def load_snapshots(api_dir: Path = CIETRADE_DATA_DIR, sites: set = CIETRADE_SITE
 def load_polls(api_dir: Path = CIETRADE_DATA_DIR) -> pd.DataFrame:
     path = api_dir / "polls.jsonl"
     if not path.exists():
-        return pd.DataFrame(columns=["ts", "ok", "changed"])
+        return pd.DataFrame(columns=["ts", "ok", "changed", "error"])
     rows = [json.loads(l) for l in path.read_text().splitlines() if l.strip()]
     df = pd.DataFrame(rows)
     df["ts"] = pd.to_datetime(df["ts"])
     return df.sort_values("ts").reset_index(drop=True)
+
+
+def outage(polls: pd.DataFrame) -> dict:
+    """The current cieTrade outage, if the newest poll failed: since when, how many failures, the error."""
+    if not len(polls):
+        return {"poll_ok": False, "last_ok_poll": None, "api_down_since": None, "failed_polls": 0, "last_error": ""}
+    polls = polls.sort_values("ts")
+    ok = bool(polls.iloc[-1]["ok"])
+    okp = polls[polls["ok"].astype(bool)]
+    last_ok = okp["ts"].max() if len(okp) else None
+    failed = polls[polls["ts"] > last_ok] if last_ok is not None else polls
+    err = polls.iloc[-1].get("error") if "error" in polls.columns else None
+    return {"poll_ok": ok, "last_ok_poll": last_ok.isoformat() if last_ok is not None else None,
+            "api_down_since": failed["ts"].min().isoformat() if (not ok and len(failed)) else None,
+            "failed_polls": int(len(failed)) if not ok else 0,
+            "last_error": str(err) if (not ok and err) else ""}
 
 
 def changes(snaps: pd.DataFrame, polls: pd.DataFrame) -> pd.DataFrame:
@@ -139,7 +155,8 @@ def build_live(now: pd.Timestamp | None = None, api_dir: Path = CIETRADE_DATA_DI
     yday_start = day_start - timedelta(days=1)
     yesterday = ch[(ch["t1"] >= yday_start) & (ch["t1"] < day_start)]
     last_poll = polls["ts"].max() if len(polls) else None
-    ok = bool(polls.iloc[-1]["ok"]) if len(polls) else False
+    out = outage(polls)
+    ok = out["poll_ok"]
     end = min(now, last_poll) if last_poll is not None else now
     shift_now = current_shift(now) if now.weekday() in WORKDAYS else None
     machines = []
@@ -158,6 +175,7 @@ def build_live(now: pd.Timestamp | None = None, api_dir: Path = CIETRADE_DATA_DI
         generated=now.isoformat(), day=day.strftime("%Y-%m-%d"), day_start=day_start.isoformat(),
         shift_hours={k: list(v) for k, v in SHIFT_HOURS.items()}, current_shift=shift_now,
         last_poll=last_poll.isoformat() if last_poll is not None else None, poll_ok=ok,
+        last_ok_poll=out["last_ok_poll"], api_down_since=out["api_down_since"], failed_polls=out["failed_polls"], last_error=out["last_error"],
         polls_today=int((polls["ts"] >= day_start).sum()) if len(polls) else 0, changes_today=int(len(today)),
         lbs_today=int(today["lbs"].sum()) if len(today) else 0,
         open_jobs=int(open_rows["job"].nunique()) if len(open_rows) else 0,

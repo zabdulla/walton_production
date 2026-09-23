@@ -130,8 +130,8 @@ jobs:
       - name: Pull End of Shift entries from the log sheet
         # Hours, crew, operators and comments from the web app's Google Sheet.
         # Never fatal: without the secrets, or if Sheets is down, rows carry
-        # output only, as before.
-        if: steps.poll.outcome == 'success'
+        # output only, as before. Runs even when the poll failed: the forms
+        # and the rebuild below use the last good poll data.
         continue-on-error: true
         env:
           SHEETS_TOKEN_JSON: ${{ secrets.SHEETS_TOKEN_JSON }}
@@ -147,8 +147,10 @@ jobs:
           python3 src/labor_sheet.py
 
       - name: Rebuild the dashboards from the poll log
+        # Also after a failed poll (cieTrade outage): the site then shows the
+        # last good data with the Live card naming the outage, and the End of
+        # Shift reports and the daily email keep flowing.
         id: build
-        if: steps.poll.outcome == 'success'
         env:
           WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
         run: |
@@ -208,9 +210,10 @@ jobs:
           path: docs/
 
       - name: Fail the run if the poll itself failed
+        # The site was still rebuilt and deployed above; the red run is the signal.
         if: steps.poll.outcome == 'failure'
         run: |
-          echo "::error::The cieTrade poll failed — see the poll step above (credentials? API down?)."
+          echo "::error::The cieTrade poll failed — see the poll step above (credentials? API down?). The site was rebuilt from the last good poll."
           exit 1
 
   next:
@@ -231,7 +234,8 @@ jobs:
 
   deploy:
     needs: poll
-    if: needs.poll.outputs.deploy == 'true'
+    # Deploys after a failed poll too (the job is red but the rebuild ran), not after a cancel.
+    if: ${{ !cancelled() && needs.poll.outputs.deploy == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Same group as deploy-pages.yml: never queue more than one deploy; the newest content wins.

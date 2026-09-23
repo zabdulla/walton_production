@@ -66,6 +66,8 @@ def status_line_html(status: dict | None, total_weeks: int, last_date: str) -> s
     parts = [f"Data through <b>{day(last_date)}</b>", f"{total_weeks} weeks of data"]
     if status and status.get("last_poll"):
         parts.append(f"fed by cieTrade every 10 min (dashboard rebuilt {when(status['last_poll'])}); the Live card below updates on its own")
+    if status and status.get("api_down_since"):
+        parts.append(f'<span style="color:#b91c1c;font-weight:600">cieTrade API unavailable since {when(status["api_down_since"])}; figures are through the last good poll</span>')
     return " · ".join(parts)
 
 

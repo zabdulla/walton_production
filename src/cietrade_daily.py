@@ -34,6 +34,7 @@ from aggregate_daily_data import _categorize_note, dedup_daily, merge_incrementa
 from atomic import write_atomic_excel, write_with_snapshot
 from labor_entries import LABOR_ENTRIES_PATH, load_entries
 import cietrade_model as model
+from cietrade_live import outage as api_outage
 
 LOG = logging.getLogger("cietrade_daily")
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -200,7 +201,8 @@ def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.T
             "last_filed": (max(e["Date"]) if len(e) else None), "recent": recent, "notes": shift_notes, "reports": reports}
 
 
-def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Path = LABOR_ENTRIES_PATH) -> dict:
+def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Path = LABOR_ENTRIES_PATH,
+                 api_dir: Path = model.CIETRADE_DATA_DIR) -> dict:
     """What the dashboards need to know beyond the rows: freshness, open jobs, the
     shift-days that have no figure yet (awaiting a poll or a posting) or were closed,
     and what the End of Shift app has delivered."""
@@ -219,6 +221,7 @@ def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Pat
         "from_date": from_date, "closures": meta.get("closures", []),
         "awaiting": [list(c) for c in awaiting_cells], "warnings": list(meta.get("warnings", [])),
         "end_of_shift": eos,
+        **{k: v for k, v in api_outage(model.load_polls(api_dir)).items() if k in ("api_down_since", "failed_polls", "last_error")},
         "generated": pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S"),
     }
 

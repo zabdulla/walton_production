@@ -88,3 +88,16 @@ def test_build_live_with_no_data(tmp_path) -> None:
     d = tmp_path / "empty"; d.mkdir()
     L = live.build_live(now=pd.Timestamp("2026-09-19 09:00:00"), api_dir=d)     # Saturday: no shift scheduled
     assert L["machines"] == [] and L["changes"] == [] and L["current_shift"] is None and L["last_poll"] is None
+
+
+def test_outage_names_the_first_failed_poll_after_the_last_good_one(tmp_path) -> None:
+    d = _api_dir(tmp_path)
+    with (d / "polls.jsonl").open("a") as fh:
+        fh.write(json.dumps({"ts": "2026-09-17T13:40:00", "ok": False, "changed": False, "error": "HTTPError: HTTP Error 404: Not Found"}) + "\n")
+        fh.write(json.dumps({"ts": "2026-09-17T13:50:00", "ok": False, "changed": False, "error": "HTTPError: HTTP Error 404: Not Found"}) + "\n")
+    L = live.build_live(now=pd.Timestamp("2026-09-17 13:55:00"), api_dir=d)
+    assert not L["poll_ok"] and L["last_ok_poll"] == "2026-09-17T13:30:00" and L["api_down_since"] == "2026-09-17T13:40:00"
+    assert L["failed_polls"] == 2 and "404" in L["last_error"]
+    assert L["lbs_today"] == 400 and L["changes_today"] == 3          # figures through the last good poll are kept
+    ok = live.build_live(now=pd.Timestamp("2026-09-17 13:35:00"), api_dir=_api_dir(tmp_path / "ok"))
+    assert ok["poll_ok"] and ok["api_down_since"] is None and ok["failed_polls"] == 0 and ok["last_error"] == ""
