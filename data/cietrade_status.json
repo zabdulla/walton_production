@@ -1,10 +1,10 @@
 {
- "data_through": "2026-09-23",
- "last_poll": "2026-09-23T04:04:05",
- "last_snapshot": "2026-09-23T00:04:23",
- "polls": 759,
+ "data_through": "2026-09-24",
+ "last_poll": "2026-09-24T00:08:37",
+ "last_snapshot": "2026-09-24T00:08:37",
+ "polls": 890,
  "open_jobs": 15,
- "open_lbs": 235191,
+ "open_lbs": 303744,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -19,77 +19,77 @@
  ],
  "awaiting": [
   [
-   "2026-09-23",
+   "2026-09-24",
    "1st",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "1st",
    "EXTRUDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "1st",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "1st",
    "GRINDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "1st",
    "GUILLOTINE"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "1st",
    "SHREDDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "2nd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "2nd",
    "EXTRUDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "2nd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "2nd",
    "GRINDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "2nd",
    "GUILLOTINE"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "2nd",
    "SHREDDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-09-23",
+   "2026-09-24",
    "3rd",
    "GUILLOTINE"
   ]
@@ -98,16 +98,40 @@
   "ignored (no machine/shift mapping): REPACKAGING"
  ],
  "end_of_shift": {
-  "as_of": "2026-09-23",
+  "as_of": "2026-09-24",
   "days": [
    {
-    "date": "2026-09-23",
+    "date": "2026-09-24",
     "shifts": {
      "1st": {
       "filed": false
      },
      "2nd": {
       "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-09-23",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 5,
+      "machine_hours": 32.2,
+      "man_hours": 37.8,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": true,
+      "by": "Montez",
+      "machines": 4,
+      "machine_hours": 28.5,
+      "man_hours": 35.5,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -134,7 +158,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 3,
+      "machine_hours": 19.0,
+      "man_hours": 19.0,
+      "downtime_min": 180
      }
     }
    },
@@ -218,31 +247,32 @@
       "downtime_min": 0
      }
     }
-   },
-   {
-    "date": "2026-09-17",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 3,
-      "machine_hours": 20.0,
-      "man_hours": 19.0,
-      "downtime_min": 0
-     }
-    }
    }
   ],
-  "filed": 8,
-  "entries": 32,
-  "last_filed": "2026-09-22",
+  "filed": 10,
+  "entries": 44,
+  "last_filed": "2026-09-23",
   "recent": [
+   {
+    "date": "2026-09-23",
+    "shift": "1st",
+    "machine": "EXTRUDER",
+    "operator": "Steven, Daniel",
+    "hours": 5.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Late start had to wait for material"
+   },
+   {
+    "date": "2026-09-22",
+    "shift": "3rd",
+    "machine": "GRINDER",
+    "operator": "James",
+    "hours": 5.0,
+    "downtime_min": 180,
+    "reason": "Other",
+    "comment": "Had to replace fuse 1,2,and 3 than blower got clogged there was also no converting page for 3rd shift weight is put on 2nd shift"
+   },
    {
     "date": "2026-09-22",
     "shift": "2nd",
@@ -322,19 +352,14 @@
     "downtime_min": 60,
     "reason": "Other",
     "comment": ""
-   },
-   {
-    "date": "2026-09-17",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "Connor, James",
-    "hours": 6.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "2 Blade Changes, 1 Screen Change"
    }
   ],
   "notes": [
+   {
+    "date": "2026-09-23",
+    "shift": "2nd",
+    "note": "Steven . A was unloading/cleaning"
+   },
    {
     "date": "2026-09-21",
     "shift": "2nd",
@@ -352,6 +377,158 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-23",
+    "shift": "2nd",
+    "by": "Montez",
+    "filed_at": "9/23/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 6.5,
+      "man_hours": 6.5,
+      "operators": "Steven B",
+      "material": "Cardboard",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Montez, Brandon",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Kevin",
+      "material": "Green grass",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven . A was unloading/cleaning"
+    ]
+   },
+   {
+    "date": "2026-09-23",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "9/23/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "Cardboard",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.5,
+      "man_hours": 11.0,
+      "operators": "Steven, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Late start had to wait for material"
+     },
+     {
+      "machine": "GREEN MAX DENSIFIER (NEW)",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Kemonica",
+      "material": "EPS fines",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Clarence",
+      "material": "Green grass",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "BOPP/Ricoh slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-09-22",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "9/23/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Darius",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "James",
+      "material": "LDPE green grass regrind",
+      "downtime_min": 180,
+      "reason": "Other",
+      "comment": "Had to replace fuse 1,2,and 3 than blower got clogged there was also no converting page for 3rd shift weight is put on 2nd shift"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Daniel",
+      "material": "Silicon",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-09-22",
     "shift": "2nd",
@@ -758,5 +935,8 @@
    }
   ]
  },
- "generated": "2026-09-23T04:04:24"
+ "api_down_since": null,
+ "failed_polls": 0,
+ "last_error": "",
+ "generated": "2026-09-24T00:09:02"
 }
