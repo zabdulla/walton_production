@@ -2,6 +2,7 @@
 
 1. Week at a glance, one card per shift (1st, 2nd, 3rd): pounds per machine per
    day for the current week through yesterday, week-to-date, plant total.
+   Weekdays only: Monday's email covers Friday and the complete previous week.
 2. Yesterday's three End of Shift reports, each laid out like the dashboard's
    submitted forms (machine, machine h, man h, operators, material, downtime,
    reason, comments, shift notes). A shift nobody filed says so.
@@ -203,7 +204,7 @@ def render_email(dg: dict) -> str:
   {link}
 </td></tr>
 <tr><td style="padding:0 24px">
-  <div {h2}>Week at a glance <span style="font-weight:normal;color:#6b7280;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}, pounds by machine and day</span></div>
+  <div {h2}>Week at a glance <span style="font-weight:normal;color:#6b7280;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}{", complete week" if datetime.strptime(dg["date"], "%Y-%m-%d").weekday() >= 4 else ""}, pounds by machine and day</span></div>
   {week_cards}{plant}
 </td></tr>
 <tr><td style="padding:0 24px">
@@ -256,10 +257,13 @@ def send(to: list[str], subject: str, html: str) -> str:
     return r.get("id", "")
 
 
-def due_now(state_path: Path = STATE_PATH, now: datetime | None = None, send_hour: int = 6) -> tuple[bool, str]:
-    """Once per calendar day, at or after send_hour local time."""
+def due_now(state_path: Path = STATE_PATH, now: datetime | None = None, send_hour: int = 7) -> tuple[bool, str]:
+    """Once per weekday, at or after send_hour local time. No email on Saturday or Sunday:
+    Monday's email covers Friday (the latest production day) and the whole previous week."""
     now = now or datetime.now()
     today = now.strftime("%Y-%m-%d")
+    if now.weekday() >= 5:
+        return False, "weekend"
     if now.hour < send_hour:
         return False, f"before {send_hour:02d}:00"
     st = json.loads(state_path.read_text()) if state_path.exists() else {}
