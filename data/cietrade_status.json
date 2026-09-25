@@ -1,10 +1,10 @@
 {
  "data_through": "2026-09-24",
- "last_poll": "2026-09-24T00:08:37",
- "last_snapshot": "2026-09-24T00:08:37",
- "polls": 890,
+ "last_poll": "2026-09-24T20:12:26",
+ "last_snapshot": "2026-09-24T19:53:59",
+ "polls": 1020,
  "open_jobs": 15,
- "open_lbs": 303744,
+ "open_lbs": 356712,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -18,66 +18,6 @@
   "2027-01-01"
  ],
  "awaiting": [
-  [
-   "2026-09-24",
-   "1st",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-09-24",
-   "1st",
-   "EXTRUDER"
-  ],
-  [
-   "2026-09-24",
-   "1st",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-09-24",
-   "1st",
-   "GRINDER"
-  ],
-  [
-   "2026-09-24",
-   "1st",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-09-24",
-   "1st",
-   "SHREDDER"
-  ],
-  [
-   "2026-09-24",
-   "2nd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-09-24",
-   "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-09-24",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-09-24",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-09-24",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-09-24",
-   "2nd",
-   "SHREDDER"
-  ],
   [
    "2026-09-24",
    "3rd",
@@ -95,7 +35,8 @@
   ]
  ],
  "warnings": [
-  "ignored (no machine/shift mapping): REPACKAGING"
+  "ignored (no machine/shift mapping): REPACKAGING",
+  "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
   "as_of": "2026-09-24",
@@ -104,7 +45,12 @@
     "date": "2026-09-24",
     "shifts": {
      "1st": {
-      "filed": false
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 27.0,
+      "man_hours": 34.0,
+      "downtime_min": 0
      },
      "2nd": {
       "filed": false
@@ -134,7 +80,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 3,
+      "machine_hours": 16.0,
+      "man_hours": 19.0,
+      "downtime_min": 420
      }
     }
    },
@@ -249,10 +200,30 @@
     }
    }
   ],
-  "filed": 10,
-  "entries": 44,
-  "last_filed": "2026-09-23",
+  "filed": 12,
+  "entries": 51,
+  "last_filed": "2026-09-24",
   "recent": [
+   {
+    "date": "2026-09-23",
+    "shift": "3rd",
+    "machine": "AUTO TIE BALER",
+    "operator": "Darius",
+    "hours": 6.0,
+    "downtime_min": 120,
+    "reason": "Breakdown",
+    "comment": "Convey stoped working"
+   },
+   {
+    "date": "2026-09-23",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, James",
+    "hours": 3.0,
+    "downtime_min": 300,
+    "reason": "Other",
+    "comment": "7 screen changes 2 blade changes had to cut material had trash on line and in system had to clean and purge system"
+   },
    {
     "date": "2026-09-23",
     "shift": "1st",
@@ -332,29 +303,14 @@
     "downtime_min": 120,
     "reason": "Other",
     "comment": "Had to full with oil then maintenance had to fix the track from catching"
-   },
-   {
-    "date": "2026-09-21",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Steven, Daniel",
-    "hours": 7.0,
-    "downtime_min": 60,
-    "reason": "Waiting on material",
-    "comment": ""
-   },
-   {
-    "date": "2026-09-18",
-    "shift": "2nd",
-    "machine": "SHREDDER",
-    "operator": "Kevin",
-    "hours": 6.25,
-    "downtime_min": 60,
-    "reason": "Other",
-    "comment": ""
    }
   ],
   "notes": [
+   {
+    "date": "2026-09-24",
+    "shift": "1st",
+    "note": "Kemonica was cleaning"
+   },
    {
     "date": "2026-09-23",
     "shift": "2nd",
@@ -377,6 +333,98 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-24",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "9/24/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Steven, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Clarence",
+      "material": "Green grass",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "BOPP/Silicon slab",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Tony",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Kemonica was cleaning"
+    ]
+   },
+   {
+    "date": "2026-09-23",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "9/24/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 6.0,
+      "man_hours": 6.0,
+      "operators": "Darius",
+      "material": "Mixed Plastic",
+      "downtime_min": 120,
+      "reason": "Breakdown",
+      "comment": "Convey stoped working"
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 3.0,
+      "man_hours": 6.0,
+      "operators": "Connor, James",
+      "material": "BOPP resin",
+      "downtime_min": 300,
+      "reason": "Other",
+      "comment": "7 screen changes 2 blade changes had to cut material had trash on line and in system had to clean and purge system"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Daniel",
+      "material": "Bopp",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-09-23",
     "shift": "2nd",
@@ -938,5 +986,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-09-24T00:09:02"
+ "generated": "2026-09-24T20:12:46"
 }
