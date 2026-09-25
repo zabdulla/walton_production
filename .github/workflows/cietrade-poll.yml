@@ -171,8 +171,9 @@ jobs:
             echo "digest not configured (GMAIL_SEND_TOKEN_JSON / DIGEST_TO)"; exit 0
           fi
           python3 src/daily_digest.py --send-if-due
-          if ! git diff --quiet -- data/digest_state.json; then
-            git add data/digest_state.json
+          # git diff ignores a brand-new file; stage first, then compare the index.
+          git add data/digest_state.json
+          if ! git diff --cached --quiet -- data/digest_state.json; then
             git commit -q -m "Daily digest sent $(date '+%Y-%m-%d')"
             git push origin HEAD:main || { git fetch origin main && GIT_EDITOR=true git rebase --autostash origin/main && git push origin HEAD:main; }
           fi
