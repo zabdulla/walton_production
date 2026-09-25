@@ -1,10 +1,10 @@
 {
- "data_through": "2026-09-24",
- "last_poll": "2026-09-24T20:12:26",
- "last_snapshot": "2026-09-24T19:53:59",
- "polls": 1020,
+ "data_through": "2026-09-25",
+ "last_poll": "2026-09-25T16:13:44",
+ "last_snapshot": "2026-09-25T16:04:30",
+ "polls": 1150,
  "open_jobs": 15,
- "open_lbs": 356712,
+ "open_lbs": 412496,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -19,17 +19,17 @@
  ],
  "awaiting": [
   [
-   "2026-09-24",
+   "2026-09-25",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-24",
+   "2026-09-25",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-09-24",
+   "2026-09-25",
    "3rd",
    "GUILLOTINE"
   ]
@@ -39,8 +39,27 @@
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-09-24",
+  "as_of": "2026-09-25",
   "days": [
+   {
+    "date": "2026-09-25",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 3,
+      "machine_hours": 22.0,
+      "man_hours": 43.5,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-09-24",
     "shifts": {
@@ -53,10 +72,20 @@
       "downtime_min": 0
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon Whitehurst",
+      "machines": 4,
+      "machine_hours": 24.0,
+      "man_hours": 28.8,
+      "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 4,
+      "machine_hours": 21.0,
+      "man_hours": 27.0,
+      "downtime_min": 120
      }
     }
    },
@@ -174,36 +203,52 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-09-18",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Montez",
-      "machines": 4,
-      "machine_hours": 26.2,
-      "man_hours": 33.3,
-      "downtime_min": 60
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 3,
-      "machine_hours": 21.0,
-      "man_hours": 28.0,
-      "downtime_min": 0
-     }
-    }
    }
   ],
-  "filed": 12,
-  "entries": 51,
-  "last_filed": "2026-09-24",
+  "filed": 13,
+  "entries": 62,
+  "last_filed": "2026-09-25",
   "recent": [
+   {
+    "date": "2026-09-25",
+    "shift": "1st",
+    "machine": "EXTRUDER",
+    "operator": "Steven, Daniel, Jay",
+    "hours": 7.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Had one wrap up"
+   },
+   {
+    "date": "2026-09-24",
+    "shift": "3rd",
+    "machine": "AUTO TIE BALER",
+    "operator": "Darius",
+    "hours": 3.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Shut down belts on conveyor motor snapped"
+   },
+   {
+    "date": "2026-09-24",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "James, Connor",
+    "hours": 6.0,
+    "downtime_min": 120,
+    "reason": "",
+    "comment": "2 screens changes 2 blade changes"
+   },
+   {
+    "date": "2026-09-24",
+    "shift": "2nd",
+    "machine": "GRINDER",
+    "operator": "Kevin",
+    "hours": 2.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Belts broke on grinder had to shut down"
+   },
    {
     "date": "2026-09-23",
     "shift": "3rd",
@@ -263,46 +308,6 @@
     "downtime_min": 60,
     "reason": "Waiting on material",
     "comment": ""
-   },
-   {
-    "date": "2026-09-21",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "James, Connor",
-    "hours": 4.0,
-    "downtime_min": 180,
-    "reason": "Other",
-    "comment": "4 screens 3 blade changes had to clean line and purge system one of the conveyor belts went down"
-   },
-   {
-    "date": "2026-09-21",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Montez, Brandon",
-    "hours": 5.5,
-    "downtime_min": 120,
-    "reason": "Waiting on material",
-    "comment": "We had PT on the belt and we had to purge it"
-   },
-   {
-    "date": "2026-09-21",
-    "shift": "2nd",
-    "machine": "SHREDDER",
-    "operator": "Kevin",
-    "hours": 6.25,
-    "downtime_min": 60,
-    "reason": "Other",
-    "comment": "Machine running, Hot"
-   },
-   {
-    "date": "2026-09-21",
-    "shift": "1st",
-    "machine": "AUTO TIE BALER",
-    "operator": "Tony",
-    "hours": 5.25,
-    "downtime_min": 120,
-    "reason": "Other",
-    "comment": "Had to full with oil then maintenance had to fix the track from catching"
    }
   ],
   "notes": [
@@ -310,6 +315,11 @@
     "date": "2026-09-24",
     "shift": "1st",
     "note": "Kemonica was cleaning"
+   },
+   {
+    "date": "2026-09-24",
+    "shift": "2nd",
+    "note": "Steven a. Was unloading/cleaning"
    },
    {
     "date": "2026-09-23",
@@ -333,6 +343,148 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-25",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "9/25/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 21.75,
+      "operators": "Steven, Daniel, Jay",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Had one wrap up"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 14.5,
+      "operators": "Vince, Clarence",
+      "material": "Ricoh Slabs/BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-09-24",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "9/25/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 3.0,
+      "man_hours": 3.0,
+      "operators": "Darius",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Shut down belts on conveyor motor snapped"
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 6.0,
+      "man_hours": 12.0,
+      "operators": "James, Connor",
+      "material": "BOPP resin",
+      "downtime_min": 120,
+      "reason": "",
+      "comment": "2 screens changes 2 blade changes"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Darius",
+      "material": "Hdpe",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-09-24",
+    "shift": "2nd",
+    "by": "Brandon Whitehurst",
+    "filed_at": "9/24/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 12.25,
+      "operators": "Brandon, Kevin",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 2.0,
+      "man_hours": 2.0,
+      "operators": "Kevin",
+      "material": "Green grass",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Belts broke on grinder had to shut down"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Steven B",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven a. Was unloading/cleaning"
+    ]
+   },
    {
     "date": "2026-09-24",
     "shift": "1st",
@@ -986,5 +1138,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-09-24T20:12:46"
+ "generated": "2026-09-25T16:14:03"
 }
