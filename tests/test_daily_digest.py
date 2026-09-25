@@ -64,11 +64,28 @@ def test_render_email() -> None:
     assert "raw" in msg
 
 
+def test_monday_email_covers_friday_and_the_complete_week() -> None:
+    df = _df()
+    day = dd.pick_day(df, date(2026, 9, 20))                              # Monday's target is Sunday -> Friday
+    dg = dd.build_digest(df, STATUS, day)
+    assert dg["date"] == "2026-09-18" and dg["week"]["days"] == ["Mon 14", "Tue 15", "Wed 16", "Thu 17", "Fri 18"]
+    assert {r["shift"]: r["filed"] for r in dg["reports"]} == {"1st": False, "2nd": False, "3rd": True}   # Connor's Friday 3rd
+    html = dd.render_email(dg)
+    assert "complete week" in html and "Friday, September 18" in html
+
+
+def test_send_gate_skips_weekends(tmp_path) -> None:
+    st = tmp_path / "state.json"
+    assert dd.due_now(st, datetime(2026, 9, 26, 9, 0)) == (False, "weekend")    # Saturday
+    assert dd.due_now(st, datetime(2026, 9, 27, 9, 0)) == (False, "weekend")    # Sunday
+    assert dd.due_now(st, datetime(2026, 9, 28, 7, 2)) == (True, "due")          # Monday
+
+
 def test_send_gate_once_per_day_after_hour(tmp_path) -> None:
     st = tmp_path / "state.json"
-    assert dd.due_now(st, datetime(2026, 9, 22, 5, 59)) == (False, "before 06:00")
-    assert dd.due_now(st, datetime(2026, 9, 22, 6, 4)) == (True, "due")
+    assert dd.due_now(st, datetime(2026, 9, 22, 5, 59), send_hour=6) == (False, "before 06:00")
+    assert dd.due_now(st, datetime(2026, 9, 22, 6, 4), send_hour=6) == (True, "due")
     dd.mark_sent(st, datetime(2026, 9, 22, 6, 4))
     assert json.loads(st.read_text())["last_sent"] == "2026-09-22"
     assert dd.due_now(st, datetime(2026, 9, 22, 18, 0)) == (False, "already sent today")
-    assert dd.due_now(st, datetime(2026, 9, 23, 6, 4)) == (True, "due")
+    assert dd.due_now(st, datetime(2026, 9, 23, 6, 4), send_hour=6) == (True, "due")
