@@ -1,10 +1,10 @@
 {
- "data_through": "2026-09-25",
- "last_poll": "2026-09-25T16:13:44",
- "last_snapshot": "2026-09-25T16:04:30",
- "polls": 1150,
+ "data_through": "2026-09-26",
+ "last_poll": "2026-09-26T12:19:03",
+ "last_snapshot": "2026-09-26T05:16:59",
+ "polls": 1281,
  "open_jobs": 15,
- "open_lbs": 412496,
+ "open_lbs": 446133,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -17,30 +17,28 @@
   "2026-12-25",
   "2027-01-01"
  ],
- "awaiting": [
-  [
-   "2026-09-25",
-   "3rd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-09-25",
-   "3rd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-09-25",
-   "3rd",
-   "GUILLOTINE"
-  ]
- ],
+ "awaiting": [],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-09-25",
+  "as_of": "2026-09-26",
   "days": [
+   {
+    "date": "2026-09-26",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-09-25",
     "shifts": {
@@ -53,10 +51,20 @@
       "downtime_min": 0
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon",
+      "machines": 2,
+      "machine_hours": 14.8,
+      "man_hours": 21.8,
+      "downtime_min": 60
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 3,
+      "machine_hours": 18.0,
+      "man_hours": 25.0,
+      "downtime_min": 0
      }
     }
    },
@@ -189,26 +197,32 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-09-19",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
-     }
-    }
    }
   ],
-  "filed": 13,
-  "entries": 62,
+  "filed": 15,
+  "entries": 67,
   "last_filed": "2026-09-25",
   "recent": [
+   {
+    "date": "2026-09-25",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, James",
+    "hours": 7.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "One blade and one screen at starts of shift"
+   },
+   {
+    "date": "2026-09-25",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Kevin, Brandon",
+    "hours": 7.5,
+    "downtime_min": 60,
+    "reason": "Other",
+    "comment": "Wrap up 4 times"
+   },
    {
     "date": "2026-09-25",
     "shift": "1st",
@@ -288,29 +302,14 @@
     "downtime_min": 180,
     "reason": "Other",
     "comment": "Had to replace fuse 1,2,and 3 than blower got clogged there was also no converting page for 3rd shift weight is put on 2nd shift"
-   },
-   {
-    "date": "2026-09-22",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Brandon, Montez",
-    "hours": 2.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "No material  so shut down"
-   },
-   {
-    "date": "2026-09-22",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Jay, Steven, Daniel",
-    "hours": 6.5,
-    "downtime_min": 60,
-    "reason": "Waiting on material",
-    "comment": ""
    }
   ],
   "notes": [
+   {
+    "date": "2026-09-25",
+    "shift": "2nd",
+    "note": "Steven A unloading a truck/cleaning up"
+   },
    {
     "date": "2026-09-24",
     "shift": "1st",
@@ -335,14 +334,81 @@
     "date": "2026-09-18",
     "shift": "1st",
     "note": "Test"
-   },
-   {
-    "date": "2026-09-18",
-    "shift": "2nd",
-    "note": "Steven . A  was unloading/cleaning"
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-25",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "9/26/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 4.0,
+      "man_hours": 4.0,
+      "operators": "Darius",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.0,
+      "man_hours": 14.0,
+      "operators": "Connor, James",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "One blade and one screen at starts of shift"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Daniel",
+      "material": "Bopp",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-09-25",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "9/25/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Kevin, Brandon",
+      "material": "BOPP resin",
+      "downtime_min": 60,
+      "reason": "Other",
+      "comment": "Wrap up 4 times"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "Bopp/silicone slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven A unloading a truck/cleaning up"
+    ]
+   },
    {
     "date": "2026-09-25",
     "shift": "1st",
@@ -1138,5 +1204,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-09-25T16:14:03"
+ "generated": "2026-09-26T12:19:23"
 }
