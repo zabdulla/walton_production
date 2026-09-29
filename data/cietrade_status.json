@@ -1,10 +1,10 @@
 {
- "data_through": "2026-09-28",
- "last_poll": "2026-09-28T04:32:07",
- "last_snapshot": "2026-09-28T00:02:45",
- "polls": 1542,
+ "data_through": "2026-09-29",
+ "last_poll": "2026-09-29T00:33:14",
+ "last_snapshot": "2026-09-29T00:14:43",
+ "polls": 1670,
  "open_jobs": 15,
- "open_lbs": 446133,
+ "open_lbs": 507609,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -19,77 +19,77 @@
  ],
  "awaiting": [
   [
-   "2026-09-28",
+   "2026-09-29",
    "1st",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "1st",
    "EXTRUDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "1st",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "1st",
    "GRINDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "1st",
    "GUILLOTINE"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "1st",
    "SHREDDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "2nd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "2nd",
    "EXTRUDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "2nd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "2nd",
    "GRINDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "2nd",
    "GUILLOTINE"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "2nd",
    "SHREDDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-09-28",
+   "2026-09-29",
    "3rd",
    "GUILLOTINE"
   ]
@@ -99,16 +99,40 @@
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-09-28",
+  "as_of": "2026-09-29",
   "days": [
    {
-    "date": "2026-09-28",
+    "date": "2026-09-29",
     "shifts": {
      "1st": {
       "filed": false
      },
      "2nd": {
       "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-09-28",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 25.5,
+      "man_hours": 29.2,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": true,
+      "by": "Montez",
+      "machines": 4,
+      "machine_hours": 27.2,
+      "man_hours": 34.2,
+      "downtime_min": 60
      },
      "3rd": {
       "filed": false
@@ -229,41 +253,22 @@
       "downtime_min": 420
      }
     }
-   },
-   {
-    "date": "2026-09-22",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 5,
-      "machine_hours": 34.2,
-      "man_hours": 46.5,
-      "downtime_min": 60
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon Whitehurst",
-      "machines": 5,
-      "machine_hours": 24.8,
-      "man_hours": 26.8,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 3,
-      "machine_hours": 19.0,
-      "man_hours": 19.0,
-      "downtime_min": 180
-     }
-    }
    }
   ],
-  "filed": 12,
-  "entries": 67,
-  "last_filed": "2026-09-25",
+  "filed": 11,
+  "entries": 75,
+  "last_filed": "2026-09-28",
   "recent": [
+   {
+    "date": "2026-09-28",
+    "shift": "2nd",
+    "machine": "SHREDDER",
+    "operator": "Kevin",
+    "hours": 5.25,
+    "downtime_min": 60,
+    "reason": "",
+    "comment": "Machine kept running hot and smoking"
+   },
    {
     "date": "2026-09-25",
     "shift": "3rd",
@@ -353,19 +358,19 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Late start had to wait for material"
-   },
-   {
-    "date": "2026-09-22",
-    "shift": "3rd",
-    "machine": "GRINDER",
-    "operator": "James",
-    "hours": 5.0,
-    "downtime_min": 180,
-    "reason": "Other",
-    "comment": "Had to replace fuse 1,2,and 3 than blower got clogged there was also no converting page for 3rd shift weight is put on 2nd shift"
    }
   ],
   "notes": [
+   {
+    "date": "2026-09-28",
+    "shift": "1st",
+    "note": "Kemonica was helping ship/rec"
+   },
+   {
+    "date": "2026-09-28",
+    "shift": "2nd",
+    "note": "Steven . A  was unloading/cleaning"
+   },
    {
     "date": "2026-09-25",
     "shift": "2nd",
@@ -385,19 +390,113 @@
     "date": "2026-09-23",
     "shift": "2nd",
     "note": "Steven . A was unloading/cleaning"
-   },
-   {
-    "date": "2026-09-21",
-    "shift": "2nd",
-    "note": "Steven . A  Was unloading/cleaning"
-   },
-   {
-    "date": "2026-09-18",
-    "shift": "1st",
-    "note": "Test"
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-28",
+    "shift": "2nd",
+    "by": "Montez",
+    "filed_at": "9/28/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Steven B",
+      "material": "Mixed Plastic / SBS",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Montez, Andrew",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 5.25,
+      "man_hours": 5.25,
+      "operators": "Kevin",
+      "material": "HDPE",
+      "downtime_min": 60,
+      "reason": "",
+      "comment": "Machine kept running hot and smoking"
+     }
+    ],
+    "notes": [
+     "Steven . A  was unloading/cleaning"
+    ]
+   },
+   {
+    "date": "2026-09-28",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "9/28/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "SBS",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 11.25,
+      "operators": "Steven, Clarence",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "BOPP slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 3.5,
+      "man_hours": 3.5,
+      "operators": "Clarence",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Kemonica was helping ship/rec"
+    ]
+   },
    {
     "date": "2026-09-25",
     "shift": "3rd",
@@ -1265,5 +1364,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-09-28T04:32:29"
+ "generated": "2026-09-29T00:33:35"
 }
