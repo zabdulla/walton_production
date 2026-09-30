@@ -1,10 +1,10 @@
 {
  "data_through": "2026-09-29",
- "last_poll": "2026-09-29T00:33:14",
- "last_snapshot": "2026-09-29T00:14:43",
- "polls": 1670,
+ "last_poll": "2026-09-29T20:39:18",
+ "last_snapshot": "2026-09-29T20:39:18",
+ "polls": 1800,
  "open_jobs": 15,
- "open_lbs": 507609,
+ "open_lbs": 565695,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -18,66 +18,6 @@
   "2027-01-01"
  ],
  "awaiting": [
-  [
-   "2026-09-29",
-   "1st",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-09-29",
-   "1st",
-   "EXTRUDER"
-  ],
-  [
-   "2026-09-29",
-   "1st",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-09-29",
-   "1st",
-   "GRINDER"
-  ],
-  [
-   "2026-09-29",
-   "1st",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-09-29",
-   "1st",
-   "SHREDDER"
-  ],
-  [
-   "2026-09-29",
-   "2nd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-09-29",
-   "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-09-29",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-09-29",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-09-29",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-09-29",
-   "2nd",
-   "SHREDDER"
-  ],
   [
    "2026-09-29",
    "3rd",
@@ -105,7 +45,12 @@
     "date": "2026-09-29",
     "shifts": {
      "1st": {
-      "filed": false
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 29.2,
+      "man_hours": 43.5,
+      "downtime_min": 0
      },
      "2nd": {
       "filed": false
@@ -135,7 +80,12 @@
       "downtime_min": 60
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 3,
+      "machine_hours": 21.0,
+      "man_hours": 28.0,
+      "downtime_min": 0
      }
     }
    },
@@ -255,10 +205,20 @@
     }
    }
   ],
-  "filed": 11,
-  "entries": 75,
-  "last_filed": "2026-09-28",
+  "filed": 13,
+  "entries": 82,
+  "last_filed": "2026-09-29",
   "recent": [
+   {
+    "date": "2026-09-28",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "James, Connor",
+    "hours": 7.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Blade and screen change at start of shift also ran out of material before end of shift made lil over 6500 pounds"
+   },
    {
     "date": "2026-09-28",
     "shift": "2nd",
@@ -348,16 +308,6 @@
     "downtime_min": 300,
     "reason": "Other",
     "comment": "7 screen changes 2 blade changes had to cut material had trash on line and in system had to clean and purge system"
-   },
-   {
-    "date": "2026-09-23",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Steven, Daniel",
-    "hours": 5.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Late start had to wait for material"
    }
   ],
   "notes": [
@@ -393,6 +343,96 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-29",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "9/29/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "Cores",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 21.75,
+      "operators": "Jay, Steven, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "Bopp/silicone",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Clarence",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-09-28",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "9/29/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Darius",
+      "material": "Mixed Plastic and cores",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.0,
+      "man_hours": 14.0,
+      "operators": "James, Connor",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Blade and screen change at start of shift also ran out of material before end of shift made lil over 6500 pounds"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Daniel",
+      "material": "BOPP slabs and silicone",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-09-28",
     "shift": "2nd",
@@ -1364,5 +1404,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-09-29T00:33:35"
+ "generated": "2026-09-29T20:39:40"
 }
