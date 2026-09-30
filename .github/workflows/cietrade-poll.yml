@@ -188,7 +188,7 @@ jobs:
           if [ "$age_h" -lt 20 ]; then
             exit 0
           fi
-          git add data/aggregated_daily_data.xlsx data/aggregated_notes.xlsx data/cietrade_status.json docs/index.html docs/daily.html
+          git add data/aggregated_daily_data.xlsx data/aggregated_notes.xlsx data/cietrade_status.json docs/index.html docs/daily.html docs/beta/index.html
           if git diff --cached --quiet; then
             echo "Record unchanged."
             exit 0
