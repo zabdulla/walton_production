@@ -34,18 +34,26 @@ data as the current site. The current site is untouched until the beta replaces 
 - **Desktop (>= 900px)**: left sidebar 240px (collapsible to 64px icons, remembered);
   content column max 1080px. **Phone**: top bar with the page name and the data date; a
   fixed bottom tab bar with the same five items; content is one view at a time.
-- **Views** (hash-routed, no page reloads): Today · Week · Shifts · Machines · More.
-  - *Today*: hero number (pounds so far today from the live feed, or yesterday when the
-    plant is closed), a stat row (yesterday vs the 4-week same-weekday average, week to
-    date vs last week at the same point, open jobs, End of Shift filed), machine tiles for
-    today, the latest changes from the live feed.
-  - *Week*: pounds by machine and day for the current week with a shift selector, one
-    column chart of the plant's day totals with the 4-week average as a rule.
-  - *Shifts*: the End of Shift reports as filed, one card per shift, with a day picker.
-  - *Machines*: one small chart per machine, 20 weeks, 4-week average as the line, raw
-    weeks as a faint step behind, latest value labelled.
-  - *More*: links to the current dashboard, daily details, the End of Shift form, and
-    the data notes.
+- **Views** (hash-routed, no page reloads). The page carries the last 26 weeks of
+  shift-day-machine rows as JSON and renders every view in the browser, so each selector
+  below works without a rebuild: Today · Week · Shifts · Machines · More.
+  - *Today*: the headline is pounds by machine for the selected day as horizontal bars,
+    each with a tick for that machine's normal same weekday (the last four) and the
+    difference; a day picker and a shift selector; a stat row (plant total vs normal,
+    week to date vs last week at the same point, open jobs, End of Shift filed); the
+    latest cieTrade changes when the day is today. Today comes from the live feed.
+  - *Week*: a week picker and a shift selector; one stacked column per day, one segment
+    per machine in fixed slot order with a legend, the day total on the cap and the
+    4-week average working day as a rule; the machine × day table below follows both
+    selectors.
+  - *Shifts*: the End of Shift reports as filed for the selected week, newest day first,
+    one card per shift with a dashed card where none was filed; a week picker.
+  - *Machines*: one small chart per machine, 20 complete weeks, the 4-week average as
+    the line, raw weeks as a faint step behind, latest value labelled; a shift selector
+    and a metric selector (pounds, lbs per machine hour, labor $ per machine hour,
+    labor $ per lb). Per-hour figures use only rows with reported hours, and the rolling
+    average is a ratio of sums, so a week without hours is a gap, not a zero.
+  - *More*: links to the current dashboard, daily details, the End of Shift form.
 - One control row per view, above everything it scopes. Never a control inside a card.
 
 ## Type and colour
