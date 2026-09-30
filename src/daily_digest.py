@@ -13,7 +13,7 @@ with a link at the top and the bottom. No images: nothing to load or block.
     python3 src/daily_digest.py                       # preview: reports/digest/<date>.html for yesterday (gitignored)
     python3 src/daily_digest.py --date 2026-09-21     # a specific production day
     python3 src/daily_digest.py --send --to you@x.com # build and send through the Gmail API
-    python3 src/daily_digest.py --send-if-due         # cloud: send once a day after DIGEST_SEND_HOUR local (recipients from DIGEST_TO)
+    python3 src/daily_digest.py --send-if-due         # cloud: send once a day after DIGEST_SEND_HOUR local (recipients DIGEST_TO, blind copies DIGEST_BCC)
     python3 src/daily_digest.py --authorize           # one-time consent for the gmail.send scope (browser)
 
 Inputs: data/aggregated_daily_data.xlsx (pounds per shift-day-machine) and
@@ -243,17 +243,19 @@ def authorize() -> Path:
     return SEND_TOKEN_PATH
 
 
-def build_message(to: list[str], subject: str, html: str) -> dict:
+def build_message(to: list[str], subject: str, html: str, bcc: list[str] | None = None) -> dict:
     msg = MIMEMultipart("alternative")
     msg["To"], msg["Subject"] = ", ".join(to), subject
+    if bcc:
+        msg["Bcc"] = ", ".join(bcc)      # Gmail delivers to Bcc and strips the header from what recipients see
     msg.attach(MIMEText("Walton daily production email. Open in an HTML mail client, or see " + DASHBOARD_URL, "plain"))
     msg.attach(MIMEText(html, "html"))
     return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
 
-def send(to: list[str], subject: str, html: str) -> str:
+def send(to: list[str], subject: str, html: str, bcc: list[str] | None = None) -> str:
     svc = gmail_send_service()
-    r = svc.users().messages().send(userId="me", body=build_message(to, subject, html)).execute()
+    r = svc.users().messages().send(userId="me", body=build_message(to, subject, html, bcc)).execute()
     return r.get("id", "")
 
 
@@ -283,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=OUT_DIR, help="preview folder for <date>.html (gitignored)")
     ap.add_argument("--send", action="store_true", help="send through the Gmail API")
     ap.add_argument("--to", help="comma-separated recipients (default: env DIGEST_TO)")
+    ap.add_argument("--bcc", help="comma-separated blind-copy recipients (default: env DIGEST_BCC)")
     ap.add_argument("--send-if-due", action="store_true", help="send once per day after DIGEST_SEND_HOUR (default 7) local time")
     ap.add_argument("--authorize", action="store_true", help="one-time browser consent for gmail.send")
     args = ap.parse_args(argv)
@@ -302,10 +305,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{dg['day_label']}: {dg['day_total']:,} lbs, EOS {filed}/3 shifts -> {html_path}")
     if args.send or args.send_if_due:
         to = [x.strip() for x in (args.to or os.environ.get("DIGEST_TO", "")).split(",") if x.strip()]
+        bcc = [x.strip() for x in (args.bcc or os.environ.get("DIGEST_BCC", "")).split(",") if x.strip()]
         if not to:
             print("no recipients (use --to or DIGEST_TO)"); return 2
-        mid = send(to, f"Walton production · {dg['day_label']} · {dg['day_total']:,} lbs", render_email(dg))
-        print(f"sent {mid} to {', '.join(to)}")
+        mid = send(to, f"Walton production · {dg['day_label']} · {dg['day_total']:,} lbs", render_email(dg), bcc)
+        print(f"sent {mid} to {', '.join(to)}" + (f" (bcc {len(bcc)})" if bcc else ""))
         if args.send_if_due:
             mark_sent()
     return 0
