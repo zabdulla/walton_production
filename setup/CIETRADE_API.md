@@ -168,6 +168,9 @@ Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fe
     python3 src/daily_digest.py --authorize            # browser consent for gmail.send only -> ~/.config/walton/gmail_send_token.json
     gh secret set GMAIL_SEND_TOKEN_JSON < ~/.config/walton/gmail_send_token.json
     gh secret set DIGEST_TO --body "you@plusmaterials.com,them@plusmaterials.com"
+    gh secret set DIGEST_BCC --body "quiet@waltonlogistics.com"      # optional blind copies
+
+Recipients are comma-separated; setting a secret replaces the whole list, so include yourself.
 
 `data/digest_state.json` (committed) records the last send so the ten-minute chain sends
 exactly once a day; the repository variable `DIGEST_SEND_HOUR` moves the hour.

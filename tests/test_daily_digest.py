@@ -62,6 +62,9 @@ def test_render_email() -> None:
     assert "<img" not in html and "<style" not in html and "table-layout:fixed" in html   # no images; inline styles only
     msg = dd.build_message(["a@x.com"], "s", html)
     assert "raw" in msg
+    import base64, email
+    raw = email.message_from_bytes(base64.urlsafe_b64decode(dd.build_message(["a@x.com", "b@x.com"], "s", html, bcc=["c@y.com"])["raw"]))
+    assert raw["To"] == "a@x.com, b@x.com" and raw["Bcc"] == "c@y.com"
 
 
 def test_monday_email_covers_friday_and_the_complete_week() -> None:
