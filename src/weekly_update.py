@@ -483,17 +483,19 @@ def _dashboard_builders() -> list[tuple[str, Any]]:
     import build_operator_dashboard as bo
     import build_profit_dashboard as bp
     import build_payroll_dashboard as bpay
+    import build_beta_dashboard as bb
     return [
         ("Interactive", lambda: bi.main(bi.DEFAULT_INPUT, bi.DEFAULT_OUTPUT)),
         ("Daily", lambda: bd.main(bd.DEFAULT_DAILY_INPUT, bd.DEFAULT_NOTES_INPUT, bd.DEFAULT_OUTPUT)),
         ("Operator", lambda: bo.main(bo.DEFAULT_INPUT, bo.DEFAULT_OUTPUT)),
         ("Profit", lambda: bp.main(bp.DEFAULT_INPUT, bp.DEFAULT_OUTPUT)),
         ("Payroll", lambda: bpay.main(bpay.DEFAULT_OUTPUT)),
+        ("Beta", lambda: bb.main(bb.DEFAULT_INPUT, bb.DEFAULT_OUTPUT)),
     ]
 
 
 def step_build_dashboards() -> dict[str, Any]:
-    """Build all 5 dashboards in-process. One failure doesn't stop the others,
+    """Build all 6 dashboards in-process. One failure doesn't stop the others,
     and failures log the real traceback instead of a subprocess exit code."""
     import io
     from contextlib import redirect_stdout
@@ -850,7 +852,7 @@ def main() -> int:
     new_files = fetch.get("processing", 0) + fetch.get("payroll", 0)
     if new_files:
         parts.append(f"{new_files} new file(s)")
-    parts.append(f"{len(build.get('built', []))}/5 dashboards")
+    parts.append(f"{len(build.get('built', []))}/{len(build.get('built', [])) + len(build.get('failed', [])) + len(build.get('skipped', []))} dashboards")
     if git.get("pushed"):
         parts.append("pushed")
     elif git.get("committed"):
