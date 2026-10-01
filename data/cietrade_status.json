@@ -1,10 +1,10 @@
 {
- "data_through": "2026-09-30",
- "last_poll": "2026-09-30T16:47:21",
- "last_snapshot": "2026-09-30T16:28:34",
- "polls": 1930,
+ "data_through": "2026-10-01",
+ "last_poll": "2026-10-01T12:51:58",
+ "last_snapshot": "2026-10-01T12:13:55",
+ "polls": 2058,
  "open_jobs": 15,
- "open_lbs": 605788,
+ "open_lbs": 662885,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -19,17 +19,47 @@
  ],
  "awaiting": [
   [
-   "2026-09-30",
+   "2026-10-01",
+   "2nd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-10-01",
+   "2nd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-10-01",
+   "2nd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-10-01",
+   "2nd",
+   "GRINDER"
+  ],
+  [
+   "2026-10-01",
+   "2nd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-10-01",
+   "2nd",
+   "SHREDDER"
+  ],
+  [
+   "2026-10-01",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-09-30",
+   "2026-10-01",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-09-30",
+   "2026-10-01",
    "3rd",
    "GUILLOTINE"
   ]
@@ -39,10 +69,10 @@
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-09-30",
+  "as_of": "2026-10-01",
   "days": [
    {
-    "date": "2026-09-30",
+    "date": "2026-10-01",
     "shifts": {
      "1st": {
       "filed": false
@@ -52,6 +82,30 @@
      },
      "3rd": {
       "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-09-30",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 27.8,
+      "man_hours": 32.5,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": true,
+      "by": "Connor",
+      "machines": 2,
+      "machine_hours": 14.0,
+      "man_hours": 16.0,
+      "downtime_min": 0
      }
     }
    },
@@ -169,41 +223,22 @@
       "downtime_min": 0
      }
     }
-   },
-   {
-    "date": "2026-09-24",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 4,
-      "machine_hours": 27.0,
-      "man_hours": 34.0,
-      "downtime_min": 0
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon Whitehurst",
-      "machines": 4,
-      "machine_hours": 24.0,
-      "man_hours": 28.8,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 4,
-      "machine_hours": 21.0,
-      "man_hours": 27.0,
-      "downtime_min": 120
-     }
-    }
    }
   ],
-  "filed": 12,
-  "entries": 89,
-  "last_filed": "2026-09-29",
+  "filed": 11,
+  "entries": 95,
+  "last_filed": "2026-09-30",
   "recent": [
+   {
+    "date": "2026-09-30",
+    "shift": "3rd",
+    "machine": "GUILLOTINE",
+    "operator": "James, Daniel",
+    "hours": 7.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "James helped for 2 hours had a pallet break had to clean up"
+   },
    {
     "date": "2026-09-29",
     "shift": "3rd",
@@ -293,19 +328,14 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Belts broke on grinder had to shut down"
-   },
-   {
-    "date": "2026-09-23",
-    "shift": "3rd",
-    "machine": "AUTO TIE BALER",
-    "operator": "Darius",
-    "hours": 6.0,
-    "downtime_min": 120,
-    "reason": "Breakdown",
-    "comment": "Convey stoped working"
    }
   ],
   "notes": [
+   {
+    "date": "2026-09-30",
+    "shift": "3rd",
+    "note": "James prepared 27 boxes for shipping \nAnd cleaned and got shredder grinder ready to run for 10/1/26"
+   },
    {
     "date": "2026-09-29",
     "shift": "2nd",
@@ -330,14 +360,91 @@
     "date": "2026-09-24",
     "shift": "1st",
     "note": "Kemonica was cleaning"
-   },
-   {
-    "date": "2026-09-24",
-    "shift": "2nd",
-    "note": "Steven a. Was unloading/cleaning"
    }
   ],
   "reports": [
+   {
+    "date": "2026-09-30",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "10/1/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Darius",
+      "material": "Cardboard sbs mixedPlastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 9.0,
+      "operators": "James, Daniel",
+      "material": "Silicon",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "James helped for 2 hours had a pallet break had to clean up"
+     }
+    ],
+    "notes": [
+     "James prepared 27 boxes for shipping \nAnd cleaned and got shredder grinder ready to run for 10/1/26"
+    ]
+   },
+   {
+    "date": "2026-09-30",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "10/1/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 0.0,
+      "operators": "Tony",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 6.0,
+      "man_hours": 18.0,
+      "operators": "Jay, Steven, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "Ricoh Slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Clarence",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-09-29",
     "shift": "3rd",
@@ -1491,5 +1598,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-09-30T16:47:41"
+ "generated": "2026-10-01T12:52:19"
 }
