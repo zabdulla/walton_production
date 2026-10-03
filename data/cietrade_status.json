@@ -1,10 +1,10 @@
 {
- "data_through": "2026-10-02",
- "last_poll": "2026-10-02T08:54:00",
- "last_snapshot": "2026-10-02T08:54:00",
- "polls": 2187,
+ "data_through": "2026-10-03",
+ "last_poll": "2026-10-03T05:00:01",
+ "last_snapshot": "2026-10-03T04:50:41",
+ "polls": 2317,
  "open_jobs": 15,
- "open_lbs": 711925,
+ "open_lbs": 774553,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -17,68 +17,46 @@
   "2026-12-25",
   "2027-01-01"
  ],
- "awaiting": [
-  [
-   "2026-10-02",
-   "2nd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-10-02",
-   "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-10-02",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-10-02",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-10-02",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-10-02",
-   "2nd",
-   "SHREDDER"
-  ],
-  [
-   "2026-10-02",
-   "3rd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-10-02",
-   "3rd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-10-02",
-   "3rd",
-   "GUILLOTINE"
-  ]
- ],
+ "awaiting": [],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-02",
+  "as_of": "2026-10-03",
   "days": [
    {
-    "date": "2026-10-02",
+    "date": "2026-10-03",
     "shifts": {
      "1st": {
       "filed": false
      },
      "2nd": {
       "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-10-02",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 28.8,
+      "man_hours": 49.8,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": true,
+      "by": "Montez",
+      "machines": 4,
+      "machine_hours": 27.0,
+      "man_hours": 34.0,
+      "downtime_min": 120
      },
      "3rd": {
       "filed": false
@@ -214,26 +192,32 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-09-26",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
-     }
-    }
    }
   ],
-  "filed": 12,
-  "entries": 108,
-  "last_filed": "2026-10-01",
+  "filed": 14,
+  "entries": 116,
+  "last_filed": "2026-10-02",
   "recent": [
+   {
+    "date": "2026-10-02",
+    "shift": "2nd",
+    "machine": "AUTO TIE BALER",
+    "operator": "Steven B",
+    "hours": 6.0,
+    "downtime_min": 60,
+    "reason": "",
+    "comment": ""
+   },
+   {
+    "date": "2026-10-02",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Montez, Brandon",
+    "hours": 6.5,
+    "downtime_min": 60,
+    "reason": "",
+    "comment": "We had PT on the belt we had to purge it"
+   },
    {
     "date": "2026-10-01",
     "shift": "2nd",
@@ -313,29 +297,19 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "One blade and one screen at starts of shift"
-   },
-   {
-    "date": "2026-09-25",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Kevin, Brandon",
-    "hours": 7.5,
-    "downtime_min": 60,
-    "reason": "Other",
-    "comment": "Wrap up 4 times"
-   },
-   {
-    "date": "2026-09-25",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Steven, Daniel, Jay",
-    "hours": 7.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Had one wrap up"
    }
   ],
   "notes": [
+   {
+    "date": "2026-10-02",
+    "shift": "1st",
+    "note": "Had to share tilt lift"
+   },
+   {
+    "date": "2026-10-02",
+    "shift": "2nd",
+    "note": "Steven . A was unloading / cleaning"
+   },
    {
     "date": "2026-10-01",
     "shift": "1st",
@@ -355,19 +329,113 @@
     "date": "2026-09-30",
     "shift": "2nd",
     "note": "Steven a cleaning"
-   },
-   {
-    "date": "2026-09-29",
-    "shift": "2nd",
-    "note": "Steven . A was unloading/ cleaning"
-   },
-   {
-    "date": "2026-09-28",
-    "shift": "1st",
-    "note": "Kemonica was helping ship/rec"
    }
   ],
   "reports": [
+   {
+    "date": "2026-10-02",
+    "shift": "2nd",
+    "by": "Montez",
+    "filed_at": "10/2/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 6.0,
+      "man_hours": 6.0,
+      "operators": "Steven B",
+      "material": "Mixed Plastic",
+      "downtime_min": 60,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 6.5,
+      "man_hours": 13.5,
+      "operators": "Montez, Brandon",
+      "material": "BOPP resin",
+      "downtime_min": 60,
+      "reason": "",
+      "comment": "We had PT on the belt we had to purge it"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Kevin",
+      "material": "LDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven . A was unloading / cleaning"
+    ]
+   },
+   {
+    "date": "2026-10-02",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "10/2/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 6.25,
+      "man_hours": 6.25,
+      "operators": "Kemonica",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Steven, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Jay, Clarence",
+      "material": "LDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Tony, Vince",
+      "material": "LDPE/ricoh",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Had to share tilt lift"
+    ]
+   },
    {
     "date": "2026-10-01",
     "shift": "3rd",
@@ -1779,5 +1847,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-02T08:54:26"
+ "generated": "2026-10-03T05:00:21"
 }
