@@ -1,10 +1,10 @@
 {
- "data_through": "2026-10-03",
- "last_poll": "2026-10-03T05:00:01",
- "last_snapshot": "2026-10-03T04:50:41",
- "polls": 2317,
+ "data_through": "2026-10-04",
+ "last_poll": "2026-10-04T01:03:01",
+ "last_snapshot": "2026-10-04T00:07:07",
+ "polls": 2447,
  "open_jobs": 15,
- "open_lbs": 774553,
+ "open_lbs": 781853,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -23,8 +23,22 @@
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-03",
+  "as_of": "2026-10-04",
   "days": [
+   {
+    "date": "2026-10-04",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-10-03",
     "shifts": {
@@ -176,20 +190,6 @@
       "machine_hours": 21.0,
       "man_hours": 28.0,
       "downtime_min": 0
-     }
-    }
-   },
-   {
-    "date": "2026-09-27",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
      }
     }
    }
@@ -1847,5 +1847,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-03T05:00:21"
+ "generated": "2026-10-04T01:03:16"
 }
