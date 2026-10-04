@@ -2487,3 +2487,4 @@
 {"ts": "2026-10-04T07:13:06", "ok": true, "ms": 1197, "changed": false, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 781853.0, "open_hash": "6cf474b305403205", "posted_recent": 8, "posted_new": 0, "posted_changed": 0, "posted_total": 1945}
 {"ts": "2026-10-04T07:23:02", "ok": true, "ms": 1247, "changed": false, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 781853.0, "open_hash": "6cf474b305403205", "posted_recent": 8, "posted_new": 0, "posted_changed": 0, "posted_total": 1945}
 {"ts": "2026-10-04T07:32:26", "ok": true, "ms": 1004, "changed": false, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 781853.0, "open_hash": "6cf474b305403205", "posted_recent": 8, "posted_new": 0, "posted_changed": 0, "posted_total": 1945}
+{"ts": "2026-10-04T07:41:46", "ok": false, "ms": 15588, "changed": false, "error": "HTTPError: HTTP Error 500: Internal Server Error"}
