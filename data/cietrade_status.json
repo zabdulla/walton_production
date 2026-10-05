@@ -1,8 +1,8 @@
 {
  "data_through": "2026-10-04",
- "last_poll": "2026-10-04T01:03:01",
- "last_snapshot": "2026-10-04T00:07:07",
- "polls": 2447,
+ "last_poll": "2026-10-04T21:07:25",
+ "last_snapshot": "2026-10-04T15:52:18",
+ "polls": 2577,
  "open_jobs": 15,
  "open_lbs": 781853,
  "from_date": "2026-08-24",
@@ -1847,5 +1847,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-04T01:03:16"
+ "generated": "2026-10-04T21:07:46"
 }
