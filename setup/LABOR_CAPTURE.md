@@ -63,7 +63,9 @@ Deploy once (about five minutes):
 5. Pull: `python3 src/labor_sheet.py --dry-run`, then without the flag to land rows.
    Shift notes are read from the `Submissions` tab automatically.
 6. Every submission emails a few-line summary (machines, hours, operators, downtime, shift
-   notes) to the account the app runs as, or to the script property `NOTIFY_EMAIL`. After
+   notes) to the account the app runs as, or to the script property `NOTIFY_EMAIL`
+   (Project Settings → Script Properties; one address or a comma-separated list, which
+   replaces the default, so include your own address). Changing it needs no redeploy. After
    pasting a new `Code.gs`, run `sendTestNotification` once in the editor (it asks for the
    mail permission and sends a sample), then Deploy → Manage deployments → New version.
 7. Share the short link <https://zabdulla.github.io/walton_production/shift> (or print

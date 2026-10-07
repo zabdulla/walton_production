@@ -148,7 +148,8 @@ function submitReport(p) {
 }
 
 // ---- submission notice: a few lines by email, the moment a report is filed ----
-// Recipient: script property NOTIFY_EMAIL, else the account the app runs as.
+// Recipients: script property NOTIFY_EMAIL (one address or a comma-separated list,
+// e.g. "a@x.com, b@y.com"), else the account the app runs as.
 // Never fatal — a mail problem must not fail the submit.
 function notifyRecipient_() {
   return PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL') || Session.getEffectiveUser().getEmail();
