@@ -64,8 +64,12 @@ Deploy once (about five minutes):
    Shift notes are read from the `Submissions` tab automatically.
 6. Every submission emails a few-line summary (machines, hours, operators, downtime, shift
    notes) to the account the app runs as, or to the script property `NOTIFY_EMAIL`
-   (Project Settings → Script Properties; one address or a comma-separated list, which
-   replaces the default, so include your own address). Changing it needs no redeploy. After
+   (one address or a comma-separated list, which replaces the default, so include your own
+   address). Set it in the web app's own project: <https://script.google.com> → the project
+   holding this `Code.gs` → Project Settings → Script Properties, next to `EOS_SPREADSHEET_ID`.
+   The script reached from the spreadsheet's Extensions → Apps Script menu is a different,
+   empty project. Changing the property needs no redeploy; `sendTestNotification` confirms
+   the recipients in its log line. After
    pasting a new `Code.gs`, run `sendTestNotification` once in the editor (it asks for the
    mail permission and sends a sample), then Deploy → Manage deployments → New version.
 7. Share the short link <https://zabdulla.github.io/walton_production/shift> (or print
