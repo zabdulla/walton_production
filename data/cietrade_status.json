@@ -1,10 +1,10 @@
 {
- "data_through": "2026-10-07",
- "last_poll": "2026-10-07T04:14:34",
- "last_snapshot": "2026-10-07T04:05:17",
- "polls": 2911,
+ "data_through": "2026-10-08",
+ "last_poll": "2026-10-08T00:18:12",
+ "last_snapshot": "2026-10-08T00:08:53",
+ "polls": 3012,
  "open_jobs": 15,
- "open_lbs": 897793,
+ "open_lbs": 944768,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -19,77 +19,77 @@
  ],
  "awaiting": [
   [
-   "2026-10-07",
+   "2026-10-08",
    "1st",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "1st",
    "EXTRUDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "1st",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "1st",
    "GRINDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "1st",
    "GUILLOTINE"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "1st",
    "SHREDDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "2nd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "2nd",
    "EXTRUDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "2nd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "2nd",
    "GRINDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "2nd",
    "GUILLOTINE"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "2nd",
    "SHREDDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-10-07",
+   "2026-10-08",
    "3rd",
    "GUILLOTINE"
   ]
@@ -99,16 +99,40 @@
   "1 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-07",
+  "as_of": "2026-10-08",
   "days": [
    {
-    "date": "2026-10-07",
+    "date": "2026-10-08",
     "shifts": {
      "1st": {
       "filed": false
      },
      "2nd": {
       "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-10-07",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 25.0,
+      "man_hours": 32.0,
+      "downtime_min": 120
+     },
+     "2nd": {
+      "filed": true,
+      "by": "Brandon",
+      "machines": 4,
+      "machine_hours": 29.0,
+      "man_hours": 35.5,
+      "downtime_min": 30
      },
      "3rd": {
       "filed": false
@@ -135,7 +159,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 3,
+      "machine_hours": 19.2,
+      "man_hours": 28.0,
+      "downtime_min": 125
      }
     }
    },
@@ -219,41 +248,42 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-10-01",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 3,
-      "machine_hours": 18.5,
-      "man_hours": 33.8,
-      "downtime_min": 120
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon",
-      "machines": 3,
-      "machine_hours": 19.0,
-      "man_hours": 26.0,
-      "downtime_min": 30
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 3,
-      "machine_hours": 21.0,
-      "man_hours": 21.0,
-      "downtime_min": 0
-     }
-    }
    }
   ],
   "filed": 10,
-  "entries": 138,
-  "last_filed": "2026-10-06",
+  "entries": 149,
+  "last_filed": "2026-10-07",
   "recent": [
+   {
+    "date": "2026-10-07",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon, Steven A",
+    "hours": 6.5,
+    "downtime_min": 30,
+    "reason": "Blades",
+    "comment": "Blades broke 3 times had a late start waiting on Montez to get there"
+   },
+   {
+    "date": "2026-10-07",
+    "shift": "1st",
+    "machine": "GRINDER",
+    "operator": "Tim",
+    "hours": 3.0,
+    "downtime_min": 120,
+    "reason": "Waiting on material",
+    "comment": "Guillotine could not keep up had to shut down several times to wait for material"
+   },
+   {
+    "date": "2026-10-06",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "James, Connor",
+    "hours": 5.25,
+    "downtime_min": 125,
+    "reason": "Other",
+    "comment": "Came in both belts empty had to do blade and screen change at the start and load both belts than had another blade and screen change total of 2 blades 3 screens"
+   },
    {
     "date": "2026-10-06",
     "shift": "2nd",
@@ -323,39 +353,19 @@
     "downtime_min": 30,
     "reason": "",
     "comment": "We had it on the belt we had to purge it"
-   },
-   {
-    "date": "2026-10-01",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Jay, Steven, Daniel",
-    "hours": 4.0,
-    "downtime_min": 120,
-    "reason": "Breakdown",
-    "comment": "Started late then had to have maintenance fix the power switch for the belt"
-   },
-   {
-    "date": "2026-09-30",
-    "shift": "3rd",
-    "machine": "GUILLOTINE",
-    "operator": "James, Daniel",
-    "hours": 7.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "James helped for 2 hours had a pallet break had to clean up"
-   },
-   {
-    "date": "2026-09-30",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Brandon, Montez",
-    "hours": 6.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Ran out of material"
    }
   ],
   "notes": [
+   {
+    "date": "2026-10-07",
+    "shift": "2nd",
+    "note": "Steven was unloading a truck but came to the extruder with Brandon because Montez left"
+   },
+   {
+    "date": "2026-10-06",
+    "shift": "3rd",
+    "note": "I have pictures of how the belts where left when we came in please let me know who to send them too"
+   },
    {
     "date": "2026-10-05",
     "shift": "2nd",
@@ -375,19 +385,153 @@
     "date": "2026-10-01",
     "shift": "2nd",
     "note": "Steven a cleaning"
-   },
-   {
-    "date": "2026-10-01",
-    "shift": "1st",
-    "note": "Clarence was cleaning and bring material"
-   },
-   {
-    "date": "2026-09-30",
-    "shift": "2nd",
-    "note": "Steven a cleaning"
    }
   ],
   "reports": [
+   {
+    "date": "2026-10-07",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "10/7/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven B",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 6.5,
+      "man_hours": 13.0,
+      "operators": "Brandon, Steven A",
+      "material": "BOPP resin",
+      "downtime_min": 30,
+      "reason": "Blades",
+      "comment": "Blades broke 3 times had a late start waiting on Montez to get there"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Kevin",
+      "material": "LDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Andrew",
+      "material": "LDPE chunks /Bopp resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven was unloading a truck but came to the extruder with Brandon because Montez left"
+    ]
+   },
+   {
+    "date": "2026-10-07",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "10/7/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "HDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Jay, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 3.0,
+      "man_hours": 3.0,
+      "operators": "Tim",
+      "material": "LDPE",
+      "downtime_min": 120,
+      "reason": "Waiting on material",
+      "comment": "Guillotine could not keep up had to shut down several times to wait for material"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "LDPE/BOPP/ricoh",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-10-06",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "10/7/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Darius",
+      "material": "Cores",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.25,
+      "man_hours": 14.0,
+      "operators": "James, Connor",
+      "material": "BOPP resin",
+      "downtime_min": 125,
+      "reason": "Other",
+      "comment": "Came in both belts empty had to do blade and screen change at the start and load both belts than had another blade and screen change total of 2 blades 3 screens"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "",
+      "material": "Bopp silicone BoppPallets",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "I have pictures of how the belts where left when we came in please let me know who to send them too"
+    ]
+   },
    {
     "date": "2026-10-06",
     "shift": "2nd",
@@ -2175,5 +2319,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-07T04:14:58"
+ "generated": "2026-10-08T00:18:33"
 }
