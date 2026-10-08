@@ -3127,3 +3127,4 @@
 {"ts": "2026-10-08T18:13:47", "ok": true, "ms": 474, "changed": false, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 983474.0, "open_hash": "8f21358d56a41b10", "posted_recent": 0}
 {"ts": "2026-10-08T18:23:13", "ok": true, "ms": 1130, "changed": false, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 983474.0, "open_hash": "8f21358d56a41b10", "posted_recent": 0}
 {"ts": "2026-10-08T18:32:32", "ok": true, "ms": 1510, "changed": false, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 983474.0, "open_hash": "8f21358d56a41b10", "posted_recent": 0}
+{"ts": "2026-10-08T18:41:51", "ok": true, "ms": 1271, "changed": true, "error": null, "open_jobs": 16, "monroe_open": 15, "open_lbs": 984261.0, "open_hash": "4fd27b302bba9d9d", "posted_recent": 0}
