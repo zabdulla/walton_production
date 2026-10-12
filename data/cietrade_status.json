@@ -1,8 +1,8 @@
 {
- "data_through": "2026-10-11",
- "last_poll": "2026-10-11T08:34:02",
- "last_snapshot": "2026-10-11T00:03:37",
- "polls": 3530,
+ "data_through": "2026-10-12",
+ "last_poll": "2026-10-12T04:41:53",
+ "last_snapshot": "2026-10-12T00:01:02",
+ "polls": 3660,
  "open_jobs": 15,
  "open_lbs": 1087821,
  "from_date": "2026-08-24",
@@ -17,14 +17,104 @@
   "2026-12-25",
   "2027-01-01"
  ],
- "awaiting": [],
+ "awaiting": [
+  [
+   "2026-10-12",
+   "1st",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-10-12",
+   "1st",
+   "EXTRUDER"
+  ],
+  [
+   "2026-10-12",
+   "1st",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-10-12",
+   "1st",
+   "GRINDER"
+  ],
+  [
+   "2026-10-12",
+   "1st",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-10-12",
+   "1st",
+   "SHREDDER"
+  ],
+  [
+   "2026-10-12",
+   "2nd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-10-12",
+   "2nd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-10-12",
+   "2nd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-10-12",
+   "2nd",
+   "GRINDER"
+  ],
+  [
+   "2026-10-12",
+   "2nd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-10-12",
+   "2nd",
+   "SHREDDER"
+  ],
+  [
+   "2026-10-12",
+   "3rd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-10-12",
+   "3rd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-10-12",
+   "3rd",
+   "GUILLOTINE"
+  ]
+ ],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "3 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-11",
+  "as_of": "2026-10-12",
   "days": [
+   {
+    "date": "2026-10-12",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-10-11",
     "shifts": {
@@ -163,38 +253,9 @@
       "downtime_min": 125
      }
     }
-   },
-   {
-    "date": "2026-10-05",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 4,
-      "machine_hours": 25.8,
-      "man_hours": 29.8,
-      "downtime_min": 0
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 4,
-      "machine_hours": 25.8,
-      "man_hours": 25.8,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 4,
-      "machine_hours": 24.0,
-      "man_hours": 28.0,
-      "downtime_min": 0
-     }
-    }
    }
   ],
-  "filed": 14,
+  "filed": 11,
   "entries": 171,
   "last_filed": "2026-10-09",
   "recent": [
@@ -2545,5 +2606,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-11T08:34:23"
+ "generated": "2026-10-12T04:42:11"
 }
