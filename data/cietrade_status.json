@@ -1,10 +1,10 @@
 {
  "data_through": "2026-10-13",
- "last_poll": "2026-10-13T00:45:38",
- "last_snapshot": "2026-10-13T00:08:40",
- "polls": 3789,
+ "last_poll": "2026-10-13T20:51:06",
+ "last_snapshot": "2026-10-13T20:14:12",
+ "polls": 3918,
  "open_jobs": 18,
- "open_lbs": 362211,
+ "open_lbs": 404294,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -18,66 +18,6 @@
   "2027-01-01"
  ],
  "awaiting": [
-  [
-   "2026-10-13",
-   "1st",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-10-13",
-   "1st",
-   "EXTRUDER"
-  ],
-  [
-   "2026-10-13",
-   "1st",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-10-13",
-   "1st",
-   "GRINDER"
-  ],
-  [
-   "2026-10-13",
-   "1st",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-10-13",
-   "1st",
-   "SHREDDER"
-  ],
-  [
-   "2026-10-13",
-   "2nd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-10-13",
-   "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-10-13",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-10-13",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-10-13",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-10-13",
-   "2nd",
-   "SHREDDER"
-  ],
   [
    "2026-10-13",
    "3rd",
@@ -2718,5 +2658,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-13T00:45:57"
+ "generated": "2026-10-13T20:51:22"
 }
