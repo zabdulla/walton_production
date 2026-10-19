@@ -1,4 +1,4 @@
-"""Week-at-a-glance table and daily production chart for docs/index.html.
+"""Week-at-a-glance table and daily production chart for docs/classic/index.html.
 
 Folded in from the cieTrade pilot page. Both render client-side from one compact
 payload (one entry per date, shift and machine) so the Guillotine-support toggle
@@ -77,7 +77,7 @@ def end_of_shift_html(status: dict | None) -> str:
     import html as _h
     eos = (status or {}).get("end_of_shift")
     head = ('<section class="card" id="eosCard"><div class="card-head"><div><h2>End of Shift reports</h2>'
-            '<p class="lede">Filed by supervisors from their phones (<a href="shift/">the End of Shift form</a>). Hours, crew, operators, material and downtime '
+            '<p class="lede">Filed by supervisors from their phones (<a href="../shift/">the End of Shift form</a>). Hours, crew, operators, material and downtime '
             'flow into the rows above within ten minutes of a submission; a missing shift means nobody has filed it yet.</p></div></div>')
     if not eos:
         return head + '<p class="await-note">No submissions have reached the dashboard yet.</p></section>'

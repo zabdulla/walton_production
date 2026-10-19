@@ -2,7 +2,7 @@
 Smoke tests for the generated dashboard HTML files.
 
 These are not unit tests of builder functions — they exercise the actual
-``docs/index.html`` and ``docs/daily.html`` (and the local ``reports/*``
+``docs/index.html``, ``docs/classic/index.html`` and ``docs/classic/daily.html`` (and the local ``reports/*``
 dashboards if present), asserting they look like real dashboards rather
 than truncated junk.
 
@@ -28,9 +28,12 @@ MIN_SIZE_BYTES = 50_000
 
 
 PUBLISHED_DASHBOARDS = [
-    (DOCS / "index.html", "Interactive dashboard"),
-    (DOCS / "daily.html", "Daily dashboard"),
+    (DOCS / "index.html", "Production dashboard"),
+    (DOCS / "classic" / "index.html", "Classic dashboard"),
+    (DOCS / "classic" / "daily.html", "Classic daily dashboard"),
 ]
+# The production dashboard draws inline SVG; only the classic pages embed Plotly.
+PLOTLY_DASHBOARDS = PUBLISHED_DASHBOARDS[1:]
 
 LOCAL_DASHBOARDS = [
     (REPORTS / "operator.html", "Operator dashboard"),
@@ -63,7 +66,7 @@ def test_published_dashboard_minimum_size(path: Path, label: str) -> None:
     )
 
 
-@pytest.mark.parametrize("path,label", PUBLISHED_DASHBOARDS)
+@pytest.mark.parametrize("path,label", PLOTLY_DASHBOARDS)
 def test_published_dashboard_includes_plotly(path: Path, label: str) -> None:
     html = _read_or_skip(path)
     # Either CDN-loaded or bundled
@@ -82,7 +85,7 @@ def test_published_dashboard_html_well_formed(path: Path, label: str) -> None:
     assert "</html>" in html.lower(), f"{label} missing closing </html>"
 
 
-@pytest.mark.parametrize("path,label", PUBLISHED_DASHBOARDS)
+@pytest.mark.parametrize("path,label", PLOTLY_DASHBOARDS)
 def test_published_dashboard_has_data(path: Path, label: str) -> None:
     """At least one Plotly figure should be present in the rendered HTML."""
     html = _read_or_skip(path)
@@ -111,15 +114,18 @@ def test_local_dashboard_size(path: Path, label: str) -> None:
 # Cross-dashboard checks
 # ---------------------------------------------------------------------------
 
-def test_index_dashboard_includes_navigation_link() -> None:
+def test_sites_link_to_each_other() -> None:
     html = _read_or_skip(DOCS / "index.html")
-    # The interactive dashboard should link to the daily view
-    assert "daily.html" in html, "index.html lost link to daily.html"
+    assert 'href="classic/"' in html and 'href="classic/daily.html"' in html and 'href="shift/"' in html, "index.html lost its links"
+    classic = _read_or_skip(DOCS / "classic" / "index.html")
+    assert 'href="../"' in classic and 'href="daily.html"' in classic, "classic/index.html lost its links"
+    daily = _read_or_skip(DOCS / "classic" / "daily.html")
+    assert 'href="../"' in daily and 'href="index.html"' in daily, "classic/daily.html lost its links"
 
 
 def test_daily_dashboard_does_not_reference_nonexistent_data() -> None:
     """Daily dashboard embeds JSON via Python's to_json — sanity-check it parsed."""
-    html = _read_or_skip(DOCS / "daily.html")
+    html = _read_or_skip(DOCS / "classic" / "daily.html")
     # Quick check: the daily dashboard injects a SUMMARY array
     assert "SUMMARY" in html or "Total_Output" in html or "summary_json" not in html
 
@@ -151,7 +157,7 @@ def test_daily_dashboard_data_is_fresh_relative_to_source() -> None:
     data_path = PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx"
     if not data_path.exists():
         pytest.skip("aggregated data not present")
-    html = _read_or_skip(DOCS / "daily.html")
+    html = _read_or_skip(DOCS / "classic" / "daily.html")
     latest = str(pd.read_excel(data_path)["Date"].max())[:10]
     assert latest in html, (
         f"daily.html does not contain latest source date {latest} — stale build?"
@@ -161,7 +167,7 @@ def test_daily_dashboard_data_is_fresh_relative_to_source() -> None:
 def test_daily_dashboard_escapes_user_text() -> None:
     """Regression: free-text fields must go through escapeHtml before
     innerHTML insertion (XSS / rendering bug otherwise)."""
-    html = _read_or_skip(DOCS / "daily.html")
+    html = _read_or_skip(DOCS / "classic" / "daily.html")
     assert "function escapeHtml" in html
     assert "escapeHtml(n.note)" in html
 

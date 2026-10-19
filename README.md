@@ -6,9 +6,11 @@ dashboards. Fully automated: data arrives by email, the pipeline fetches,
 aggregates, gates on data quality, builds, and publishes — with a cloud
 fallback if the primary machine is off.
 
-**Live dashboards:** https://zabdulla.github.io/walton_production/
-(weekly trends) and [/daily.html](https://zabdulla.github.io/walton_production/daily.html)
-(daily calendar). Light/dark theme, mobile-friendly.
+**Live dashboards:** https://zabdulla.github.io/walton_production/ (today by machine,
+live feed, the week, End of Shift reports, machine trends; built for a phone) and the
+classic site at [/classic/](https://zabdulla.github.io/walton_production/classic/)
+(weekly trends) with [/classic/daily.html](https://zabdulla.github.io/walton_production/classic/daily.html)
+(daily calendar).
 
 ## How data flows
 
@@ -98,8 +100,9 @@ src/
   last_run_status.py            Run history / next-scheduled CLI
   atomic.py                     Atomic writes, snapshots, growth sanity check
   dashboard_common.py           Shared CSS/JS: theme tokens, dark mode, mobile
-  build_interactive_dashboard.py / interactive_template.py    docs/index.html
-  build_daily_dashboard.py     / daily_template.py            docs/daily.html
+  build_beta_dashboard.py       docs/index.html (the production dashboard; see design/DESIGN.md)
+  build_interactive_dashboard.py / interactive_template.py    docs/classic/index.html
+  build_daily_dashboard.py     / daily_template.py            docs/classic/daily.html
   build_operator_dashboard.py   reports/operator.html (local)
   build_profit_dashboard.py     reports/profit.html (local)
   build_payroll_dashboard.py    reports/payroll.html (local, anonymized by default)

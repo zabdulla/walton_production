@@ -115,7 +115,7 @@ workbook convention (rolls in as `Actual_Input`, no `Actual_Output`). Rows carry
 
 `src/weekly_update.py --daily --no-commit` runs after every cloud poll: cieTrade rows →
 validate → build dashboards, and the workflow deploys the result to
-<https://zabdulla.github.io/walton_production/>. The Monday weekly run on the Mac does the
+<https://zabdulla.github.io/walton_production/> (classic site under `/classic/`). The Monday weekly run on the Mac does the
 same plus the Gmail fetch and payroll, then commits and pushes.
 
 ## Weekly routine for the office
