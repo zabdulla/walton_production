@@ -59,7 +59,7 @@ def test_main_writes_the_page_with_data_and_every_view(tmp_path) -> None:
     page = out.read_text()
     for view in ("today", "week", "shifts", "machines", "more"):
         assert f'data-view="{view}"' in page
-    for el in ("todayPager", "todaySeg", "weekPager", "weekSeg", "shiftsPager", "machSeg", "metricSeg"):
+    for el in ("todayPager", "todaySeg", "weekPager", "weekSeg", "shiftsPager", "machSeg", "metricSeg", "liveTiles"):
         assert f'id="{el}"' in page
     start = page.index('<script id="data" type="application/json">') + len('<script id="data" type="application/json">')
     D = json.loads(page[start:page.index("</script>", start)])
