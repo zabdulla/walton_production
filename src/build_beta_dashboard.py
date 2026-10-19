@@ -81,7 +81,17 @@ def dataset(df: pd.DataFrame, status: dict, today: date | None = None, weeks: in
     have = df.loc[df["Date"] <= pd.Timestamp(today), "Date"]
     data_through = (have.max() if len(have) else pd.Timestamp(today)).strftime("%Y-%m-%d")
     eos = status.get("end_of_shift") or {}
+    normals = {}
+    for wd in range(7):
+        dd = sorted({x for x in g["Date"].unique() if x.weekday() == wd and x < pd.Timestamp(today)})[-4:]
+        if not dd:
+            continue
+        sub = g[g["Date"].isin(dd)]
+        normals[str(wd)] = {"n": len(dd), "total": round(float(sub["lbs"].sum()) / len(dd)),
+                            "per": {m: round(float(v) / len(dd)) for m, v in sub.groupby("Machine_Name")["lbs"].sum().items() if v > 0},
+                            "shifts": {sh: round(float(v) / len(dd)) for sh, v in sub.groupby("Shift")["lbs"].sum().items()}}
     return {
+        "normals": normals, "shift_hours": {k: list(v) for k, v in __import__("config").SHIFT_HOURS.items()},
         "today": today.isoformat(), "data_through": data_through, "last_poll": status.get("last_poll"), "api_down_since": status.get("api_down_since"),
         "open_jobs": status.get("open_jobs", 0), "open_lbs": status.get("open_lbs", 0), "closures": status.get("closures", []),
         "machines": machines, "names": {m: pretty(m) for m in machines}, "colors": {m: slot_color(m) for m in machines},
@@ -154,8 +164,15 @@ a { color:var(--brand-ink); }
 .bar-val { text-align:right; font-weight:650; font-variant-numeric:tabular-nums; } .bar-sub { grid-column:2/5; font-size:11px; color:var(--muted); margin-top:-6px; }
 .bar-val small { display:block; font-size:11px; font-weight:500; }
 .empty { color:var(--muted); font-size:14px; padding:8px 0; }
-.flags { list-style:none; margin:10px 0 0; padding:0; font-size:13px; color:var(--ink-2); } .flags:empty { display:none; }
-.flags li { padding:6px 10px; border-left:3px solid var(--warn); background:var(--track); border-radius:0 6px 6px 0; margin-top:6px; }
+.flags { list-style:none; margin:8px 0 0; padding:0; font-size:13px; color:var(--ink-2); } .flags:empty { display:none; }
+.flags li { display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-top:1px solid var(--line); } .flags svg { width:16px; height:16px; flex:none; stroke:var(--warn); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; margin-top:1px; }
+.key { display:flex; flex-wrap:wrap; gap:4px 18px; align-items:center; font-size:12px; color:var(--ink-2); margin-top:10px; } .key:empty { display:none; } .key span { display:inline-flex; align-items:center; gap:6px; }
+.key .k-tick { display:inline-block; width:2px; height:14px; background:var(--ink-2); } .key .k-sh { display:inline-block; width:10px; height:10px; background:var(--ink-2); margin-right:-4px; } .key .k-sh:last-of-type { margin-right:2px; }
+.key details { display:inline; } .key summary { display:inline; cursor:pointer; color:var(--brand-ink); list-style:none; } .key summary::-webkit-details-marker { display:none; } .key details[open] summary::after { content:": "; }
+.strip { display:grid; grid-template-columns:1.5fr 1fr 1fr 1fr; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 18px; margin-bottom:14px; }
+.strip > div { padding:0 18px; border-left:1px solid var(--line); min-width:0; } .strip > div:first-child { padding-left:0; border-left:0; }
+.strip .sl { font-size:12px; color:var(--muted); } .strip .sv { font-size:30px; font-weight:700; letter-spacing:-.02em; line-height:1.15; white-space:nowrap; } .strip .sv .unit { font-size:14px; font-weight:500; color:var(--muted); }
+.strip .sv .small { font-size:18px; font-weight:650; } .strip .ss { font-size:12px; color:var(--ink-2); margin-top:2px; } .strip .dot { margin:0 8px 0 0; vertical-align:2px; } .dot.off { background:var(--muted); }
 .sw { width:10px; height:10px; border-radius:3px; display:inline-block; vertical-align:-1px; flex:none; }
 .legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--ink-2); margin:2px 0 8px; } .legend span { display:inline-flex; align-items:center; gap:6px; }
 svg.live { width:100%; max-width:100%; height:auto; display:block; } svg.live .grid, svg.live .axis { stroke:var(--grid); stroke-width:1; } svg.live .band { stroke:var(--grid); stroke-width:1; }
@@ -165,7 +182,7 @@ svg.live .now { stroke:var(--ink-2); stroke-width:1; opacity:.5; } svg.live .end
 .legend .shades { margin-left:auto; color:var(--muted); } .legend .shades i { display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--ink-2); margin-right:2px; } .legend .shades i:last-of-type { margin-right:6px; }
 .legend .key { display:inline-block; width:14px; height:0; border-top:2px solid var(--brand); } .legend .key.yest { border-top:1.5px solid var(--raw); }
 .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--good); margin-left:8px; vertical-align:middle; } .dot.stale { background:var(--warn); } .dot.down { background:var(--bad); }
-.feed { list-style:none; margin:0; padding:0; font-size:13px; } .feed li.empty { display:block; color:var(--muted); border-top:0; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
+.feed { list-style:none; margin:0; padding:0; font-size:13px; } .feed li.empty { display:block; color:var(--muted); border-top:0; } .feed li.more { display:block; padding-top:10px; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
 .feed .t { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; } .feed .v { font-weight:600; font-variant-numeric:tabular-nums; } .feed .v.neg { color:var(--bad); }
 .table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; font-size:14px; }
 th { font-size:11px; color:var(--muted); font-weight:600; text-align:left; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid var(--line); }
@@ -173,8 +190,12 @@ td { padding:8px; border-bottom:1px solid var(--line); vertical-align:top; } td.
 td.mname { white-space:nowrap; font-weight:600; } td.mname .sw { margin-right:6px; } td.total { font-weight:650; } tfoot td { font-weight:650; border-top:2px solid var(--line); border-bottom:0; }
 .muted { color:var(--muted); } table.sheet { font-size:13px; } table.sheet td.c { color:var(--ink-2); }
 .notes { font-size:13px; margin-top:8px; } .notes ul { margin:4px 0 0 18px; padding:0; }
-.day-head { font-size:14px; font-weight:650; margin:18px 0 8px; color:var(--ink-2); } .day-head:first-child { margin-top:0; }
-.eos.missing { border-style:dashed; }
+.day { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin-bottom:10px; } .day.expanded { border-color:var(--brand); }
+.day-row { display:grid; grid-template-columns:170px repeat(3, minmax(0,1fr)); gap:12px; align-items:center; }
+.day-name { font-weight:650; font-size:14px; } .day-name span { display:block; font-size:12px; font-weight:500; color:var(--muted); }
+.chip { font:inherit; text-align:left; display:flex; flex-direction:column; gap:2px; min-height:48px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); cursor:pointer; }
+.chip b { font-size:13px; font-weight:650; } .chip span { font-size:12px; color:var(--ink-2); } .chip.open { border-color:var(--brand); background:var(--brand-soft); } .chip.missing { border-style:dashed; cursor:default; } .chip:not([disabled]):hover { border-color:var(--brand); }
+.day-sheet { margin-top: 12px; padding-top:10px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
 /* svg charts */
 svg.stack { width:100%; max-width:100%; height:auto; display:block; } #weekChart { min-height:220px; } svg.stack .seg { stroke:none; } svg.stack .outline { fill:none; stroke-width:1; pointer-events:none; } svg.stack .val { font-size:11px; fill:var(--ink); font-weight:600; }
 svg.stack .tick, svg.facet .tick { font-size:11px; fill:var(--muted); } svg.stack .axis, svg.facet .axis { stroke:var(--grid); stroke-width:1; }
@@ -190,7 +211,7 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
 .tip { position:fixed; z-index:20; pointer-events:none; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 6px 20px rgba(16,24,32,.12); padding:8px 10px; font-size:12px; display:none; min-width:150px; }
 .tip b { font-size:13px; } .tip .r { display:flex; justify-content:space-between; gap:12px; }
 .links { list-style:none; margin:0; padding:0; } .links li { padding:10px 0; border-top:1px solid var(--line); display:grid; gap:2px; } .links li:first-child { border-top:0; } .links span { font-size:12px; color:var(--muted); }
-.tabbar { display:none; }
+.tabbar { display:none; } .only-phone { display:none; }
 .banner { background:#fdf2f2; border:1px solid #f1b8b8; color:#8a1c1c; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:12px; }
 @media (max-width: 900px) {
   .app { grid-template-columns:minmax(0,1fr); } .side { display:none; } .main { min-width:0; }
@@ -198,10 +219,14 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
   .topbar h1 { font-size:18px; } .hero-value { font-size:38px; }
   .stats { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .stat { padding:12px 12px 10px; min-height:0; } .stat-value { font-size:22px; }
   .bar-row { grid-template-columns:10px 96px minmax(0,1fr) 62px; gap:8px; font-size:13px; }
-  .tabbar { display:grid; grid-template-columns:repeat(6,1fr); position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:10; }
-  .tabbar a { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10.5px; color:var(--muted); text-decoration:none; padding:4px 0; }
+  .only-desk { display:none; } .only-phone { display:inline-block; }
+  .tabbar { display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:10; }
+  .tabbar a { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; color:var(--muted); text-decoration:none; padding:4px 0; }
   .tabbar a.active { color:var(--brand-ink); font-weight:600; } .tabbar svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .facets { grid-template-columns:1fr; }
+  .card.wk { display:flex; flex-direction:column; } .card.wk #weekLegend { order:3; margin:8px 0 0; }
+  .strip { grid-template-columns:1fr 1fr; gap:10px 0; padding:10px 14px; } .strip > div { padding:0 12px; } .strip > div:nth-child(odd) { padding-left:0; border-left:0; } .strip .sv { font-size:24px; }
+  .day-row { grid-template-columns:1fr 1fr; } .day-name { grid-column:1 / -1; }
   table { font-size:13px; } td, th { padding:7px 6px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
@@ -238,6 +263,8 @@ JS = r"""
   const deltaHtml = (cur, base, what) => { const p = pct(cur, base); if (p === null) return ["", ""]; return [(p >= 0 ? "+" : "") + p + "% vs " + what + " (" + compact(base) + ")", p >= 0 ? "up" : "down"]; };
   const wdName = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const closures = new Set(D.closures || []);
+  const WARN_SVG = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3l-8-14.1a2 2 0 0 0-3.4 0z"/></svg>';
+  let feedFailed = false;
   const DI = D.dates.map(s => ({ s, wk: mondayOf(s), dow: dow(s) }));
   const dateIdx = new Map(D.dates.map((s, i) => [s, i]));
   let live = null;
@@ -276,7 +303,6 @@ JS = r"""
   const hideTip = () => { tip.style.display = "none"; };
   const leaveTip = ev => { if (ev.pointerType !== "touch") hideTip(); };   // a touch "leaves" right after the tap; keep the tip until the next tap
   document.addEventListener("pointerdown", ev => { if (!ev.target.closest(".bar-seg, svg.facet, svg.stack")) hideTip(); });
-  const stat = (label, value, sub, tone) => '<div class="stat"><div class="stat-label">' + h(label) + '</div><div class="stat-value">' + value + '</div>' + (sub ? '<div class="stat-sub ' + (tone || "") + '">' + sub + '</div>' : "") + '</div>';
   const swatch = m => '<span class="sw" style="background:' + h(D.colors[m] || "#4a3aa7") + '"></span>';
   const name = m => D.names[m] || m;
   const shiftOptions = [["all", "All shifts"], ["1st", "1st"], ["2nd", "2nd"], ["3rd", "3rd"]];
@@ -342,12 +368,14 @@ JS = r"""
     const fl = isLive ? (live.flags || []).map(f => ({ machine: f.m, from_shift: f.from_shift, shift: f.to_shift, kind: "reassigned", lbs: f.lbs, first: f.first, last: f.last }))
                       : D.flags.filter(f => f.date === day && (sh === "all" || f.shift === sh || f.from_shift === sh));
     const hm = t => new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-    $("#todayFlags").innerHTML = fl.map(f => '<li>' + (f.kind === "reassigned"
+    $("#todayFlags").innerHTML = fl.map(f => '<li>' + WARN_SVG + '<span>' + (f.kind === "reassigned"
       ? '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs entered on the ' + h(f.from_shift) + '-shift job at ' + h(hm(f.first) === hm(f.last) ? hm(f.last) : hm(f.first) + "–" + hm(f.last)) + ', during ' + h(f.shift) + ' shift hours; counted as ' + h(f.shift) + '.'
-      : '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs of ' + h(f.kind) + ' work on the ' + h(f.shift) + ' shift, kept on this day; no End of Shift report expected.') + '</li>').join("");
-    const shadeNote = sh === "all" && ms.length ? "Shades, left to right: 1st, 2nd and 3rd shift. " : "";
-    $("#todayFoot").textContent = shadeNote + (norm.n ? "The dark tick is a normal " + wdName[dow(day)] + " for that machine (the average of the last " + norm.n + "), and the small figure is the difference. Guillotine's rolls count when it books no output." : "No earlier " + wdName[dow(day)] + "s to compare against.");
-    // stats
+      : '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs of ' + h(f.kind) + ' work on the ' + h(f.shift) + ' shift, kept on this day; no End of Shift report expected.') + '</span></li>').join("");
+    // one-line key under the bars; the Guillotine rule behind a disclosure
+    $("#todayKey").innerHTML = !ms.length ? "" : (norm.n ? '<span><i class="k-tick"></i>normal ' + wdName[dow(day)] + ' for the machine, with the difference beside the value</span>' : '<span>No earlier ' + wdName[dow(day)] + 's to compare against</span>')
+      + (sh === "all" ? '<span><i class="k-sh"></i><i class="k-sh" style="opacity:.72"></i><i class="k-sh" style="opacity:.46"></i>1st · 2nd · 3rd</span>' : "")
+      + '<details><summary>How Guillotine is counted</summary>Guillotine books rolls in rather than pounds out, so its rolls count as its output; the normal day is the average of the last ' + (norm.n || 4) + ' ' + wdName[dow(day)] + 's with data.</details>';
+    // status strip
     const wk = mondayOf(day), lwEnd = addDays(day, -7), lw = mondayOf(lwEnd);
     const wtdData = sumLbs(r => DI[r[0]].wk === wk && D.dates[r[0]] <= day && D.dates[r[0]] !== (isLive ? day : "") && shiftOk(r, sh));
     const wtd = wtdData + (isLive ? total : 0), lastWk = sumLbs(r => DI[r[0]].wk === lw && D.dates[r[0]] <= lwEnd && shiftOk(r, sh));
@@ -358,11 +386,31 @@ JS = r"""
     const by = s => (filed.find(r => r.shift === s) || {}).by;
     const nFiled = ["1st", "2nd", "3rd"].filter(s => by(s)).length;
     const fsub = ["1st", "2nd", "3rd"].map(s => by(s) ? s + " " + h(by(s)) : s + ' <span class="warn">missing</span>').join(" · ");
-    const oj = live ? live.open_jobs : D.open_jobs, ol = live ? live.open_lbs : D.open_lbs;
-    $("#todayStats").innerHTML = stat("Plant total · " + shiftWord(sh), fmt(total), tsub, ttone)
-      + stat("Week to date · " + days + " day" + (days === 1 ? "" : "s"), fmt(wtd), wsub, wtone)
-      + stat("Open jobs in cieTrade", fmt(oj), fmt(ol) + " lbs not yet posted")
-      + stat("End of Shift filed · " + fmtDay(day, { weekday: "long" }), nFiled + '<span class="of">/3</span>', fsub, nFiled === 3 ? "" : "warn");
+    const open = ["1st", "2nd", "3rd"].filter(s => !by(s));
+    const cell = (label, value, sub, tone) => '<div><div class="sl">' + label + '</div><div class="sv">' + value + '</div>' + (sub ? '<div class="ss ' + (tone || "") + '">' + sub + '</div>' : "") + '</div>';
+    let feed;
+    if (live) {
+      const age = Math.max(0, Math.round((Date.now() - parseTs(live.generated)) / 60000)), state = !live.poll_ok ? "down" : age > 30 ? "stale" : "ok";
+      feed = cell("cieTrade feed", '<span class="dot ' + state + '"></span><span class="small">' + (age < 1 ? "just now" : age + " min ago") + '</span>',
+        state === "down" ? "cieTrade unavailable since " + h(clock(parseTs(live.api_down_since || live.last_poll))) : (live.current_shift ? live.current_shift + " shift on now" : "no shift scheduled") + (isLive ? "" : " · showing " + h(fmtDay(day, { weekday: "short", month: "short", day: "numeric" }))), state === "down" ? "warn" : "");
+    } else feed = cell("cieTrade feed", '<span class="dot off"></span><span class="small">' + (feedFailed ? "unavailable" : "connecting") + '</span>', feedFailed ? "showing the last rebuild, polled " + h(String(D.last_poll || "").slice(11, 16)) : "", feedFailed ? "warn" : "");
+    $("#todayStrip").innerHTML = cell("Plant · " + shiftWord(sh) + (isLive ? " · so far" : ""), fmt(total) + ' <span class="unit">lbs</span>', tsub, ttone)
+      + cell("Week to date · " + days + " day" + (days === 1 ? "" : "s"), fmt(wtd), wsub, wtone)
+      + cell("Shift reports · " + fmtDay(day, { weekday: "long" }), nFiled + ' <span class="unit">of 3 filed</span>', nFiled === 3 ? "all three in" : open.join(", ") + " open", nFiled === 3 ? "up" : "warn")
+      + feed;
+  }
+  const LV = { all: false };
+  function expectedFrac(normal, mins) {                 // share of a normal day done by this minute: each shift at an even pace, weighted by its normal pounds
+    const sh = D.shift_hours || { "1st": [6, 14], "2nd": [14, 22], "3rd": [22, 30] }, start = sh["1st"][0], tot = Object.values(normal.shifts || {}).reduce((a, b) => a + b, 0);
+    if (!tot) return Math.max(0, Math.min(1, mins / 1440));
+    let done = 0; Object.entries(sh).forEach(([k, [a, b]]) => { const s0 = (a - start) * 60, s1 = (b - start) * 60; done += (normal.shifts[k] || 0) * Math.max(0, Math.min(1, (mins - s0) / (s1 - s0))); });
+    return done / tot;
+  }
+  function paceOf(L) {                                   // where a normal weekday would be at this minute
+    const normal = D.normals[String(dow(L.day))], mins = Math.max(0, Math.min(1440, (parseTs(L.generated) - parseTs(L.day_start)) / 60000));
+    if (!normal || !normal.total) return { normal: 0, frac: 0, projected: null, expected: 0 };
+    const frac = expectedFrac(normal, mins);
+    return { normal: normal.total, frac, projected: frac >= 0.1 ? L.lbs_today / frac : null, expected: normal.total * frac };
   }
   function renderLive() {
     const L = live;
@@ -373,18 +421,22 @@ JS = r"""
     $("#liveHeroValue").textContent = fmt(L.lbs_today);
     $("#liveHeroSub").textContent = (L.current_shift ? L.current_shift + " shift on now · " : "") + "as of " + clock(parseTs(L.generated)) + " · " + L.open_jobs + " open jobs, " + fmt(L.open_lbs) + " lbs not yet posted"
       + (state === "down" ? " · ⚠ cieTrade unavailable since " + clock(parseTs(L.api_down_since || L.last_poll)) : state === "stale" ? " · ⚠ feed is " + age + " min old" : "");
-    $("#liveMeta").textContent = "polled " + clock(parseTs(L.last_poll)) + " · " + L.polls_today + " polls today";
+    const pace = paceOf(L);
+    $("#liveTitle").textContent = compact(L.lbs_today) + " lbs by " + clock(parseTs(L.generated)) + (pace.projected ? ", on course for " + compact(pace.projected) : "");
+    $("#liveMeta").textContent = (pace.normal ? "a normal " + wdName[dow(L.day)] + " is " + compact(pace.normal) + " · " : "") + "polled " + clock(parseTs(L.last_poll)) + " · " + L.polls_today + " polls today";
     if (!$("#liveChart").clientWidth) return;                        // not on screen: drawn when the tab opens
     renderLiveChart(L);
     const feed = $("#liveFeed"); feed.replaceChildren();
     $("#liveFeedTitle").textContent = "Latest changes (" + L.changes_today + " today)";
     {
-      (L.changes || []).forEach(c => {
+      const all = L.changes || [], shown = LV.all ? all : all.slice(0, 8);
+      shown.forEach(c => {
         const li = document.createElement("li"); const t = document.createElement("span"); t.className = "t"; t.textContent = clock(parseTs(c.t1));
         const w = document.createElement("span"); w.textContent = name(c.m) + (c.s ? " · " + c.s : "") + (c.units ? " · " + (c.units > 0 ? "+" : "") + c.units + " units" : "");
         const v = document.createElement("span"); v.className = "v" + (c.lbs < 0 ? " neg" : ""); v.textContent = (c.lbs > 0 ? "+" : "") + fmt(c.lbs) + " lbs";
         li.append(t, w, v); feed.appendChild(li); });
-      if (!(L.changes || []).length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing entered yet this production day."; feed.appendChild(li); }
+      if (!all.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing entered yet this production day."; feed.appendChild(li); }
+      if (all.length > 8) { const li = document.createElement("li"); li.className = "more"; const b = document.createElement("button"); b.type = "button"; b.className = "seg-btn"; b.textContent = LV.all ? "Show the latest 8" : "Show all " + all.length; b.addEventListener("click", () => { LV.all = !LV.all; renderLive(); }); li.appendChild(b); feed.appendChild(li); }
     }
   }
   function renderLiveChart(L) {
@@ -495,7 +547,7 @@ JS = r"""
 
   // ---- Shifts (End of Shift reports)
   const reportWeeks = [...new Set(D.reports.map(r => mondayOf(r.date)))]; if (!reportWeeks.includes(curWeek)) reportWeeks.push(curWeek); reportWeeks.sort();
-  const S = { wk: curWeek };
+  const S = { wk: curWeek, open: {} };
   function reportCard(sh, r) {
     if (!r) return '<div class="card eos missing"><div class="card-head"><h2>' + sh + ' shift</h2><div class="card-meta warn">No End of Shift report filed</div></div></div>';
     const mh = r.machines.reduce((t, m) => t + (m.machine_hours || 0), 0), man = r.machines.reduce((t, m) => t + (m.man_hours || 0), 0), dt = r.machines.reduce((t, m) => t + (m.downtime_min || 0), 0);
@@ -504,15 +556,30 @@ JS = r"""
       + r.machines.map(m => '<tr><td class="mname">' + h(m.machine) + '</td><td class="num">' + (m.machine_hours || "") + '</td><td class="num">' + (m.man_hours || "") + '</td><td>' + h(m.operators || "") + '</td><td>' + h(m.material || "") + '</td><td class="num">' + (m.downtime_min || "") + '</td><td>' + h(m.reason || "") + '</td><td class="c">' + h(m.comment || "") + '</td></tr>').join("")
       + '</tbody></table></div>' + ((r.notes || []).length ? '<div class="notes"><b>Shift notes</b><ul>' + r.notes.map(x => "<li>" + h(x) + "</li>").join("") + '</ul></div>' : "") + '</div>';
   }
+  function sheet(r) {                                   // the report as filed, under its day row
+    const mh = r.machines.reduce((t, m) => t + (m.machine_hours || 0), 0), man = r.machines.reduce((t, m) => t + (m.man_hours || 0), 0), dt = r.machines.reduce((t, m) => t + (m.downtime_min || 0), 0);
+    return '<div class="day-sheet"><div class="card-meta">' + h(r.shift) + ' shift · filed by ' + h(r.by || "") + (r.filed_at ? " · " + h(r.filed_at) : "") + " · " + r.machines.length + " machines · " + mh + " machine h · " + man + " man h" + (dt ? ' · <span class="warn">' + dt + ' min down</span>' : "") + '</div>'
+      + '<div class="table-wrap"><table class="sheet"><thead><tr><th>Machine</th><th class="num">Mach h</th><th class="num">Man h</th><th>Operators</th><th>Material</th><th class="num">Down</th><th>Reason</th><th>Comments</th></tr></thead><tbody>'
+      + r.machines.map(m => '<tr><td class="mname">' + h(m.machine) + '</td><td class="num">' + (m.machine_hours || "") + '</td><td class="num">' + (m.man_hours || "") + '</td><td>' + h(m.operators || "") + '</td><td>' + h(m.material || "") + '</td><td class="num">' + (m.downtime_min || "") + '</td><td>' + h(m.reason || "") + '</td><td class="c">' + h(m.comment || "") + '</td></tr>').join("")
+      + '</tbody></table></div>' + ((r.notes || []).length ? '<div class="notes"><b>Shift notes</b><ul>' + r.notes.map(x => "<li>" + h(x) + "</li>").join("") + '</ul></div>' : "") + '</div>';
+  }
   function renderShifts() {
     const wk = S.wk;
-    pager($("#shiftsPager"), reportWeeks.slice().reverse().map(w => [w, weekLabel(w)]), wk, v => { S.wk = v; renderShifts(); });
+    pager($("#shiftsPager"), reportWeeks.slice().reverse().map(w => [w, weekLabel(w)]), wk, v => { S.wk = v; S.open = {}; renderShifts(); });
     const inWk = D.reports.filter(r => mondayOf(r.date) === wk), byDay = {};
     inWk.forEach(r => { (byDay[r.date] = byDay[r.date] || {})[r.shift] = r; });
     const last = live ? live.day : D.data_through;
     const days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(wk, i)).filter((d, i) => byDay[d] || (i < 5 && d <= last && !closures.has(d))).reverse();
+    const chip = (d, sh, r) => {
+      const open = S.open[d] === sh, k = d + "|" + sh;
+      if (!r) return '<button type="button" class="chip missing" data-k="' + k + '" disabled><b>' + sh + '</b><span class="warn">not filed</span></button>';
+      const mh = r.machines.reduce((t, m) => t + (m.machine_hours || 0), 0), man = r.machines.reduce((t, m) => t + (m.man_hours || 0), 0), dt = r.machines.reduce((t, m) => t + (m.downtime_min || 0), 0);
+      return '<button type="button" class="chip' + (open ? " open" : "") + '" data-k="' + k + '" aria-expanded="' + open + '"><b>' + sh + ' · ' + h(r.by || "filed") + '</b><span>' + (+mh.toFixed(2)) + ' machine h · ' + (dt ? '<span class="warn">' + dt + ' min down</span>' : (+man.toFixed(2)) + ' man h') + '</span></button>';
+    };
     $("#shiftsBody").innerHTML = !days.length ? '<div class="empty">No production days in this week yet.</div>'
-      : days.map(d => '<div class="day-head">' + fmtDay(d) + '</div>' + ["1st", "2nd", "3rd"].map(sh => reportCard(sh, (byDay[d] || {})[sh])).join("")).join("");
+      : days.map(d => { const o = S.open[d], r = o && (byDay[d] || {})[o];
+        return '<div class="day' + (r ? " expanded" : "") + '"><div class="day-row"><div class="day-name">' + fmtDay(d) + '<span>' + fmt(dayLbs(d, "all")) + ' lbs</span></div>' + ["1st", "2nd", "3rd"].map(sh => chip(d, sh, (byDay[d] || {})[sh])).join("") + '</div>' + (r ? sheet(r) : "") + '</div>'; }).join("");
+    $$(".chip:not([disabled])", $("#shiftsBody")).forEach(b => b.addEventListener("click", () => { const [d, sh] = b.dataset.k.split("|"); S.open[d] = S.open[d] === sh ? null : sh; renderShifts(); }));
   }
 
   // ---- Machines
@@ -590,7 +657,9 @@ JS = r"""
   seg($("#todaySeg"), shiftOptions, T.shift, k => { T.shift = k; renderToday(); });
   seg($("#weekSeg"), shiftOptions, W.shift, k => { W.shift = k; renderWeek(); });
   seg($("#machSeg"), shiftOptions, M.shift, k => { M.shift = k; renderMachines(); });
-  seg($("#metricSeg"), Object.entries(METRICS).map(([k, v]) => [k, v[0]]), M.metric, k => { M.metric = k; renderMachines(); });
+  seg($("#metricSeg"), Object.entries(METRICS).map(([k, v]) => [k, v[0]]), M.metric, k => { M.metric = k; $("#metricSel").value = k; renderMachines(); });
+  { const sel = $("#metricSel"); Object.entries(METRICS).forEach(([k, v]) => { const o = document.createElement("option"); o.value = k; o.textContent = v[0]; sel.appendChild(o); }); sel.value = M.metric;
+    sel.addEventListener("change", () => { M.metric = sel.value; $$("#metricSeg .seg-btn").forEach(x => x.classList.toggle("active", x.dataset.k === sel.value)); renderMachines(); }); }
   renderToday(); renderWeek(); renderShifts(); renderMachines();
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { renderWeek(); renderToday(); renderLive(); }, 150); });
 
@@ -598,10 +667,10 @@ JS = r"""
   function refresh() {
     if (!D.feed) return;
     fetch(D.feed + "?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(L => {
-      const first = !live; live = L; $("#feedState").textContent = "";
+      const first = !live; live = L; feedFailed = false;
       if (first && !T.userSet) T.day = L.day;
       renderToday(); renderLive(); if (first) { renderWeek(); renderShifts(); }
-    }).catch(() => { $("#feedState").textContent = "live feed unavailable; showing the last rebuild"; renderLive(); });
+    }).catch(() => { feedFailed = true; renderToday(); renderLive(); });
   }
   refresh(); setInterval(refresh, 60000);
 })();
@@ -610,7 +679,7 @@ JS = r"""
 
 def render(D: dict) -> str:
     nav_side = "".join(f'<a href="#{k}" data-nav="{k}">{ICONS[k]}<span>{lab}</span></a>' for k, lab in NAV)
-    nav_tab = "".join(f'<a href="#{k}" data-nav="{k}">{ICONS[k]}{lab}</a>' for k, lab in NAV)
+    nav_tab = "".join(f'<a href="#{k}" data-nav="{k}">{ICONS[k]}{lab}</a>' for k, lab in NAV if k != "more")
     banner = (f'<div class="banner">cieTrade API unavailable since {e(str(D["api_down_since"])[:16].replace("T", " "))}; figures are through the last good poll.</div>'
               if D.get("api_down_since") else "")
     data = json.dumps(D, separators=(",", ":")).replace("</", "<\\/")
@@ -635,17 +704,17 @@ def render(D: dict) -> str:
     <div class="side-foot">Data through {e(D["data_through"])}</div>
   </aside>
   <main class="main">
-    <div class="topbar"><h1 id="pageTitle">Today</h1><div class="date">{e(through)} · <a href="classic/">classic site</a></div></div>
+    <div class="topbar"><h1 id="pageTitle">Today</h1><div class="date">{e(through)} · <a href="classic/" class="only-desk">classic site</a><a href="#more" class="only-phone" data-nav="more">More</a></div></div>
     {banner}
     <section class="view" data-view="today">
-      <div class="controls"><div class="pager" id="todayPager"></div><div class="seg" id="todaySeg" role="group" aria-label="Shift"></div><div class="controls-note" id="feedState"></div></div>
+      <div class="controls"><div class="pager" id="todayPager"></div><div class="seg" id="todaySeg" role="group" aria-label="Shift"></div></div>
+      <div class="strip" id="todayStrip"></div>
       <div class="card">
         <div class="card-head"><h2 id="todayTitle">Pounds by machine</h2><div class="card-meta" id="todayMeta"></div></div>
         <div class="bars" id="todayBars"></div>
+        <div class="key" id="todayKey"></div>
         <ul class="flags" id="todayFlags"></ul>
-        <div class="card-foot" id="todayFoot"></div>
       </div>
-      <div class="stats" id="todayStats"></div>
     </section>
     <section class="view" data-view="live" hidden>
       <div class="hero"><div class="hero-label" id="liveHeroLabel">Pounds today so far</div><div class="hero-value" id="liveHeroValue">–</div><div class="hero-sub" id="liveHeroSub">connecting to the live feed…</div></div>
@@ -661,7 +730,7 @@ def render(D: dict) -> str:
     </section>
     <section class="view" data-view="week" hidden>
       <div class="controls"><div class="pager" id="weekPager"></div><div class="seg" id="weekSeg" role="group" aria-label="Shift"></div></div>
-      <div class="card">
+      <div class="card wk">
         <div class="card-head"><h2 id="weekTitle"></h2><div class="card-meta" id="weekMeta"></div></div>
         <div class="legend" id="weekLegend"></div>
         <div id="weekChart"></div>
@@ -672,11 +741,11 @@ def render(D: dict) -> str:
       </div>
     </section>
     <section class="view" data-view="shifts" hidden>
-      <div class="controls"><div class="pager" id="shiftsPager"></div><div class="controls-note">End of Shift reports as the supervisors filed them, newest day first · <a href="shift/">open the form</a></div></div>
+      <div class="controls"><div class="pager" id="shiftsPager"></div><div class="controls-note">One row per day, newest first. Tap a shift to open the report as filed · <a href="shift/">open the form</a></div></div>
       <div id="shiftsBody"></div>
     </section>
     <section class="view" data-view="machines" hidden>
-      <div class="controls"><div class="seg" id="machSeg" role="group" aria-label="Shift"></div><div class="seg" id="metricSeg" role="group" aria-label="Metric"></div><div class="controls-note" id="machNote"></div></div>
+      <div class="controls"><div class="seg" id="machSeg" role="group" aria-label="Shift"></div><div class="seg only-desk" id="metricSeg" role="group" aria-label="Metric"></div><select class="sel only-phone" id="metricSel" aria-label="Metric"></select><div class="controls-note" id="machNote"></div></div>
       <div class="facets" id="facets"></div>
     </section>
     <section class="view" data-view="more" hidden>
@@ -685,6 +754,7 @@ def render(D: dict) -> str:
         <li><a href="classic/">Classic dashboard</a><span>the previous site: every chart and table, weekly trends, costs</span></li>
         <li><a href="classic/daily.html">Classic daily details</a><span>day-by-day calendar with notes and validation</span></li>
         <li><a href="shift/">End of Shift form</a><span>for supervisors, works on a phone</span></li>
+        <li><a href="wall/">Wall screen</a><span>today so far in large type, for a TV on the floor; refreshes itself</span></li>
       </ul>
       <div class="card-foot">Data through {e(D["data_through"])} · dashboard rebuilt {e(str(D["last_poll"] or "")[:16].replace("T", " "))} · cieTrade polled every 10 minutes · the page carries the last {EMBED_WEEKS} weeks.</div>
       </div>
@@ -699,12 +769,128 @@ def render(D: dict) -> str:
 </html>"""
 
 
+WALL_CSS = r"""
+:root { color-scheme: dark; --page:#111210; --card:#1a1b18; --ink:#f3f4f1; --ink-2:#c3c2b7; --muted:#9a9890; --line:rgba(255,255,255,.10); --track:#24251f; --brand:#2d9a72; --good:#4fc36a; --warn:#f2b45a; --bad:#e06c6c; }
+* { box-sizing:border-box; } html, body { margin:0; height:100%; background:var(--page); color:var(--ink); font:clamp(16px, 1.6vw, 26px)/1.35 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+.wall { min-height:100vh; padding:3.2vh 4vw; display:flex; flex-direction:column; gap:3vh; }
+.top, .foot { display:flex; justify-content:space-between; gap:2vw; color:var(--muted); font-size:clamp(15px, 1.5vw, 24px); } .foot { border-top:1px solid var(--line); padding-top:2vh; }
+.dot { display:inline-block; width:.7em; height:.7em; border-radius:50%; background:var(--good); margin-right:.5em; vertical-align:-.05em; } .dot.stale { background:var(--warn); } .dot.down, .dot.off { background:var(--bad); }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:4vw; flex:1; align-items:start; }
+.label { font-size:clamp(16px, 1.7vw, 28px); color:var(--ink-2); } .hero { font-size:clamp(72px, 9.5vw, 170px); font-weight:700; letter-spacing:-.03em; line-height:1; margin:.05em 0 .25em; }
+.pace-head { display:flex; justify-content:space-between; gap:1em; font-size:clamp(15px, 1.5vw, 24px); color:var(--ink-2); margin:5vh 0 .8em; } .pace-head b { color:var(--ink); font-weight:650; }
+.pace { position:relative; height:clamp(18px, 2.2vw, 34px); background:var(--track); border-radius:.3em; } .pace .fill { position:absolute; left:0; top:0; bottom:0; background:var(--brand); border-radius:.3em 0 0 .3em; }
+.pace { margin-bottom:2.4em; } .pace .mark { position:absolute; top:-.4em; bottom:-.4em; width:3px; background:var(--ink); } .pace .mark-lab { position:absolute; top:calc(100% + .6em); font-size:clamp(13px, 1.2vw, 20px); color:var(--ink-2); white-space:nowrap; transform:translateX(clamp(-100%, -50%, 0%)); }
+.bars { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:2.2vh 1.6vw; align-items:center; font-size:clamp(18px, 2vw, 32px); }
+.bars .nm { font-weight:600; display:flex; align-items:center; gap:.5em; white-space:nowrap; } .bars .sw { width:.55em; height:.55em; border-radius:.15em; flex:none; }
+.bars .tr { position:relative; height:clamp(22px, 2.6vw, 40px); background:var(--track); border-radius:0 .25em .25em 0; } .bars .fl { position:absolute; left:0; top:0; bottom:0; border-radius:0 .25em .25em 0; }
+.bars .tk { position:absolute; top:-.3em; bottom:-.3em; width:3px; background:var(--ink-2); }
+.bars .v { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; } .bars .idle { color:var(--muted); font-weight:500; font-size:.8em; }
+.msg { font-size:clamp(18px, 2vw, 32px); color:var(--muted); }
+@media (max-width: 900px) { .grid { grid-template-columns:1fr; } .hero { font-size:clamp(56px, 18vw, 110px); } .wall { padding:4vh 5vw; } }
+"""
+
+WALL_JS = r"""
+(function () {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const $ = s => document.querySelector(s);
+  const h = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmt = v => Math.round(v).toLocaleString("en-US");
+  const compact = v => Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + "K" : fmt(v);
+  const parseTs = s => { const [d, t] = s.split("T"); const [Y, M, Dd] = d.split("-").map(Number); const [hh, mm, ss] = (t || "0:0:0").split(":").map(Number); return new Date(Y, M - 1, Dd, hh, mm, ss || 0); };
+  const clock = d => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const wd = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const name = m => D.names[m] || m, col = m => D.colors[m] || "#4a3aa7";
+  let live = null, failedAt = null;
+  function render() {
+    const L = live;
+    if (!L) { $("#msg").textContent = failedAt ? "Live feed unavailable since " + clock(failedAt) + "; the poller publishes it every 10 minutes." : "Connecting to the live feed…"; return; }
+    const gen = parseTs(L.generated), age = Math.max(0, Math.round((Date.now() - gen) / 60000)), state = !L.poll_ok ? "down" : age > 30 ? "stale" : "ok";
+    const day = parseTs(L.day + "T12:00:00"), dow = (day.getDay() + 6) % 7, norm = D.normals[String(dow)] || null;
+    $("#date").textContent = day.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }) + (L.current_shift ? " · " + L.current_shift + " shift on now" : " · no shift scheduled");
+    $("#feed").innerHTML = '<span class="dot ' + state + '"></span>' + (state === "down" ? "cieTrade unavailable since " + h(clock(parseTs(L.api_down_since || L.last_poll))) : "cieTrade " + (age < 1 ? "just now" : age + " min ago"));
+    $("#hero").textContent = fmt(L.lbs_today);
+    const mins = Math.max(0, Math.min(1440, (gen - parseTs(L.day_start)) / 60000));
+    const sh = D.shift_hours, start = sh["1st"][0], stot = norm ? Object.values(norm.shifts || {}).reduce((a, b) => a + b, 0) : 0;
+    let frac = mins / 1440;
+    if (stot) { let done = 0; Object.entries(sh).forEach(([k, [a, b]]) => { const s0 = (a - start) * 60, s1 = (b - start) * 60; done += (norm.shifts[k] || 0) * Math.max(0, Math.min(1, (mins - s0) / (s1 - s0))); }); frac = done / stot; }
+    if (norm && norm.total) {
+      const projected = frac >= 0.1 ? L.lbs_today / frac : null;
+      $("#paceHead").innerHTML = '<span>Pace against a normal ' + wd[dow] + '</span><b>' + (projected ? "on course for " + compact(projected) + " of " + compact(norm.total) : "a normal day is " + compact(norm.total)) + '</b>';
+      const fill = Math.min(100, 100 * L.lbs_today / norm.total), mark = Math.min(100, 100 * frac);
+      $("#pace").innerHTML = '<div class="fill" style="width:' + fill.toFixed(1) + '%"></div><div class="mark" style="left:' + mark.toFixed(1) + '%"></div><div class="mark-lab" style="left:' + mark.toFixed(1) + '%">where a normal day is at ' + h(clock(gen)) + '</div>';
+      $("#paceWrap").hidden = false;
+    } else $("#paceWrap").hidden = true;
+    const per = new Map((L.machines || []).map(m => [m.m, m.lbs]));
+    const usual = norm ? Object.keys(norm.per) : [];
+    usual.forEach(m => { if (!per.has(m)) per.set(m, 0); });
+    const rows = [...per.entries()].sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...rows.map(r => r[1]), ...rows.map(r => (norm && norm.per[r[0]]) || 0));
+    $("#bars").innerHTML = rows.map(([m, v]) => { const nv = (norm && norm.per[m]) || 0;
+      return '<div class="nm' + (v ? "" : " idle") + '"><span class="sw" style="background:' + h(col(m)) + (v ? "" : ";opacity:.5") + '"></span>' + h(name(m)) + '</div>'
+        + '<div class="tr">' + (v ? '<div class="fl" style="width:' + (100 * v / max).toFixed(1) + '%;background:' + h(col(m)) + '"></div>' : "") + (nv ? '<div class="tk" style="left:' + (100 * nv / max).toFixed(1) + '%"></div>' : "") + '</div>'
+        + '<div class="v' + (v ? "" : " idle") + '">' + (v ? fmt(v) : "no job yet") + '</div>'; }).join("") || '<div class="msg">Nothing entered yet this production day.</div>';
+    const filed = (D.reports || []).filter(r => r.date === L.day), by = s => (filed.find(r => r.shift === s) || {}).by;
+    const inn = ["1st", "2nd", "3rd"].filter(by), open = ["1st", "2nd", "3rd"].filter(s => !by(s));
+    const list = a => a.length > 1 ? a.slice(0, -1).join(", ") + " and " + a[a.length - 1] : a.join("");
+    $("#reports").textContent = "Shift reports: " + (inn.length ? inn.map(s => s + " filed by " + by(s)).join(" · ") : "none filed yet") + (open.length ? " · " + list(open) + " open" : "");
+    const c = (L.changes || [])[0];
+    $("#last").textContent = c ? "Last entry " + clock(parseTs(c.t1)) + " · " + name(c.m) + " " + (c.lbs > 0 ? "+" : "") + fmt(c.lbs) + " lbs" : "";
+    $("#msg").textContent = "";
+  }
+  function refresh() {
+    if (!D.feed) { $("#msg").textContent = "No live feed configured."; return; }
+    fetch(D.feed + "?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(L => { live = L; failedAt = null; render(); })
+      .catch(() => { if (!failedAt) failedAt = new Date(); if (live) { $("#feed").innerHTML = '<span class="dot off"></span>live feed unavailable since ' + h(clock(failedAt)); } else render(); });
+  }
+  refresh(); setInterval(refresh, 60000);
+})();
+"""
+
+
+def render_wall(D: dict) -> str:
+    """The wall screen: today so far in large type for a TV on the floor; nothing to tap."""
+    small = {k: D[k] for k in ("feed", "names", "colors", "normals", "shift_hours")}
+    small["reports"] = [{"date": r["date"], "shift": r["shift"], "by": r.get("by", "")} for r in D["reports"][-12:]]
+    data = json.dumps(small, separators=(",", ":")).replace("</", "<\\/")
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Walton production · wall</title>
+<style>{WALL_CSS}</style>
+</head>
+<body>
+<div class="wall">
+  <div class="top"><span id="date">Walton production</span><span id="feed"><span class="dot off"></span>connecting…</span></div>
+  <div class="grid">
+    <div>
+      <div class="label">Pounds so far today</div>
+      <div class="hero" id="hero">–</div>
+      <div id="paceWrap" hidden><div class="pace-head" id="paceHead"></div><div class="pace" id="pace"></div></div>
+      <div class="msg" id="msg">Connecting to the live feed…</div>
+    </div>
+    <div class="bars" id="bars"></div>
+  </div>
+  <div class="foot"><span id="reports"></span><span id="last"></span></div>
+</div>
+<script id="data" type="application/json">{data}</script>
+<script>{WALL_JS}</script>
+</body>
+</html>"""
+
+
 def main(input_path: Path = DEFAULT_INPUT, output_path: Path = DEFAULT_OUTPUT, status_path: Path = STATUS_PATH) -> Path:
     df, status = load(input_path, status_path)
-    page = render(dataset(df, status))
+    D = dataset(df, status)
+    page = render(D)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(page)
-    print(f"Wrote beta dashboard to {output_path} ({len(page) // 1024} KB)")
+    wall_path = output_path.parent / "wall" / "index.html"
+    wall_path.parent.mkdir(parents=True, exist_ok=True)
+    wall_path.write_text(render_wall(D))
+    print(f"Wrote dashboard to {output_path} ({len(page) // 1024} KB) and the wall screen to {wall_path}")
     return output_path
 
 

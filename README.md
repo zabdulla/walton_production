@@ -7,7 +7,8 @@ aggregates, gates on data quality, builds, and publishes — with a cloud
 fallback if the primary machine is off.
 
 **Live dashboards:** https://zabdulla.github.io/walton_production/ (today by machine,
-live feed, the week, End of Shift reports, machine trends; built for a phone) and the
+live feed, the week, End of Shift reports, machine trends; built for a phone), a wall
+screen for a TV at [/wall/](https://zabdulla.github.io/walton_production/wall/), and the
 classic site at [/classic/](https://zabdulla.github.io/walton_production/classic/)
 (weekly trends) with [/classic/daily.html](https://zabdulla.github.io/walton_production/classic/daily.html)
 (daily calendar).

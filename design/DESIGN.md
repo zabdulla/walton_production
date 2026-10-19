@@ -54,7 +54,12 @@ name dates from its beta period) from the same data as the classic site, which m
     and a metric selector (pounds, lbs per machine hour, labor $ per machine hour,
     labor $ per lb). Per-hour figures use only rows with reported hours, and the rolling
     average is a ratio of sums, so a week without hours is a gap, not a zero.
-  - *More*: links to the current dashboard, daily details, the End of Shift form.
+  - *More*: links to the classic dashboard, its daily details, the End of Shift form and
+    the wall screen.
+  - *Wall screen* (`docs/wall/`, built by the same script): dark, large type, nothing to
+    tap, for a TV on the floor. Pounds so far, pace against a normal weekday (each shift's
+    normal pounds at an even pace), the machine bars with the normal-day tick, shift
+    reports filed, last entry. Refreshes from the live feed every minute.
 - One control row per view, above everything it scopes. Never a control inside a card.
 
 ## Type and colour

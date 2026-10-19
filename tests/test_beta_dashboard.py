@@ -65,3 +65,6 @@ def test_main_writes_the_page_with_data_and_every_view(tmp_path) -> None:
     D = json.loads(page[start:page.index("</script>", start)])
     assert D["reports"][1]["by"] == "Tim" and len(D["rows"]) > 250
     assert 'class="tabbar"' in page and "<\\/" not in page.replace("<\\/", "")     # JSON is safe inside <script>
+    wall = (tmp_path / "beta" / "wall" / "index.html").read_text()
+    assert 'id="hero"' in wall and '"normals"' in wall and "Tim" in wall and 'id="paceWrap"' in wall
+    assert D["normals"]["1"]["total"] == 2 * (6000 + (5000 + 5100 + 5200 + 5300) / 4) + 2   # a normal Tuesday: the last four, plus the 10 lb unspecified row

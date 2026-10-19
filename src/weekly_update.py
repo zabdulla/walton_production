@@ -609,7 +609,7 @@ def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update
 
     # Stage all relevant tracked files (gitignore excludes the sensitive ones).
     # The cieTrade poll log is small text and cannot be recreated — it rides along.
-    paths = ["data/aggregated_daily_data.xlsx", "data/aggregated_notes.xlsx", "docs/index.html", "docs/classic/index.html", "docs/classic/daily.html",
+    paths = ["data/aggregated_daily_data.xlsx", "data/aggregated_notes.xlsx", "docs/index.html", "docs/wall/index.html", "docs/classic/index.html", "docs/classic/daily.html",
              "data/cietrade/polls.jsonl", "data/cietrade/posted.csv", "data/cietrade/snapshots", "data/cietrade_exports",
              "data/cietrade_status.json"]
     rc, _, _ = run_cmd(["git", "add", *[p for p in paths if (PROJECT_ROOT / p).exists()]], capture=True)
