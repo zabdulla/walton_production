@@ -145,6 +145,9 @@ a { color:var(--brand-ink); }
 .bar-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bar-track { position:relative; height:22px; background:var(--track); border-radius:0 4px 4px 0; }
 .bar-fill { position:absolute; left:0; top:0; bottom:0; border-radius:0 4px 4px 0; min-width:2px; }
+.bar-seg { position:absolute; top:0; bottom:0; box-shadow:inset -2px 0 0 var(--card); overflow:hidden; } .bar-seg[data-end] { border-radius:0 4px 4px 0; box-shadow:none; }
+.bar-seg span { position:absolute; left:6px; top:0; line-height:22px; font-size:10px; font-weight:600; letter-spacing:.04em; color:#fff; opacity:.9; white-space:nowrap; }
+:root[data-theme="dark"] .bar-seg span { color:#111; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar-seg span { color:#111; } }
 .bar-norm { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink-2); }
 .bar-val { text-align:right; font-weight:650; font-variant-numeric:tabular-nums; } .bar-sub { grid-column:2/5; font-size:11px; color:var(--muted); margin-top:-6px; }
 .bar-val small { display:block; font-size:11px; font-weight:500; }
@@ -264,6 +267,7 @@ JS = r"""
   const swatch = m => '<span class="sw" style="background:' + h(D.colors[m] || "#4a3aa7") + '"></span>';
   const name = m => D.names[m] || m;
   const shiftOptions = [["all", "All shifts"], ["1st", "1st"], ["2nd", "2nd"], ["3rd", "3rd"]];
+  const SHIFT_ORDER = ["1st", "2nd", "3rd"], SHADE = { "1st": 1, "2nd": 0.72, "3rd": 0.46, other: 0.28 };
   const shiftWord = sh => sh === "all" ? "all shifts" : sh + " shift";
 
   // ---- Today
@@ -286,8 +290,12 @@ JS = r"""
     pager($("#todayPager"), dayOptions(), day, v => { T.day = v; T.userSet = true; renderToday(); });
     // per-machine pounds for the day
     let per;
-    if (isLive) { per = new Map(live.machines.map(m => [m.m, { lbs: sh === "all" ? m.lbs : (m.by_shift[sh] || 0), flag: m.flag, quiet: m.quiet_min }])); }
-    else { per = byMachine(r => D.dates[r[0]] === day && shiftOk(r, sh)); }
+    if (isLive) { per = new Map(live.machines.map(m => [m.m, { lbs: sh === "all" ? m.lbs : (m.by_shift[sh] || 0), by: m.by_shift, flag: m.flag, quiet: m.quiet_min }])); }
+    else {
+      per = byMachine(r => D.dates[r[0]] === day && shiftOk(r, sh));
+      const ps = aggBy(r => D.dates[r[0]] === day && shiftOk(r, sh), r => D.machines[r[2]] + "|" + D.shifts[r[1]]);
+      per.forEach((a, m) => { a.by = {}; ps.forEach((v, k) => { if (k.startsWith(m + "|")) a.by[k.split("|")[1]] = v.lbs; }); });
+    }
     const norm = normalFor(day, sh);
     const ms = [...per.entries()].filter(([, a]) => a.lbs > 0).sort((a, b) => b[1].lbs - a[1].lbs);
     let max = 1; ms.forEach(([m, a]) => { max = Math.max(max, a.lbs, (norm.per.get(m) || {}).lbs || 0); });
@@ -297,10 +305,20 @@ JS = r"""
     const bars = $("#todayBars");
     if (!ms.length) { bars.innerHTML = '<div class="empty">' + (closures.has(day) ? "Plant closed." : "Nothing booked" + (sh === "all" ? "" : " to the " + sh + " shift") + (isLive ? " yet." : " this day.")) + '</div>'; }
     else bars.innerHTML = ms.map(([m, a]) => { const nv = (norm.per.get(m) || {}).lbs || 0; const p = pct(a.lbs, nv);
-      return '<div class="bar-row">' + swatch(m) + '<span class="bar-name">' + h(name(m)) + '</span><div class="bar-track"><div class="bar-fill" style="width:' + (100 * a.lbs / max).toFixed(1) + '%;background:' + h(D.colors[m] || "#4a3aa7") + '"></div>'
+      const col = h(D.colors[m] || "#4a3aa7");
+      let fill;
+      if (sh === "all") {                                 // one segment per shift, the same hue in three shades, a 2px surface gap between
+        const segs = SHIFT_ORDER.map(k => [k, Math.max(0, (a.by || {})[k] || 0)]).filter(([, v]) => v > 0);
+        const other = a.lbs - segs.reduce((t, [, v]) => t + v, 0);
+        if (other > 0.5) segs.push(["other", other]);
+        let left = 0;
+        fill = segs.map(([k, v], i) => { const w = 100 * v / max, html = '<div class="bar-seg" style="left:' + left.toFixed(2) + '%;width:' + w.toFixed(2) + '%;background:' + col + ';opacity:' + SHADE[k] + '" data-lbs="' + Math.round(v) + '"' + (i === segs.length - 1 ? ' data-end="1"' : "") + '><span>' + (k === "other" ? "" : k) + '</span></div>'; left += w; return html; }).join("");
+      } else fill = '<div class="bar-fill" style="width:' + (100 * a.lbs / max).toFixed(1) + '%;background:' + col + '"></div>';
+      return '<div class="bar-row">' + swatch(m) + '<span class="bar-name">' + h(name(m)) + '</span><div class="bar-track">' + fill
         + (nv ? '<div class="bar-norm" style="left:' + (100 * nv / max).toFixed(1) + '%" title="normal ' + fmt(nv) + '"></div>' : "") + '</div>'
         + '<span class="bar-val">' + fmt(a.lbs) + (p === null ? "" : '<small class="' + (p >= 0 ? "up" : "down") + '">' + (p >= 0 ? "+" : "") + p + '%</small>') + '</span></div>'
         + (a.flag ? '<div class="bar-sub warn">quiet ' + a.quiet + ' min</div>' : ""); }).join("");
+    $$(".bar-seg", bars).forEach(el => { const lab = el.firstChild; lab.style.visibility = el.clientWidth >= 26 ? "" : "hidden"; el.title = (lab.textContent || "other") + " shift · " + fmt(+el.dataset.lbs) + " lbs"; });
     // the clock's corrections for this day: entries credited to another shift than the job's tag, weekend work
     const fl = isLive ? (live.flags || []).map(f => ({ machine: f.m, from_shift: f.from_shift, shift: f.to_shift, kind: "reassigned", lbs: f.lbs, first: f.first, last: f.last }))
                       : D.flags.filter(f => f.date === day && (sh === "all" || f.shift === sh || f.from_shift === sh));
@@ -308,7 +326,8 @@ JS = r"""
     $("#todayFlags").innerHTML = fl.map(f => '<li>' + (f.kind === "reassigned"
       ? '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs entered on the ' + h(f.from_shift) + '-shift job at ' + h(hm(f.first) === hm(f.last) ? hm(f.last) : hm(f.first) + "–" + hm(f.last)) + ', during ' + h(f.shift) + ' shift hours; counted as ' + h(f.shift) + '.'
       : '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs of ' + h(f.kind) + ' work on the ' + h(f.shift) + ' shift, kept on this day; no End of Shift report expected.') + '</li>').join("");
-    $("#todayFoot").textContent = norm.n ? "The dark tick is a normal " + wdName[dow(day)] + " for that machine (the average of the last " + norm.n + "), and the small figure is the difference. Guillotine's rolls count when it books no output." : "No earlier " + wdName[dow(day)] + "s to compare against.";
+    const shadeNote = sh === "all" && ms.length ? "Shades, left to right: 1st, 2nd and 3rd shift. " : "";
+    $("#todayFoot").textContent = shadeNote + (norm.n ? "The dark tick is a normal " + wdName[dow(day)] + " for that machine (the average of the last " + norm.n + "), and the small figure is the difference. Guillotine's rolls count when it books no output." : "No earlier " + wdName[dow(day)] + "s to compare against.");
     // stats
     const wk = mondayOf(day), lwEnd = addDays(day, -7), lw = mondayOf(lwEnd);
     const wtdData = sumLbs(r => DI[r[0]].wk === wk && D.dates[r[0]] <= day && D.dates[r[0]] !== (isLive ? day : "") && shiftOk(r, sh));
@@ -491,7 +510,7 @@ JS = r"""
   seg($("#machSeg"), shiftOptions, M.shift, k => { M.shift = k; renderMachines(); });
   seg($("#metricSeg"), Object.entries(METRICS).map(([k, v]) => [k, v[0]]), M.metric, k => { M.metric = k; renderMachines(); });
   renderToday(); renderWeek(); renderShifts(); renderMachines();
-  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderWeek, 150); });
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { renderWeek(); renderToday(); }, 150); });
 
   // ---- live feed
   function refresh() {
