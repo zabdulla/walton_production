@@ -23,6 +23,8 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+import pandas as pd
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -276,6 +278,35 @@ def step_aggregate() -> dict[str, Any]:
     result.update(ok=True, records=agg["records"], duplicates=agg["duplicates"])
     log_ok(f"{result['records']:,} records ({result['duplicates']} duplicate{'s' if result['duplicates'] != 1 else ''} dropped)")
     return result
+
+
+def step_labor_pull() -> bool:
+    """Pull the End of Shift sheet when this machine is set up for it (the Actions
+    runner pulls it in its own step; the Mac needs ~/.config/walton/labor_sheet.json
+    and sheets_token.json). Never fatal: without it the rows keep the hours on file."""
+    _ensure_src_importable()
+    try:
+        import labor_sheet
+        sid, _ = labor_sheet.load_settings()
+        if not sid or not labor_sheet.TOKEN_PATH.exists():
+            if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
+                log_warn("End of Shift sheet not configured here (setup/LABOR_CAPTURE.md): hours and reports stay as last recorded")
+            return False
+        service = labor_sheet.get_sheets_service()
+        raw = labor_sheet.read_responses(service, sid, labor_sheet.load_settings()[1])
+        try:
+            notes_raw = labor_sheet.read_responses(service, sid, labor_sheet.NOTES_RANGE)
+        except Exception:  # noqa: BLE001
+            notes_raw = None
+        entries, notes = labor_sheet.responses_to_entries(raw)
+        if notes_raw is not None and len(notes_raw):
+            notes = pd.concat([notes, labor_sheet.submissions_to_notes(notes_raw)], ignore_index=True)
+        r = labor_sheet.record(entries, notes)
+        log_info(f"  End of Shift sheet: {r['total_entries']} entries, {r['total_notes']} shift notes")
+        return True
+    except Exception as e:  # noqa: BLE001
+        log_warn(f"End of Shift sheet pull failed ({e.__class__.__name__}: {e}); hours and reports stay as last recorded")
+        return False
 
 
 def step_cietrade_rows() -> dict[str, Any]:
@@ -756,6 +787,7 @@ def main() -> int:
 
     # Step 3: cieTrade rows (production since the workbooks stopped)
     log_step(3, 7, "Deriving daily rows from cieTrade + End of Shift entries")
+    step_labor_pull()
     summary["cietrade"] = step_cietrade_rows()
 
     # Step 4: Parse payroll

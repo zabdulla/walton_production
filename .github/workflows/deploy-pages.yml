@@ -7,12 +7,14 @@ name: Deploy Pages
 # no diagnostics). The Actions path uses the official upload/deploy
 # actions, surfaces failures in our own logs, and keeps working if the
 # repository is later made private (with GitHub Pro/Team).
+#
+# Dispatch only. The poll workflow deploys docs/ from its own complete
+# rebuild every 10 minutes; the weekly cloud fallback dispatches this after
+# its run. A push of docs/ from a machine without the End of Shift file
+# (the Mac's weekly run, a PR merge) must not go live: on 2026-10-19 that
+# put a dashboard with no shift reports on the site several times.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'docs/**'
   workflow_dispatch:
 
 permissions:
