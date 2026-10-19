@@ -145,7 +145,7 @@ a { color:var(--brand-ink); }
 .bar-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bar-track { position:relative; height:22px; background:var(--track); border-radius:0 4px 4px 0; }
 .bar-fill { position:absolute; left:0; top:0; bottom:0; border-radius:0 4px 4px 0; min-width:2px; }
-.bar-seg { position:absolute; top:0; bottom:0; box-shadow:inset -2px 0 0 var(--card); overflow:hidden; } .bar-seg[data-end] { border-radius:0 4px 4px 0; box-shadow:none; }
+.bar-seg { position:absolute; top:0; bottom:0; box-shadow:inset -2px 0 0 var(--card); overflow:hidden; cursor:default; touch-action:manipulation; } .bar-seg[data-end] { border-radius:0 4px 4px 0; box-shadow:none; }
 .bar-seg span { position:absolute; left:6px; top:0; line-height:22px; font-size:10px; font-weight:600; letter-spacing:.04em; color:#fff; opacity:.9; white-space:nowrap; }
 :root[data-theme="dark"] .bar-seg span { color:#111; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar-seg span { color:#111; } }
 .bar-norm { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink-2); }
@@ -263,6 +263,8 @@ JS = r"""
     tip.style.left = Math.min(ev.clientX + 14, innerWidth - tw - 8) + "px"; tip.style.top = Math.max(8, ev.clientY - th - 14) + "px";
   }
   const hideTip = () => { tip.style.display = "none"; };
+  const leaveTip = ev => { if (ev.pointerType !== "touch") hideTip(); };   // a touch "leaves" right after the tap; keep the tip until the next tap
+  document.addEventListener("pointerdown", ev => { if (!ev.target.closest(".bar-seg, svg.facet, svg.stack")) hideTip(); });
   const stat = (label, value, sub, tone) => '<div class="stat"><div class="stat-label">' + h(label) + '</div><div class="stat-value">' + value + '</div>' + (sub ? '<div class="stat-sub ' + (tone || "") + '">' + sub + '</div>' : "") + '</div>';
   const swatch = m => '<span class="sw" style="background:' + h(D.colors[m] || "#4a3aa7") + '"></span>';
   const name = m => D.names[m] || m;
@@ -314,11 +316,17 @@ JS = r"""
         let left = 0;
         fill = segs.map(([k, v], i) => { const w = 100 * v / max, html = '<div class="bar-seg" style="left:' + left.toFixed(2) + '%;width:' + w.toFixed(2) + '%;background:' + col + ';opacity:' + SHADE[k] + '" data-lbs="' + Math.round(v) + '"' + (i === segs.length - 1 ? ' data-end="1"' : "") + '><span>' + (k === "other" ? "" : k) + '</span></div>'; left += w; return html; }).join("");
       } else fill = '<div class="bar-fill" style="width:' + (100 * a.lbs / max).toFixed(1) + '%;background:' + col + '"></div>';
-      return '<div class="bar-row">' + swatch(m) + '<span class="bar-name">' + h(name(m)) + '</span><div class="bar-track">' + fill
+      return '<div class="bar-row" data-lbs="' + Math.round(a.lbs) + '">' + swatch(m) + '<span class="bar-name">' + h(name(m)) + '</span><div class="bar-track">' + fill
         + (nv ? '<div class="bar-norm" style="left:' + (100 * nv / max).toFixed(1) + '%" title="normal ' + fmt(nv) + '"></div>' : "") + '</div>'
         + '<span class="bar-val">' + fmt(a.lbs) + (p === null ? "" : '<small class="' + (p >= 0 ? "up" : "down") + '">' + (p >= 0 ? "+" : "") + p + '%</small>') + '</span></div>'
         + (a.flag ? '<div class="bar-sub warn">quiet ' + a.quiet + ' min</div>' : ""); }).join("");
-    $$(".bar-seg", bars).forEach(el => { const lab = el.firstChild; lab.style.visibility = el.clientWidth >= 26 ? "" : "hidden"; el.title = (lab.textContent || "other") + " shift · " + fmt(+el.dataset.lbs) + " lbs"; });
+    $$(".bar-seg", bars).forEach(el => {
+      const lab = el.firstChild; lab.style.visibility = el.clientWidth >= 26 ? "" : "hidden";
+      const row = el.closest(".bar-row"), mname = row.querySelector(".bar-name").textContent, dayLbs = +row.dataset.lbs;
+      const shiftName = lab.textContent || "other", lbsSeg = +el.dataset.lbs;
+      const on = ev => { ev.stopPropagation(); showTip(ev, mname + " · " + shiftName + " shift", [["Pounds", fmt(lbsSeg)], ["Share of the day", Math.round(100 * lbsSeg / Math.max(dayLbs, 1)) + "%"], ["Machine total", fmt(dayLbs)]]); };
+      el.addEventListener("pointermove", on); el.addEventListener("pointerdown", on); el.addEventListener("pointerleave", leaveTip);
+    });
     // the clock's corrections for this day: entries credited to another shift than the job's tag, weekend work
     const fl = isLive ? (live.flags || []).map(f => ({ machine: f.m, from_shift: f.from_shift, shift: f.to_shift, kind: "reassigned", lbs: f.lbs, first: f.first, last: f.last }))
                       : D.flags.filter(f => f.date === day && (sh === "all" || f.shift === sh || f.from_shift === sh));
@@ -402,7 +410,7 @@ JS = r"""
     if (!total) s += '<text x="' + (left + pw / 2) + '" y="' + (top + ph / 2) + '" class="muted" text-anchor="middle">Nothing booked' + (sh === "all" ? "" : " to the " + sh + " shift") + ' this week</text>';
     s += "</svg>";
     chart.innerHTML = s;
-    $$(".seg", chart).forEach(el => { const on = ev => showTip(ev, name(el.dataset.m) + " · " + fmtShort(el.dataset.d), [["Pounds", fmt(el.dataset.v)], ["Day total", fmt(el.dataset.t)]]); el.addEventListener("pointermove", on); el.addEventListener("pointerdown", on); el.addEventListener("pointerleave", hideTip); });
+    $$(".seg", chart).forEach(el => { const on = ev => showTip(ev, name(el.dataset.m) + " · " + fmtShort(el.dataset.d), [["Pounds", fmt(el.dataset.v)], ["Day total", fmt(el.dataset.t)]]); el.addEventListener("pointermove", on); el.addEventListener("pointerdown", on); el.addEventListener("pointerleave", leaveTip); });
     // table
     const rows = machines.map(m => ({ m, days: days.map(d => val(d, m)), total: days.reduce((t, d) => t + val(d, m), 0) })).sort((a, b) => b.total - a.total);
     $("#weekTable").innerHTML = !rows.length ? '<div class="empty">Nothing booked' + (sh === "all" ? "" : " to the " + sh + " shift") + ' this week.</div>'
@@ -487,7 +495,7 @@ JS = r"""
         xh.setAttribute("x1", x(j)); xh.setAttribute("x2", x(j)); xh.setAttribute("y1", 4); xh.setAttribute("y2", vb.height - 18); xh.style.display = "";
         if (f.avg[j] !== null) { dot.setAttribute("cx", x(j)); dot.setAttribute("cy", y(f.avg[j])); dot.style.display = ""; } else dot.style.display = "none";
         showTip(ev, name(f.m) + " · week of " + fmtDay(f.weeks[j], { month: "short", day: "numeric" }), [[win + "-wk average", f.avg[j] === null ? "–" : fmtV(f.avg[j]) + " " + unit], ["That week", f.raw[j] === null ? "no hours reported" : fmtV(f.raw[j]) + " " + unit]]); }
-      const off = () => { xh.style.display = "none"; dot.style.display = "none"; hideTip(); };
+      const off = ev => { if (ev && ev.pointerType === "touch") return; xh.style.display = "none"; dot.style.display = "none"; hideTip(); };
       svg.addEventListener("pointermove", at); svg.addEventListener("pointerdown", at); svg.addEventListener("pointerleave", off);
     });
   }
