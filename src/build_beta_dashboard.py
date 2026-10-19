@@ -176,7 +176,7 @@ td.mname { white-space:nowrap; font-weight:600; } td.mname .sw { margin-right:6p
 .day-head { font-size:14px; font-weight:650; margin:18px 0 8px; color:var(--ink-2); } .day-head:first-child { margin-top:0; }
 .eos.missing { border-style:dashed; }
 /* svg charts */
-svg.stack { width:100%; max-width:100%; height:auto; display:block; } #weekChart { min-height:220px; } svg.stack .seg { stroke-width:1; paint-order:stroke; } svg.stack .val { font-size:11px; fill:var(--ink); font-weight:600; }
+svg.stack { width:100%; max-width:100%; height:auto; display:block; } #weekChart { min-height:220px; } svg.stack .seg { stroke:none; } svg.stack .outline { fill:none; stroke-width:1; pointer-events:none; } svg.stack .val { font-size:11px; fill:var(--ink); font-weight:600; }
 svg.stack .tick, svg.facet .tick { font-size:11px; fill:var(--muted); } svg.stack .axis, svg.facet .axis { stroke:var(--grid); stroke-width:1; }
 svg.stack .rule { stroke:var(--ink-2); stroke-width:1; } svg.stack .rule-lab { font-size:11px; fill:var(--ink-2); }
 svg.stack .rule-lab, svg.stack .val { stroke:var(--card); stroke-width:3; paint-order:stroke; stroke-linejoin:round; } svg.stack .muted { fill:var(--muted); font-size:12px; }
@@ -468,10 +468,13 @@ JS = r"""
     days.forEach((d, i) => {
       const cx = left + band * (i + 0.5), x = cx - bw / 2; let cum = 0;
       const stackM = machines.filter(m => val(d, m) > 0);
-      stackM.forEach((m, k) => { const mv = val(d, m), ps = pieces(d, m);
-        ps.forEach(([shift, v], j) => { const last = k === stackM.length - 1 && j === ps.length - 1, y1 = y(cum + v), y0 = y(cum); const hh = Math.max(0, y0 - y1 - (last ? 0 : gap));
+      stackM.forEach((m, k) => { const mv = val(d, m), ps = pieces(d, m), topM = k === stackM.length - 1, yTop = y(cum + mv), yBot = y(cum), col = h(D.colors[m]);
+        ps.forEach(([shift, v], j) => { const last = topM && j === ps.length - 1, y1 = y(cum + v), y0 = y(cum); const hh = Math.max(0, y0 - y1 - (last ? 0 : (j === ps.length - 1 ? gap : 1)));
           const shape = last ? '<path d="' + roundTop(x, y1, bw, hh, 4) + '"' : '<rect x="' + x + '" y="' + y1.toFixed(1) + '" width="' + bw + '" height="' + hh.toFixed(1) + '"';
-          s += shape + ' class="seg" fill="' + h(D.colors[m]) + '" fill-opacity="' + (SHADE[shift] || 1) + '" stroke="' + h(D.colors[m]) + '" data-m="' + h(m) + '" data-s="' + h(shift) + '" data-d="' + d + '" data-v="' + v + '" data-mv="' + mv + '" data-t="' + totals[i] + '"/>'; cum += v; }); });
+          s += shape + ' class="seg" fill="' + col + '" fill-opacity="' + (SHADE[shift] || 1) + '" data-m="' + h(m) + '" data-s="' + h(shift) + '" data-d="' + d + '" data-v="' + v + '" data-mv="' + mv + '" data-t="' + totals[i] + '"/>'; cum += v; });
+        // one outline per machine, around all its shift pieces, so the machine reads as a block and the shades read inside it
+        const oh = Math.max(0, yBot - yTop - (topM ? 0 : gap) - 1), oy = yTop + 0.5, ox = x + 0.5, ow = bw - 1;
+        if (sh === "all" && ps.length > 1 && oh > 2) s += (topM ? '<path d="' + roundTop(ox, oy, ow, oh, 3.5) + '"' : '<rect x="' + ox + '" y="' + oy.toFixed(1) + '" width="' + ow + '" height="' + oh.toFixed(1) + '"') + ' class="outline" stroke="' + col + '"/>'; });
       if (totals[i] > 0) s += '<text x="' + cx.toFixed(1) + '" y="' + (y(totals[i]) - 5).toFixed(1) + '" class="val" text-anchor="middle">' + compact(totals[i]) + '</text>';
       s += '<text x="' + cx.toFixed(1) + '" y="' + (height - 6) + '" class="tick" text-anchor="middle">' + fmtDay(d, { weekday: "short", day: "numeric" }) + '</text>';
     });
