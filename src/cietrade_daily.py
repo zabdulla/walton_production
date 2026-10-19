@@ -220,7 +220,7 @@ def shift_flags(flags: pd.DataFrame | None, since: pd.Timestamp | None = None, d
 
 
 def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Path = LABOR_ENTRIES_PATH,
-                 api_dir: Path = model.CIETRADE_DATA_DIR) -> dict:
+                 api_dir: Path = model.CIETRADE_DATA_DIR, previous: dict | None = None) -> dict:
     """What the dashboards need to know beyond the rows: freshness, open jobs, the
     shift-days that have no figure yet (awaiting a poll or a posting) or were closed,
     and what the End of Shift app has delivered."""
@@ -228,6 +228,8 @@ def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Pat
     meta = res["meta"]
     entries, notes = load_entries(labor_path) if Path(labor_path).exists() else (None, None)
     eos = end_of_shift_summary(entries, notes, as_of=pd.Timestamp(meta.get("data_through")) if meta.get("data_through") else None)
+    if entries is None and previous and (previous.get("end_of_shift") or {}).get("entries"):
+        eos = dict(previous["end_of_shift"], carried=True)         # no sheet on this machine: keep the last known reports
     recent = cov[cov["Date"] >= pd.Timestamp(from_date)]
     awaiting = recent[recent["mode"] == "not yet posted"]
     awaiting_cells = sorted({(d.strftime("%Y-%m-%d"), s, CIETRADE_LINE_TO_MACHINE.get(ln, ln))
@@ -245,19 +247,55 @@ def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Pat
     }
 
 
+LABOR_FIELDS = ["Machine_Hours", "Man_Hours", "Operator", "Output_Product", "Labor_Cost", "Total_Expense"]
+
+
+def carry_labor(rows: pd.DataFrame, existing: pd.DataFrame) -> tuple[pd.DataFrame, int]:
+    """When the End of Shift file is absent (a machine that does not pull the sheet), keep
+    the hours, crew and material already on file for the same shift-day-machine rather
+    than writing rows with none. Returns the rows and how many were filled."""
+    if not len(rows) or not len(existing):
+        return rows, 0
+    prev = existing[(existing["Source"] == "cietrade") & ((existing["Machine_Hours"] > 0) | (existing["Man_Hours"] > 0))]
+    if not len(prev):
+        return rows, 0
+    key = lambda df: df["Date"].astype(str).str[:10] + "|" + df["Shift"].astype(str) + "|" + df["Machine_Name"].astype(str)
+    prev = prev.assign(_k=key(prev)).drop_duplicates("_k", keep="last").set_index("_k")
+    rows = rows.copy()
+    rk = key(rows)
+    hit = rk.isin(prev.index) & (rows["Machine_Hours"] <= 0) & (rows["Man_Hours"] <= 0)
+    if not hit.any():
+        return rows, 0
+    src = prev.loc[rk[hit]]
+    for c in LABOR_FIELDS:
+        rows.loc[hit, c] = src[c].to_numpy()
+    rows.loc[hit, "Comment"] = [(" · ".join(x for x in (str(pc) if isinstance(pc, str) else "", nc) if x)) for pc, nc in zip(src["Comment"].to_numpy(), rows.loc[hit, "Comment"])]
+    mh, man, out = rows.loc[hit, "Machine_Hours"], rows.loc[hit, "Man_Hours"], rows.loc[hit, "Actual_Output"]
+    rows.loc[hit, "Output_per_Hour"] = (out / mh.where(mh > 0)).to_numpy()
+    rows.loc[hit, "Cost_per_Pound"] = (rows.loc[hit, "Labor_Cost"] / out.where(out > 0)).to_numpy()
+    rows.loc[hit, "Has_Machine_Hours"], rows.loc[hit, "Has_Man_Hours"] = (mh > 0).to_numpy(), (man > 0).to_numpy()
+    rows.loc[hit, "Has_Comment"] = rows.loc[hit, "Comment"].astype(str).str.len().gt(0).to_numpy()
+    rows.loc[hit, "Data_Quality_Score"] = ((mh > 0) * 25 + (man > 0) * 25 + (out > 0) * 40 + ((mh > 0) == (out > 0)) * 10).to_numpy()
+    return rows, int(hit.sum())
+
+
 def update_aggregate(rows: pd.DataFrame, notes: pd.DataFrame, agg_path: Path = DEFAULT_AGGREGATED_DATA,
                      notes_path: Path = DEFAULT_AGGREGATED_NOTES, from_date: str = CIETRADE_FROM_DATE,
-                     dry_run: bool = False) -> dict:
-    """Replace the cieTrade weeks of the aggregate with ``rows``; keep everything else."""
+                     dry_run: bool = False, labor_present: bool = True) -> dict:
+    """Replace the cieTrade weeks of the aggregate with ``rows``; keep everything else.
+    Without the End of Shift file, labor fields already on file are carried over."""
     existing = pd.read_excel(agg_path) if Path(agg_path).exists() else pd.DataFrame(columns=AGG_COLUMNS)
     if "Source" not in existing.columns:
         existing["Source"] = "workbook"
     existing["Source"] = existing["Source"].fillna("workbook")
+    carried = 0
+    if not labor_present:
+        rows, carried = carry_labor(rows, existing)
     workbook_late = existing[(existing["Source"] != "cietrade") & (existing["Date"].astype(str) >= from_date)]
     summary = {"rows": int(len(rows)), "days": int(rows["Date"].nunique()) if len(rows) else 0,
                "with_hours": int((rows["Machine_Hours"] > 0).sum()) if len(rows) else 0,
                "through": rows["Date"].max() if len(rows) else None, "pre_snapshot": None, "records": int(len(existing)),
-               "skipped_weeks": []}
+               "skipped_weeks": [], "labor_carried": carried}
     if len(workbook_late):
         # a workbook exists for these weeks after all — it wins, cieTrade rows step aside
         wk = set(workbook_late["Week_Start"].astype(str))
@@ -282,8 +320,19 @@ def run(dry_run: bool = False, verbose: bool = True, status_path: Path = STATUS_
     import json
     res = model.run(verbose=verbose)
     rows, notes, warnings = daily_rows(res)
-    summary = update_aggregate(rows, notes, dry_run=dry_run)
-    status = build_status(res)
+    labor_present = Path(LABOR_ENTRIES_PATH).exists()
+    previous = None
+    if Path(status_path).exists():
+        try:
+            previous = json.loads(Path(status_path).read_text())
+        except ValueError:
+            previous = None
+    summary = update_aggregate(rows, notes, dry_run=dry_run, labor_present=labor_present)
+    status = build_status(res, previous=previous)
+    if not labor_present:
+        warnings.append(f"End of Shift file missing ({LABOR_ENTRIES_PATH.name}): hours carried over for {summary.get('labor_carried', 0)} row(s)"
+                        + (", last known reports kept" if (status.get("end_of_shift") or {}).get("carried") else ", no reports on file")
+                        + " — run src/labor_sheet.py on this machine (setup/LABOR_CAPTURE.md)")
     if not dry_run:
         tmp = Path(status_path).with_suffix(".tmp")
         tmp.write_text(json.dumps(status, indent=1))

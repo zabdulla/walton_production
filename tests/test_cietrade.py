@@ -338,3 +338,33 @@ def test_end_of_shift_summary_keeps_full_reports(tmp_path) -> None:
     assert r["date"] == "2026-09-21" and r["shift"] == "1st" and r["by"] == "Tim" and r["filed_at"] == "9/21/2026" and r["notes"] == ["cleaning"]
     assert [m["machine"] for m in r["machines"]] == ["AUTO TIE BALER", "EXTRUDER"]
     assert r["machines"][1] == {"machine": "EXTRUDER", "machine_hours": 7.0, "man_hours": 14.5, "operators": "Steven, Daniel", "material": "BOPP resin", "downtime_min": 60, "reason": "Waiting on material", "comment": ""}
+
+
+def test_without_the_end_of_shift_file_the_record_keeps_hours_and_reports(tmp_path) -> None:
+    """A machine that does not pull the sheet (the Mac's weekly run) must not wipe the hours
+    already on file or publish a status with no reports."""
+    api_dir = _write_api_dir(tmp_path)
+    (tmp_path / "exports").mkdir()
+    res = model.run(export_dir=tmp_path / "exports", api_dir=api_dir, aggregate=tmp_path / "none.xlsx", verbose=False)
+    rows, notes, _ = daily.daily_rows(res, labor_path=tmp_path / "no-labor.xlsx", from_date="2026-09-01")
+    assert (rows["Machine_Hours"] == 0).all()
+    # the aggregate on file already carries hours for Monday 2nd from an earlier run with the sheet
+    on_file = rows.copy()
+    mon = on_file["Date"] == "2026-09-14"
+    on_file.loc[mon, ["Machine_Hours", "Man_Hours", "Operator", "Output_Product", "Labor_Cost", "Total_Expense"]] = [7.5, 15.0, "Tony, Daniel", "BOPP", 300.0, 300.0]
+    on_file.loc[mon, "Comment"] = "down 30 min (Blades)"
+    agg = tmp_path / "agg.xlsx"; on_file.to_excel(agg, index=False)
+    s = daily.update_aggregate(rows, notes, agg_path=agg, notes_path=tmp_path / "notes.xlsx", from_date="2026-09-01", labor_present=False)
+    out = pd.read_excel(agg)
+    kept = out[(out["Date"].astype(str).str[:10] == "2026-09-14") & (out["Shift"] == "2nd")].iloc[0]
+    assert s["labor_carried"] == 1 and kept["Machine_Hours"] == 7.5 and kept["Operator"] == "Tony, Daniel" and "Blades" in kept["Comment"]
+    assert kept["Output_per_Hour"] == kept["Actual_Output"] / 7.5 and bool(kept["Has_Machine_Hours"])
+    # and the same run with the sheet present overwrites nothing it should not
+    s2 = daily.update_aggregate(rows, notes, agg_path=agg, notes_path=tmp_path / "notes.xlsx", from_date="2026-09-01", labor_present=True)
+    assert s2["labor_carried"] == 0
+    # the status keeps the last known reports instead of publishing none
+    previous = {"end_of_shift": {"entries": 12, "reports": [{"date": "2026-09-12", "shift": "1st", "by": "Tim", "machines": [], "notes": []}], "filed": 3}}
+    st = daily.build_status(res, from_date="2026-09-01", labor_path=tmp_path / "no-labor.xlsx", api_dir=api_dir, previous=previous)
+    assert st["end_of_shift"]["reports"][0]["by"] == "Tim" and st["end_of_shift"]["carried"] is True
+    st2 = daily.build_status(res, from_date="2026-09-01", labor_path=tmp_path / "no-labor.xlsx", api_dir=api_dir, previous=None)
+    assert st2["end_of_shift"]["reports"] == []
