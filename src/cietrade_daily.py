@@ -289,6 +289,10 @@ def run(dry_run: bool = False, verbose: bool = True, status_path: Path = STATUS_
         tmp.write_text(json.dumps(status, indent=1))
         tmp.replace(status_path)
     summary["awaiting_cells"] = len(status["awaiting"])
+    lp = Path(LABOR_ENTRIES_PATH)
+    summary["end_of_shift"] = {"file": str(lp), "exists": lp.exists(), "bytes": lp.stat().st_size if lp.exists() else 0,
+                               "entries": status["end_of_shift"].get("entries", 0), "reports": len(status["end_of_shift"].get("reports", [])),
+                               "last_filed": status["end_of_shift"].get("last_filed")}
     summary["warnings"] = warnings + list(res["meta"].get("warnings", []))
     summary["last_poll"] = res["meta"].get("last_poll")
     return summary

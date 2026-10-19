@@ -295,6 +295,11 @@ def step_cietrade_rows() -> dict[str, Any]:
                   **{k: s.get(k) for k in ("rows", "days", "with_hours", "pre_snapshot", "through", "last_poll")})
     log_ok(f"{s['rows']} rows over {s['days']} days through {s['through']} ({s['with_hours']} with hours)"
            + (f" · last poll {s['last_poll']}" if s.get("last_poll") else ""))
+    eos = s.get("end_of_shift") or {}
+    log_info(f"  End of Shift: {eos.get('entries', 0)} entries, {eos.get('reports', 0)} reports, last filed {eos.get('last_filed')} "
+             f"(file {'present' if eos.get('exists') else 'MISSING'}, {eos.get('bytes', 0):,} bytes)")
+    if eos.get("exists") and not eos.get("entries"):
+        log_warn("End of Shift file is present but the status summary has no entries — reports will be missing from the site and the email")
     for w in s.get("warnings", []):
         log_warn(w)
     if s.get("skipped_weeks"):
