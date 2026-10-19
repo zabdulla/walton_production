@@ -25,7 +25,7 @@ from daily_template import (  # template extracted 2026-07
 
 DEFAULT_DAILY_INPUT = DEFAULT_AGGREGATED_DATA
 DEFAULT_NOTES_INPUT = DEFAULT_AGGREGATED_NOTES
-DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "daily.html"
+DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "classic" / "daily.html"
 
 
 def load_data(daily_path: Path, notes_path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -169,6 +169,7 @@ def main(daily_path: Path, notes_path: Path, output_path: Path) -> None:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     from atomic import write_atomic_text
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     write_atomic_text(output_path, html)
     print(f"Wrote daily dashboard to {output_path}")
 

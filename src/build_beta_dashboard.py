@@ -1,4 +1,4 @@
-"""Beta production dashboard: docs/beta/index.html.
+"""The production dashboard: docs/index.html.
 
 One page, five views (Today · Week · Shifts · Machines · More), a sidebar on desktop
 that becomes a bottom tab bar on a phone. The page carries the last 26 weeks of
@@ -10,7 +10,7 @@ data/cietrade_status.json (End of Shift reports, freshness) and the live feed gi
 titles, hairline horizontal grid, direct labels, the latest point hollow.
 See design/DESIGN.md.
 
-    python3 src/build_beta_dashboard.py               # -> docs/beta/index.html
+    python3 src/build_beta_dashboard.py               # -> docs/index.html (the classic pages live under docs/classic/)
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ from config import DATA_DIR, DEFAULT_WEEKS, LIVE_FEED_URL, PROJECT_ROOT, RUNNING
 
 DEFAULT_INPUT = DATA_DIR / "aggregated_daily_data.xlsx"
 STATUS_PATH = DATA_DIR / "cietrade_status.json"
-DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "beta" / "index.html"
+DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "index.html"
 SHIFTS = ("1st", "2nd", "3rd", "unspecified")
 EMBED_WEEKS = 26                                   # complete weeks carried in the page, plus the current one
 # Fixed categorical slot per machine (validated order, see design/DESIGN.md). Colour follows the entity.
@@ -620,14 +620,14 @@ def render(D: dict) -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Walton production (beta)</title>
-<meta name="description" content="Walton Logistics production dashboard, beta layout">
+<title>Walton production</title>
+<meta name="description" content="Walton Logistics production dashboard">
 <style>{CSS}</style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><div class="mark" aria-hidden="true"></div><div><b>Walton production</b><small>Plus Monroe · beta</small></div></div>
+    <div class="brand"><div class="mark" aria-hidden="true"></div><div><b>Walton production</b><small>Plus Monroe</small></div></div>
     <nav class="nav" aria-label="Views">{nav_side}</nav>
     <div class="spacer"></div>
     <button class="icon-btn" data-theme-toggle type="button">◐ <span>Light / dark</span></button>
@@ -635,7 +635,7 @@ def render(D: dict) -> str:
     <div class="side-foot">Data through {e(D["data_through"])}</div>
   </aside>
   <main class="main">
-    <div class="topbar"><h1 id="pageTitle">Today</h1><div class="date">{e(through)} · <a href="../">current site</a></div></div>
+    <div class="topbar"><h1 id="pageTitle">Today</h1><div class="date">{e(through)} · <a href="classic/">classic site</a></div></div>
     {banner}
     <section class="view" data-view="today">
       <div class="controls"><div class="pager" id="todayPager"></div><div class="seg" id="todaySeg" role="group" aria-label="Shift"></div><div class="controls-note" id="feedState"></div></div>
@@ -672,7 +672,7 @@ def render(D: dict) -> str:
       </div>
     </section>
     <section class="view" data-view="shifts" hidden>
-      <div class="controls"><div class="pager" id="shiftsPager"></div><div class="controls-note">End of Shift reports as the supervisors filed them, newest day first · <a href="../shift/">open the form</a></div></div>
+      <div class="controls"><div class="pager" id="shiftsPager"></div><div class="controls-note">End of Shift reports as the supervisors filed them, newest day first · <a href="shift/">open the form</a></div></div>
       <div id="shiftsBody"></div>
     </section>
     <section class="view" data-view="machines" hidden>
@@ -682,11 +682,11 @@ def render(D: dict) -> str:
     <section class="view" data-view="more" hidden>
       <div class="card"><div class="card-head"><h2>More</h2></div>
       <ul class="links">
-        <li><a href="../">Current production dashboard</a><span>every chart and table, the version this beta will replace</span></li>
-        <li><a href="../daily.html">Daily details</a><span>day-by-day rows, notes and validation</span></li>
-        <li><a href="../shift/">End of Shift form</a><span>for supervisors, works on a phone</span></li>
+        <li><a href="classic/">Classic dashboard</a><span>the previous site: every chart and table, weekly trends, costs</span></li>
+        <li><a href="classic/daily.html">Classic daily details</a><span>day-by-day calendar with notes and validation</span></li>
+        <li><a href="shift/">End of Shift form</a><span>for supervisors, works on a phone</span></li>
       </ul>
-      <div class="card-foot">Data through {e(D["data_through"])} · dashboard rebuilt {e(str(D["last_poll"] or "")[:16].replace("T", " "))} · cieTrade polled every 10 minutes · the page carries the last {EMBED_WEEKS} weeks · beta build.</div>
+      <div class="card-foot">Data through {e(D["data_through"])} · dashboard rebuilt {e(str(D["last_poll"] or "")[:16].replace("T", " "))} · cieTrade polled every 10 minutes · the page carries the last {EMBED_WEEKS} weeks.</div>
       </div>
     </section>
   </main>

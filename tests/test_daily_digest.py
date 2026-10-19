@@ -56,7 +56,7 @@ def test_render_email() -> None:
     dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
     html = dd.render_email(dg)
     assert "Monday, September 21" in html and dd.DASHBOARD_URL in html
-    assert html.count("Full dashboard") == 2
+    assert html.count("Classic dashboard") == 2
     assert html.index("Week at a glance") < html.index("End of Shift reports")
     assert "No End of Shift report was filed" in html and "Blades" in html and "clean-up" in html
     assert "<img" not in html and "<style" not in html and "table-layout:fixed" in html   # no images; inline styles only
@@ -107,8 +107,8 @@ def test_email_lists_the_clock_corrections_for_the_week() -> None:
     assert "cieTrade clock" not in dd.render_email(dd.build_digest(_df(), STATUS, date(2026, 9, 21)))
 
 
-def test_email_links_both_the_quick_read_and_the_full_dashboard() -> None:
+def test_email_links_the_dashboard_and_the_classic_site() -> None:
     html = dd.render_email(dd.build_digest(_df(), STATUS, date(2026, 9, 21)))
-    assert html.count('href="https://zabdulla.github.io/walton_production/beta/"') == 2      # top and bottom banners
-    assert html.count('href="https://zabdulla.github.io/walton_production/"') == 2
-    assert "Quick read" in html and "built for your phone" in html and "Full dashboard" in html
+    assert html.count('href="https://zabdulla.github.io/walton_production/"') == 2          # top and bottom banners
+    assert html.count('href="https://zabdulla.github.io/walton_production/classic/"') == 2
+    assert "Production dashboard" in html and "Classic dashboard" in html and "beta" not in html.lower()

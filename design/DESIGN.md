@@ -1,7 +1,8 @@
 # Walton production dashboard — design brief (beta)
 
-The beta lives at `docs/beta/` and is built by `src/build_beta_dashboard.py` from the same
-data as the current site. The current site is untouched until the beta replaces it.
+The dashboard lives at `docs/index.html` and is built by `src/build_beta_dashboard.py` (the
+name dates from its beta period) from the same data as the classic site, which moved to
+`docs/classic/` when this one replaced it.
 
 ## Who reads it, where
 

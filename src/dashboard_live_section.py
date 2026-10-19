@@ -1,4 +1,4 @@
-"""Live card for docs/index.html: today so far, the day as a cumulative curve, and the
+"""Live card for docs/classic/index.html: today so far, the day as a cumulative curve, and the
 latest changes. Renders from live.json (embedded at build time, then refreshed from the
 gist the poller republishes every 10 minutes)."""
 from __future__ import annotations

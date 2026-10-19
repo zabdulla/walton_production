@@ -7,7 +7,7 @@ summaries, simplified metric selection, and month-over-month context.
 Usage:
     python src/build_interactive_dashboard.py \
         --input data/aggregated_daily_data.xlsx \
-        --output docs/index.html
+        --output docs/classic/index.html
 
 The output HTML is self-contained and ready to host on GitHub Pages.
 """
@@ -40,7 +40,7 @@ from interactive_template import render_dashboard
 logger = logging.getLogger(__name__)
 
 DEFAULT_INPUT = DEFAULT_AGGREGATED_DATA
-DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "index.html"
+DEFAULT_OUTPUT = PROJECT_ROOT / "docs" / "classic" / "index.html"
 
 
 def _fmt_num(value: Any, kind: str = "int") -> str:

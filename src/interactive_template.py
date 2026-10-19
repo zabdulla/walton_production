@@ -1,5 +1,5 @@
 """
-Page template for the interactive weekly dashboard (docs/index.html).
+Page template for the classic weekly dashboard (docs/classic/index.html).
 
 Extracted from build_interactive_dashboard.py so the page shell (CSS/HTML/JS)
 and the data/figure pipeline can evolve independently. The builder computes
@@ -162,7 +162,8 @@ def render_dashboard(
     <p class="eyebrow">Walton Logistics &mdash; Production</p>
     <h1>Processing Performance Dashboard</h1>
     <p class="subtitle">{status_line or f"Use controls below to adjust view. {total_weeks} weeks of data available."}</p>
-    <a href="daily.html" class="nav-link">View Daily Details</a>
+    <a href="../" class="nav-link">&larr; New dashboard</a>
+    <a href="daily.html" class="nav-link secondary">View Daily Details</a>
     <a href="#liveCard" class="nav-link secondary">Live feed &darr;</a>
   </header>
   <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>

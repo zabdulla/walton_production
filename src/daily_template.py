@@ -1,5 +1,5 @@
 """
-Page template for the daily production dashboard (docs/daily.html).
+Page template for the classic daily dashboard (docs/classic/daily.html).
 
 Extracted from build_daily_dashboard.py so the ~1,000-line page shell
 (CSS/HTML/JS with embedded JSON data) and the data-prep pipeline can
@@ -538,7 +538,8 @@ def build_dashboard_html(
         <p class="eyebrow">Walton Logistics &mdash; Production</p>
         <h1>Daily Processing Dashboard</h1>
         <p class="subtitle">View production data by week or month. Click any day for details. Dot markers indicate supervisor notes.</p>
-        <a href="index.html" class="nav-link">← Weekly Summary</a>
+        <a href="../" class="nav-link">← New dashboard</a>
+        <a href="index.html" class="nav-link secondary">Weekly Summary</a>
     </header>
 
     <div id="staleBanner" style="display:none;background:#fef2f2;border:1px solid #dc2626;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-weight:600;"></div>

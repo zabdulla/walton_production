@@ -573,7 +573,7 @@ def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update
 
     # Stage all relevant tracked files (gitignore excludes the sensitive ones).
     # The cieTrade poll log is small text and cannot be recreated — it rides along.
-    paths = ["data/aggregated_daily_data.xlsx", "data/aggregated_notes.xlsx", "docs/index.html", "docs/daily.html",
+    paths = ["data/aggregated_daily_data.xlsx", "data/aggregated_notes.xlsx", "docs/index.html", "docs/classic/index.html", "docs/classic/daily.html",
              "data/cietrade/polls.jsonl", "data/cietrade/posted.csv", "data/cietrade/snapshots", "data/cietrade_exports",
              "data/cietrade_status.json"]
     rc, _, _ = run_cmd(["git", "add", *[p for p in paths if (PROJECT_ROOT / p).exists()]], capture=True)
@@ -610,8 +610,9 @@ def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update
     # Used to auto-resolve rebase conflicts on generated artifacts: prefer
     # the remote version (--theirs), rebuild locally on top, re-stage.
     DASHBOARD_BUILDERS = {
-        "docs/index.html": "build_interactive_dashboard.py",
-        "docs/daily.html": "build_daily_dashboard.py",
+        "docs/index.html": "build_beta_dashboard.py",
+        "docs/classic/index.html": "build_interactive_dashboard.py",
+        "docs/classic/daily.html": "build_daily_dashboard.py",
     }
 
     # Try push with one retry on rebase conflict
