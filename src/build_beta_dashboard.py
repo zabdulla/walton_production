@@ -183,6 +183,12 @@ svg.live .now { stroke:var(--ink-2); stroke-width:1; opacity:.5; } svg.live .end
 .legend .key { display:inline-block; width:14px; height:0; border-top:2px solid var(--brand); } .legend .key.yest { border-top:1.5px solid var(--raw); }
 .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--good); margin-left:8px; vertical-align:middle; } .dot.stale { background:var(--warn); } .dot.down { background:var(--bad); }
 .feed { list-style:none; margin:0; padding:0; font-size:13px; } .feed li.empty { display:block; color:var(--muted); border-top:0; } .feed li.more { display:block; padding-top:10px; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; margin:0 0 14px; }
+.tile { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; min-width:0; }
+.tile .tn { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tile .tv { font-size:24px; font-weight:650; line-height:1.15; margin-top:4px; letter-spacing:-.01em; font-variant-numeric:tabular-nums; } .tile .tv .unit { font-size:12px; font-weight:500; color:var(--muted); margin-left:4px; }
+.tile .ts { font-size:12px; color:var(--muted); margin-top:4px; font-variant-numeric:tabular-nums; } .tile .tf { font-size:12px; color:var(--warn); font-weight:600; margin-top:4px; }
+.tile.empty { grid-column:1 / -1; color:var(--muted); font-size:14px; padding:8px 0; background:transparent; border:0; }
 .feed .t { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; } .feed .v { font-weight:600; font-variant-numeric:tabular-nums; } .feed .v.neg { color:var(--bad); }
 .table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; font-size:14px; }
 th { font-size:11px; color:var(--muted); font-weight:600; text-align:left; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid var(--line); }
@@ -217,6 +223,7 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
   .app { grid-template-columns:minmax(0,1fr); } .side { display:none; } .main { min-width:0; }
   .main { padding:14px 16px 84px; }
   .topbar h1 { font-size:18px; } .hero-value { font-size:38px; }
+  .tiles { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .tile { padding:10px 12px; } .tile .tv { font-size:20px; }
   .stats { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .stat { padding:12px 12px 10px; min-height:0; } .stat-value { font-size:22px; }
   .bar-row { grid-template-columns:10px 96px minmax(0,1fr) 62px; gap:8px; font-size:13px; }
   .only-desk { display:none; } .only-phone { display:inline-block; }
@@ -421,6 +428,7 @@ JS = r"""
     $("#liveHeroValue").textContent = fmt(L.lbs_today);
     $("#liveHeroSub").textContent = (L.current_shift ? L.current_shift + " shift on now · " : "") + "as of " + clock(parseTs(L.generated)) + " · " + L.open_jobs + " open jobs, " + fmt(L.open_lbs) + " lbs not yet posted"
       + (state === "down" ? " · ⚠ cieTrade unavailable since " + clock(parseTs(L.api_down_since || L.last_poll)) : state === "stale" ? " · ⚠ feed is " + age + " min old" : "");
+    renderLiveTiles(L);
     const pace = paceOf(L);
     $("#liveTitle").textContent = compact(L.lbs_today) + " lbs by " + clock(parseTs(L.generated)) + (pace.projected ? ", on course for " + compact(pace.projected) : "");
     $("#liveMeta").textContent = (pace.normal ? "a normal " + wdName[dow(L.day)] + " is " + compact(pace.normal) + " · " : "") + "polled " + clock(parseTs(L.last_poll)) + " · " + L.polls_today + " polls today";
@@ -438,6 +446,25 @@ JS = r"""
       if (!all.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing entered yet this production day."; feed.appendChild(li); }
       if (all.length > 8) { const li = document.createElement("li"); li.className = "more"; const b = document.createElement("button"); b.type = "button"; b.className = "seg-btn"; b.textContent = LV.all ? "Show the latest 8" : "Show all " + all.length; b.addEventListener("click", () => { LV.all = !LV.all; renderLive(); }); li.appendChild(b); feed.appendChild(li); }
     }
+  }
+  function renderLiveTiles(L) {                          // one tile per machine: pounds today, split by shift
+    const box = $("#liveTiles"); box.replaceChildren();
+    const ms = L.machines || [];
+    if (!ms.length) { const t = document.createElement("div"); t.className = "tile empty"; t.textContent = "Nothing entered yet this production day."; box.appendChild(t); return; }
+    ms.forEach(m => {
+      const t = document.createElement("div"); t.className = "tile";
+      const n = document.createElement("div"); n.className = "tn";
+      const sw = document.createElement("span"); sw.className = "sw"; sw.style.background = D.colors[m.m] || "#4a3aa7"; n.append(sw, name(m.m));
+      const v = document.createElement("div"); v.className = "tv"; v.textContent = fmt(m.lbs);
+      const u = document.createElement("span"); u.className = "unit"; u.textContent = "lbs"; v.appendChild(u);
+      const s = document.createElement("div"); s.className = "ts";
+      const parts = SHIFT_ORDER.filter(k => m.by_shift && m.by_shift[k]).map(k => k + "\u00a0" + fmt(m.by_shift[k]));
+      parts.push("last\u00a0" + clock(parseTs(m.last_change)).replace(" ", "\u00a0"));
+      s.textContent = parts.join(" · ");                                   // each part wraps as a whole
+      t.append(n, v, s);
+      if (m.flag) { const f = document.createElement("div"); f.className = "tf"; f.textContent = "quiet " + m.quiet_min + " min"; t.appendChild(f); }
+      box.appendChild(t);
+    });
   }
   function renderLiveChart(L) {
     // today's plant total through the production day as a step line, yesterday's as a faint trace
@@ -718,6 +745,7 @@ def render(D: dict) -> str:
     </section>
     <section class="view" data-view="live" hidden>
       <div class="hero"><div class="hero-label" id="liveHeroLabel">Pounds today so far</div><div class="hero-value" id="liveHeroValue">–</div><div class="hero-sub" id="liveHeroSub">connecting to the live feed…</div></div>
+      <div class="tiles" id="liveTiles"></div>
       <div class="card" id="liveCard">
         <div class="card-head"><h2 id="liveTitle">Through the day</h2><div class="card-meta" id="liveMeta"></div></div>
         <div id="liveChart"></div>
