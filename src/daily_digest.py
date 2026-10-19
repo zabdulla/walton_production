@@ -42,6 +42,7 @@ STATUS_PATH = DATA_DIR / "cietrade_status.json"
 OUT_DIR = PROJECT_ROOT / "reports" / "digest"
 STATE_PATH = DATA_DIR / "digest_state.json"
 DASHBOARD_URL = "https://zabdulla.github.io/walton_production/"
+BETA_URL = DASHBOARD_URL + "beta/"          # the quick-read view: today, this week, shift reports, machines; built for a phone
 SEND_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 SEND_TOKEN_PATH = WALTON_CONFIG_DIR / "gmail_send_token.json"
 CREDENTIALS_PATH = WALTON_CONFIG_DIR / "gmail_credentials.json"
@@ -114,7 +115,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
                      "plant_wtd": sum(plant_days), "by_shift": week_by_shift},
             "reports": reports,
             "flags": [f for f in status.get("shift_flags", []) if monday.strftime("%Y-%m-%d") <= f.get("date", "") <= for_date.isoformat()],
-            "status": {"last_poll": status.get("last_poll")}, "url": DASHBOARD_URL}
+            "status": {"last_poll": status.get("last_poll")}, "url": DASHBOARD_URL, "beta_url": BETA_URL}
 
 
 # ---------------------------------------------------------------- email (inline styles only: mail clients strip stylesheets)
@@ -198,8 +199,12 @@ def render_email(dg: dict) -> str:
     e = _h.escape
     wk = dg["week"]
     h2 = f'style="{F}font-size:17px;font-weight:bold;color:#1a1d21;margin:0;padding:22px 0 10px"'
-    link = (f'<div style="{F}font-size:13px;color:#1a1d21;background:#e7f3ee;border:1px solid #cfe5db;border-radius:8px;padding:10px 14px">'
-            f'All the details live on the production dashboard: <a href="{dg["url"]}" style="color:#0b6e4f;font-weight:bold">{dg["url"].replace("https://", "")}</a></div>')
+    beta = dg.get("beta_url") or dg["url"] + "beta/"
+    link = (f'<div style="{F}font-size:13px;color:#1a1d21;background:#e7f3ee;border:1px solid #cfe5db;border-radius:8px;padding:10px 14px;line-height:1.5">'
+            f'<b>Quick read</b> (new, built for your phone): <a href="{beta}" style="color:#0b6e4f;font-weight:bold">{beta.replace("https://", "")}</a>'
+            f'<span style="color:#4b5563"> · today by machine, the week, shift reports, machine trends</span><br>'
+            f'<b>Full dashboard</b>: <a href="{dg["url"]}" style="color:#0b6e4f;font-weight:bold">{dg["url"].replace("https://", "")}</a>'
+            f'<span style="color:#4b5563"> · every chart and table</span></div>')
     week_cards = "".join(_week_card(b, wk, e) for b in wk["by_shift"])
     plant = (f'<div style="{F}font-size:13px;color:#1a1d21;padding:2px 6px 6px"><b>Plant</b>: '
              + " &nbsp;·&nbsp; ".join(f'{e(dd)} {_n(v) or "0"}' for dd, v in zip(wk["days"], wk["plant_days"]))
@@ -265,7 +270,7 @@ def build_message(to: list[str], subject: str, html: str, bcc: list[str] | None 
     msg["To"], msg["Subject"] = ", ".join(to), subject
     if bcc:
         msg["Bcc"] = ", ".join(bcc)      # Gmail delivers to Bcc and strips the header from what recipients see
-    msg.attach(MIMEText("Walton daily production email. Open in an HTML mail client, or see " + DASHBOARD_URL, "plain"))
+    msg.attach(MIMEText("Walton daily production email. Open in an HTML mail client, or see the quick read at " + BETA_URL + " or the full dashboard at " + DASHBOARD_URL, "plain"))
     msg.attach(MIMEText(html, "html"))
     return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
