@@ -28,6 +28,7 @@ from config import (
     CIETRADE_DATA_DIR, CIETRADE_LINE_TO_MACHINE, CIETRADE_SITES, LIVE_FEED_LENGTH, LIVE_GIST_ID,
     LIVE_JSON_PATH, LIVE_QUIET_MINUTES, SHIFT_HOURS,
 )
+from cietrade_model import classify_window
 
 LOG = logging.getLogger("cietrade_live")
 SHIFT_RE = re.compile(r"\((\d)(?:ST|ND|RD) SHIFT\)")
@@ -89,7 +90,7 @@ def changes(snaps: pd.DataFrame, polls: pd.DataFrame) -> pd.DataFrame:
     previous poll (then its whole quantity is new); otherwise it existed before polling
     began and its history is unknown.
     """
-    cols = ["t0", "t1", "job", "machine", "shift", "lbs", "units", "correction"]
+    cols = ["t0", "t1", "job", "machine", "shift", "lbs", "units", "correction", "s_eff", "off_shift", "eff_day"]
     if snaps.empty:
         return pd.DataFrame(columns=cols)
     ok_polls = polls.loc[polls["ok"], "ts"].sort_values().to_numpy() if len(polls) else pd.Series([], dtype="datetime64[ns]").to_numpy()
@@ -111,8 +112,12 @@ def changes(snaps: pd.DataFrame, polls: pd.DataFrame) -> pd.DataFrame:
             lbs, units = float(r.qty - r.prev_qty), int(r.units - r.prev_units)
             if abs(lbs) < 0.5 and units == 0:
                 continue
-        out.append(dict(t0=t0 if t0 is not None else r.ts, t1=r.ts, job=int(r.job), machine=r.machine,
-                        shift=r.shift, lbs=round(lbs), units=units, correction=bool(lbs < 0)))
+        t0 = t0 if t0 is not None else r.ts
+        cls = classify_window(t0, r.ts, r.shift)                 # the clock checks the job's shift tag
+        s_eff = cls["shift"] if cls["kind"] != "unresolved" else r.shift
+        out.append(dict(t0=t0, t1=r.ts, job=int(r.job), machine=r.machine,
+                        shift=r.shift, lbs=round(lbs), units=units, correction=bool(lbs < 0),
+                        s_eff=s_eff, off_shift=cls["kind"] == "off", eff_day=cls["date"] if cls["date"] is not None else production_day(r.ts)))
     df = pd.DataFrame(out, columns=cols)
     return df.sort_values(["t1", "machine"]).reset_index(drop=True)
 
@@ -158,13 +163,16 @@ def build_live(now: pd.Timestamp | None = None, api_dir: Path = CIETRADE_DATA_DI
     out = outage(polls)
     ok = out["poll_ok"]
     end = min(now, last_poll) if last_poll is not None else now
-    shift_now = current_shift(now) if now.weekday() in WORKDAYS else None
+    shift_now = current_shift(now)                                 # weekends too: Saturday work shows under its shift
+    off = today[today["off_shift"]]
+    flags = [dict(m=m, from_shift=s, to_shift=e, lbs=int(g["lbs"].sum()), n=int(len(g)), first=g["t0"].min().isoformat(), last=g["t1"].max().isoformat())
+             for (m, s, e), g in off.groupby(["machine", "shift", "s_eff"])] if len(off) else []
     machines = []
     for m, g in today.groupby("machine"):
         last = g["t1"].max()
         quiet = int((now - last).total_seconds() // 60)
-        this_shift = shift_now is not None and (g["shift"] == shift_now).any()
-        machines.append(dict(m=m, lbs=int(g["lbs"].sum()), by_shift={s: int(v) for s, v in g.groupby("shift")["lbs"].sum().items()},
+        this_shift = shift_now is not None and (g["s_eff"] == shift_now).any()
+        machines.append(dict(m=m, lbs=int(g["lbs"].sum()), by_shift={s: int(v) for s, v in g.groupby("s_eff")["lbs"].sum().items()},
                              changes=int(len(g)), last_change=last.isoformat(), quiet_min=quiet,
                              flag=bool(this_shift and quiet >= LIVE_QUIET_MINUTES)))
     machines.sort(key=lambda x: -x["lbs"])
@@ -180,11 +188,11 @@ def build_live(now: pd.Timestamp | None = None, api_dir: Path = CIETRADE_DATA_DI
         lbs_today=int(today["lbs"].sum()) if len(today) else 0,
         open_jobs=int(open_rows["job"].nunique()) if len(open_rows) else 0,
         open_lbs=int(open_rows["qty"].sum()) if len(open_rows) else 0,
-        machines=machines, series=series,
+        machines=machines, series=series, flags=flags, weekend=bool(day.weekday() >= 5),
         yesterday=dict(day=(day - timedelta(days=1)).strftime("%Y-%m-%d"), total=_curve(yesterday, yday_start, day_start),
                        lbs=int(yesterday["lbs"].sum()) if len(yesterday) else 0),
-        changes=[dict(t0=r.t0.isoformat(), t1=r.t1.isoformat(), m=r.machine, s=r.shift, lbs=int(r.lbs), units=int(r.units),
-                      job=int(r.job), correction=bool(r.correction)) for r in feed.itertuples(index=False)],
+        changes=[dict(t0=r.t0.isoformat(), t1=r.t1.isoformat(), m=r.machine, s=r.s_eff, tag=r.shift, lbs=int(r.lbs), units=int(r.units),
+                      job=int(r.job), correction=bool(r.correction), off_shift=bool(r.off_shift)) for r in feed.itertuples(index=False)],
     )
 
 

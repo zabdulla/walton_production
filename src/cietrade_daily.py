@@ -105,7 +105,8 @@ def daily_rows(res: dict, labor_path: Path = LABOR_ENTRIES_PATH, from_date: str 
         if downtime:
             comment = (comment + " · " if comment else "") + f"down {downtime:.0f} min" + (f" ({_text(lab.get('Downtime_Reason'))})" if _text(lab.get("Downtime_Reason")) else "")
         prov = PROVENANCE[mode]
-        full_comment = " · ".join(x for x in (comment, prov) if x)
+        clock = "; ".join(sorted({str(n) for n in g.get("note", pd.Series(dtype=str)) if isinstance(n, str) and n}))
+        full_comment = " · ".join(x for x in (comment, prov, clock) if x)
         guillotine = machine == "GUILLOTINE"
         actual_input, actual_output = (lbs, 0.0) if guillotine else (lbs, lbs)
         has_mh, has_man, has_out = machine_hours > 0, man_hours > 0, actual_output > 0
@@ -201,6 +202,23 @@ def end_of_shift_summary(entries: pd.DataFrame, notes: pd.DataFrame, as_of: pd.T
             "last_filed": (max(e["Date"]) if len(e) else None), "recent": recent, "notes": shift_notes, "reports": reports}
 
 
+def shift_flags(flags: pd.DataFrame | None, since: pd.Timestamp | None = None, days: int = 28) -> list[dict]:
+    """The clock's corrections for the dashboards: entries credited to another shift than
+    the job's tag, and weekend/closure work kept on its own day. Newest first."""
+    if flags is None or not len(flags):
+        return []
+    f = flags.copy()
+    f["date"] = pd.to_datetime(f["date"])
+    lo = f["date"].max() - pd.Timedelta(days=days - 1)
+    if since is not None:
+        lo = max(lo, since)
+    f = f[f["date"] >= lo].sort_values(["date", "shift", "machine"], ascending=[False, True, True])
+    return [{"date": r.date.strftime("%Y-%m-%d"), "shift": r.shift, "from_shift": r.from_shift, "kind": r.kind,
+             "machine": CIETRADE_LINE_TO_MACHINE.get(r.line, r.line), "job": int(r.job), "lbs": round(float(r.lbs)),
+             "windows": int(r.windows), "first": pd.Timestamp(r.first).strftime("%Y-%m-%dT%H:%M"), "last": pd.Timestamp(r.last).strftime("%Y-%m-%dT%H:%M")}
+            for r in f.itertuples(index=False)]
+
+
 def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Path = LABOR_ENTRIES_PATH,
                  api_dir: Path = model.CIETRADE_DATA_DIR) -> dict:
     """What the dashboards need to know beyond the rows: freshness, open jobs, the
@@ -215,6 +233,7 @@ def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Pat
     awaiting_cells = sorted({(d.strftime("%Y-%m-%d"), s, CIETRADE_LINE_TO_MACHINE.get(ln, ln))
                              for d, s, ln in zip(awaiting["Date"], awaiting["Shift"], awaiting["line"])})
     return {
+        "shift_flags": shift_flags(res.get("flags"), since=pd.Timestamp(from_date)),
         "data_through": meta.get("data_through"), "last_poll": meta.get("last_poll"),
         "last_snapshot": meta.get("last_snapshot"), "polls": meta.get("polls", 0),
         "open_jobs": meta.get("open_jobs", 0), "open_lbs": round(float(meta.get("open_lbs", 0.0))),

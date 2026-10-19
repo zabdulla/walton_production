@@ -87,6 +87,7 @@ def dataset(df: pd.DataFrame, status: dict, today: date | None = None, weeks: in
         "machines": machines, "names": {m: pretty(m) for m in machines}, "colors": {m: slot_color(m) for m in machines},
         "shifts": list(SHIFTS), "dates": dates, "rows": rows,
         "reports": sorted(eos.get("reports", []), key=lambda r: (r["date"], r["shift"])),
+        "flags": list(status.get("shift_flags", [])),
         "avg_window": RUNNING_AVG_WINDOW, "facet_weeks": DEFAULT_WEEKS, "feed": LIVE_FEED_URL,
     }
 
@@ -148,6 +149,8 @@ a { color:var(--brand-ink); }
 .bar-val { text-align:right; font-weight:650; font-variant-numeric:tabular-nums; } .bar-sub { grid-column:2/5; font-size:11px; color:var(--muted); margin-top:-6px; }
 .bar-val small { display:block; font-size:11px; font-weight:500; }
 .empty { color:var(--muted); font-size:14px; padding:8px 0; }
+.flags { list-style:none; margin:10px 0 0; padding:0; font-size:13px; color:var(--ink-2); } .flags:empty { display:none; }
+.flags li { padding:6px 10px; border-left:3px solid var(--warn); background:var(--track); border-radius:0 6px 6px 0; margin-top:6px; }
 .sw { width:10px; height:10px; border-radius:3px; display:inline-block; vertical-align:-1px; flex:none; }
 .legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--ink-2); margin:2px 0 8px; } .legend span { display:inline-flex; align-items:center; gap:6px; }
 .feed { list-style:none; margin:10px 0 0; padding:0; font-size:13px; } .feed li { display:grid; grid-template-columns:52px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
@@ -298,6 +301,13 @@ JS = r"""
         + (nv ? '<div class="bar-norm" style="left:' + (100 * nv / max).toFixed(1) + '%" title="normal ' + fmt(nv) + '"></div>' : "") + '</div>'
         + '<span class="bar-val">' + fmt(a.lbs) + (p === null ? "" : '<small class="' + (p >= 0 ? "up" : "down") + '">' + (p >= 0 ? "+" : "") + p + '%</small>') + '</span></div>'
         + (a.flag ? '<div class="bar-sub warn">quiet ' + a.quiet + ' min</div>' : ""); }).join("");
+    // the clock's corrections for this day: entries credited to another shift than the job's tag, weekend work
+    const fl = isLive ? (live.flags || []).map(f => ({ machine: f.m, from_shift: f.from_shift, shift: f.to_shift, kind: "reassigned", lbs: f.lbs, first: f.first, last: f.last }))
+                      : D.flags.filter(f => f.date === day && (sh === "all" || f.shift === sh || f.from_shift === sh));
+    const hm = t => new Date(t).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    $("#todayFlags").innerHTML = fl.map(f => '<li>' + (f.kind === "reassigned"
+      ? '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs entered on the ' + h(f.from_shift) + '-shift job at ' + h(hm(f.first) === hm(f.last) ? hm(f.last) : hm(f.first) + "–" + hm(f.last)) + ', during ' + h(f.shift) + ' shift hours; counted as ' + h(f.shift) + '.'
+      : '<b>' + h(name(f.machine)) + '</b>: ' + fmt(f.lbs) + ' lbs of ' + h(f.kind) + ' work on the ' + h(f.shift) + ' shift, kept on this day; no End of Shift report expected.') + '</li>').join("");
     $("#todayFoot").textContent = norm.n ? "The dark tick is a normal " + wdName[dow(day)] + " for that machine (the average of the last " + norm.n + "), and the small figure is the difference. Guillotine's rolls count when it books no output." : "No earlier " + wdName[dow(day)] + "s to compare against.";
     // stats
     const wk = mondayOf(day), lwEnd = addDays(day, -7), lw = mondayOf(lwEnd);
@@ -531,6 +541,7 @@ def render(D: dict) -> str:
       <div class="card">
         <div class="card-head"><h2 id="todayTitle">Pounds by machine</h2><div class="card-meta" id="todayMeta"></div></div>
         <div class="bars" id="todayBars"></div>
+        <ul class="flags" id="todayFlags"></ul>
         <div class="card-foot" id="todayFoot"></div>
       </div>
       <div class="stats" id="todayStats"></div>

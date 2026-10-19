@@ -113,6 +113,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
             "week": {"monday": monday.strftime("%Y-%m-%d"), "days": [x.strftime("%a %-d") for x in wdays], "plant_days": plant_days,
                      "plant_wtd": sum(plant_days), "by_shift": week_by_shift},
             "reports": reports,
+            "flags": [f for f in status.get("shift_flags", []) if monday.strftime("%Y-%m-%d") <= f.get("date", "") <= for_date.isoformat()],
             "status": {"last_poll": status.get("last_poll")}, "url": DASHBOARD_URL}
 
 
@@ -182,6 +183,17 @@ def _report_card(r: dict, e) -> str:
     return _card(f'{e(r["shift"])} shift', meta, table)
 
 
+def _flag_line(f: dict, e) -> str:
+    day = datetime.strptime(f["date"], "%Y-%m-%d").strftime("%a %b %-d")
+    hm = lambda t: datetime.strptime(t, "%Y-%m-%dT%H:%M").strftime("%-I:%M %p")
+    when = hm(f["last"]) if f.get("first") == f.get("last") or not f.get("first") else f"{hm(f['first'])}–{hm(f['last'])}"
+    m = e(f.get("machine", "").title())
+    if f.get("kind") == "reassigned":
+        return (f'{e(day)} · <b>{m}</b>: {f["lbs"]:,} lbs entered on the {e(f["from_shift"])}-shift job at {e(when)}, '
+                f'during {e(f["shift"])} shift hours; counted as {e(f["shift"])}.')
+    return f'{e(day)} · <b>{m}</b>: {f["lbs"]:,} lbs of {e(f.get("kind", "weekend"))} work on the {e(f["shift"])} shift, kept on its own day.'
+
+
 def render_email(dg: dict) -> str:
     e = _h.escape
     wk = dg["week"]
@@ -193,6 +205,11 @@ def render_email(dg: dict) -> str:
              + " &nbsp;·&nbsp; ".join(f'{e(dd)} {_n(v) or "0"}' for dd, v in zip(wk["days"], wk["plant_days"]))
              + f' &nbsp;·&nbsp; <b>week to date {_n(wk["plant_wtd"]) or "0"} lbs</b></div>')
     report_cards = "".join(_report_card(r, e) for r in dg["reports"])
+    flags = ""
+    if dg.get("flags"):
+        items = "".join(f'<li style="padding:3px 0">{_flag_line(f, e)}</li>' for f in dg["flags"])
+        flags = (f'<div style="{F}font-size:13px;color:#1a1d21;background:#fff7e6;border:1px solid #f1d9a6;border-radius:8px;padding:8px 14px;margin:6px 0 4px">'
+                 f'<b>Shift notes from the cieTrade clock</b> (already reflected above)<ul style="margin:4px 0 0 18px;padding:0">{items}</ul></div>')
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Walton production · {e(dg["day_label"])}</title></head>
 <body style="margin:0;padding:0;background:#f3f4f6">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f4f6"><tr><td align="center" style="padding:16px 8px">
@@ -205,7 +222,7 @@ def render_email(dg: dict) -> str:
 </td></tr>
 <tr><td style="padding:0 24px">
   <div {h2}>Week at a glance <span style="font-weight:normal;color:#6b7280;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}{", complete week" if datetime.strptime(dg["date"], "%Y-%m-%d").weekday() >= 4 else ""}, pounds by machine and day</span></div>
-  {week_cards}{plant}
+  {week_cards}{plant}{flags}
 </td></tr>
 <tr><td style="padding:0 24px">
   <div {h2}>End of Shift reports <span style="font-weight:normal;color:#6b7280;font-size:13px">{e(dg["day_label"])}, as filed by the supervisors</span></div>

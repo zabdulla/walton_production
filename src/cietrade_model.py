@@ -27,6 +27,13 @@ Attribution, per line (one cieTrade machine name including its shift tag):
      "partial" (output so far), later shift-days are "not yet posted". A shift that
      began before the last successful poll and has no job at all is idle, because a
      poll lists every open job.
+  5. The clock checks the tag. A window short enough to be time-resolved
+     (config.SHIFT_WINDOW_MAX_HOURS) is placed by its midpoint: within the tagged
+     shift's hours, or within SHIFT_GRACE_MINUTES after them, it stays on the tag.
+     Beyond that it is credited to the shift on the clock (the one that started at
+     least a grace ago) and flagged as reassigned. A window on a weekend or closure
+     day keeps its shift but gets that day's own row, flagged as weekend/closure, so
+     it never inflates the nearest weekday. Both kinds are listed in ``flags``.
 """
 from __future__ import annotations
 
@@ -38,7 +45,8 @@ import numpy as np
 import pandas as pd
 
 from config import (
-    CIETRADE_DATA_DIR, CIETRADE_EXPORT_DIR, CIETRADE_POSTED_LOOKBACK_DAYS, CIETRADE_SITES, DEFAULT_AGGREGATED_DATA, SHIFT_HOURS,
+    CIETRADE_DATA_DIR, CIETRADE_EXPORT_DIR, CIETRADE_POSTED_LOOKBACK_DAYS, CIETRADE_SITES, DEFAULT_AGGREGATED_DATA, SHIFT_GRACE_MINUTES,
+    SHIFT_HOURS, SHIFT_REASSIGN, SHIFT_WINDOW_MAX_HOURS,
 )
 
 # cieTrade line -> series on the pilot page (the small lines share one)
@@ -58,6 +66,40 @@ HOUR = pd.Timedelta(hours=1)
 FAR = pd.Timestamp("2100-01-01")
 SHIFT_RE = r"\((\d)(?:ST|ND|RD) SHIFT\)"
 MODE_RANK = {"not yet posted": 4, "partial": 3, "spread": 2, "exact": 1, "no open job": 0}
+GRACE = pd.Timedelta(minutes=SHIFT_GRACE_MINUTES)
+
+
+def shift_at(t: pd.Timestamp) -> tuple[pd.Timestamp, str]:
+    """(production date, shift) whose working hours contain ``t`` (3rd shift belongs to the day it started)."""
+    t = pd.Timestamp(t)
+    h = t.hour + t.minute / 60 + t.second / 3600
+    for s, (a, b) in SHIFT_HOURS.items():
+        if a <= h < b:
+            return t.normalize(), s
+        if a <= h + 24 < b:
+            return t.normalize() - pd.Timedelta(days=1), s
+    raise ValueError(f"no shift covers {t}")                  # SHIFT_HOURS must tile the day
+
+
+def classify_window(t0: pd.Timestamp, t1: pd.Timestamp, tag: str, grace: pd.Timedelta = GRACE,
+                    max_hours: float = SHIFT_WINDOW_MAX_HOURS) -> dict:
+    """Where a change window belongs: {"kind": "on"|"off"|"unresolved", "date", "shift"}.
+
+    "on": the tagged shift was on the clock at the window's midpoint, or had ended less
+    than ``grace`` earlier (late logging). "off": another shift was on the clock for
+    longer than the grace; ``shift`` is that shift. "unresolved": the window is too
+    long to place (a polling gap); the caller splits it by overlap as before."""
+    t0, t1 = pd.Timestamp(t0), pd.Timestamp(t1)
+    if t1 - t0 > pd.Timedelta(hours=max_hours):
+        return {"kind": "unresolved", "date": None, "shift": tag}
+    mid = t0 + (t1 - t0) / 2
+    d_now, s_now = shift_at(mid)
+    d_prev, s_prev = shift_at(mid - grace)
+    if tag == s_now:
+        return {"kind": "on", "date": d_now, "shift": tag}
+    if tag == s_prev:
+        return {"kind": "on", "date": d_prev, "shift": tag}
+    return {"kind": "off", "date": d_prev, "shift": s_prev}
 
 
 # ---------------------------------------------------------------------------
@@ -209,11 +251,22 @@ def coverage(m: pd.DataFrame, closed_days: set, horizon: pd.Timestamp, last_seen
     return pd.DataFrame(rows)
 
 
-def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Fill lbs/mode per owned shift-day; return (coverage rows, windows log)."""
+def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame, reassign: bool = SHIFT_REASSIGN,
+              closed_days: set | None = None, polls: pd.DataFrame | None = None) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Fill lbs/mode per owned shift-day; return (coverage rows, windows log, flags).
+
+    A window between two API snapshots is narrowed to start at the last successful
+    poll before the change (``polls``), so its clock position is one polling interval
+    wide. A time-resolved window (classify_window) that lands off its tagged shift, or
+    on a weekend/closure day, gets a row of its own on that (date, shift) and a flag;
+    with ``reassign`` off it stays on the tag and is only flagged."""
+    ok_polls = (polls.loc[polls["ok"].astype(bool), "ts"].sort_values().to_numpy()
+                if polls is not None and len(polls) else np.array([], dtype="datetime64[ns]"))
     cov = cov.copy()
     cov["lbs"] = np.nan
     cov["src"] = "job"
+    cov["note"] = ""
+    closed_days = closed_days or set()
     by_job = m.set_index("Job No")
     n_days = cov.dropna(subset=["job"]).groupby("job").size()
     snap_jobs = set(points["Job No"])
@@ -222,9 +275,11 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame) -> tuple
     cov.loc[plain, "mode"] = np.where(cov.loc[plain, "job"].map(n_days) == 1, "exact", "spread")
 
     windows = []
+    extras: dict = {}            # (job, date, shift, kind) -> dict(lbs, n, t0, t1, from_shift)
     for j, pts in points.groupby("Job No"):
         job = by_job.loc[j]
         idx = list(cov.index[cov["job"] == j])
+        owned = {(cov.at[i, "Date"], cov.at[i, "Shift"]): i for i in idx}
         seq = [(job["start_dt"], 0.0, "opened")]
         seq += [(t, float(q), f) for t, q, f in zip(pts["export_ts"], pts["Output Qty"], pts["export_file"])]
         if job["posted"]:
@@ -240,7 +295,32 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame) -> tuple
         for (t0, q0, f0), (t1, q1, f1) in zip(seq, seq[1:]):
             delta = q1 - q0
             shares: dict = {}
-            if idx:
+            kind, target = "", None
+            t0c = t0
+            if str(f1).startswith("api") and len(ok_polls):
+                before = ok_polls[ok_polls < pd.Timestamp(t1).to_datetime64()]
+                if len(before):
+                    t0c = max(t0, pd.Timestamp(before[-1]))
+            cls = classify_window(t0c, t1, job["shift"]) if f1 != "posted" else {"kind": "unresolved"}
+            if cls["kind"] != "unresolved":
+                key = (cls["date"], cls["shift"])
+                if cls["kind"] == "on" and key in owned:
+                    shares = {owned[key]: 1.0}
+                else:
+                    kind = "reassigned" if cls["kind"] == "off" else ("weekend" if cls["date"].weekday() >= 5 else "closure")
+                    if reassign:
+                        target = (int(j), cls["date"], cls["shift"], kind)
+                    elif cls["kind"] == "on":
+                        target = (int(j), cls["date"], cls["shift"], kind)      # weekend rows are always split out
+                    else:
+                        near = min(idx, key=lambda i: abs(span[i][0] - cls["date"])) if idx else None   # same date on the tag's own days
+                        for i in idx:
+                            if cov.at[i, "Date"] == cls["date"]:
+                                near = i
+                        shares = {near: 1.0} if near is not None else {}
+                        if near is None:
+                            target = (int(j), cls["date"], job["shift"], kind)
+            if not shares and target is None and idx:
                 ov = {i: max(0.0, (min(t1, e) - max(t0, s)) / HOUR) for i, (s, e) in span.items()}
                 tot = sum(ov.values())
                 if tot > 0:
@@ -250,23 +330,50 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame) -> tuple
                     pool = [i for i in idx if span[i][0] <= t1] or idx
                     near = min(pool, key=lambda i: abs((span[i][0] + (span[i][1] - span[i][0]) / 2) - mid_w))
                     shares = {near: 1.0}
-                for i, sh in shares.items():
-                    lbs[i] += delta * sh
-                    if len(shares) > 1:
-                        solo[i] = False
+            if target is not None and abs(delta) > 0:
+                x = extras.setdefault(target, dict(lbs=0.0, n=0, t0=t0c, t1=t1, from_shift=job["shift"], line=job["line"], machine=job["machine"]))
+                x["lbs"] += delta; x["n"] += 1; x["t0"] = min(x["t0"], t0c); x["t1"] = max(x["t1"], t1)
+            for i, sh in shares.items():
+                lbs[i] += delta * sh
+                if len(shares) > 1:
+                    solo[i] = False
             if abs(delta) > 0 or f1 == "posted":
+                if target is not None:
+                    days_lab = target[1].strftime("%a %b %d") + f" {target[2]}"
+                else:
+                    days_lab = ", ".join(cov.at[i, "Date"].strftime("%a %b %d") for i in sorted(shares, key=lambda i: cov.at[i, "Date"]))
                 windows.append(dict(job=int(j), line=job["line"], machine=job["machine"], shift=job["shift"], t0=t0, t1=t1,
-                                    lbs=delta, correction=bool(delta < 0), from_file=f0, to_file=f1,
-                                    days=", ".join(cov.at[i, "Date"].strftime("%a %b %d") for i in sorted(shares, key=lambda i: cov.at[i, "Date"]))))
+                                    lbs=delta, correction=bool(delta < 0), from_file=f0, to_file=f1, days=days_lab, kind=kind))
         for i in idx:
-            s, e = span[i]
+            s_, e_ = span[i]
             cov.at[i, "src"] = "snap"
-            if not job["posted"] and s > t_last:
+            if not job["posted"] and s_ > t_last:
                 cov.at[i, "mode"], cov.at[i, "lbs"] = "not yet posted", np.nan
-            elif not job["posted"] and s <= t_last < e:
+            elif not job["posted"] and s_ <= t_last < e_:
                 cov.at[i, "mode"], cov.at[i, "lbs"] = "partial", lbs[i]
             else:
                 cov.at[i, "mode"], cov.at[i, "lbs"] = ("exact" if solo[i] else "spread"), lbs[i]
+
+    # rows the clock created: off-shift entries, weekend and closure work
+    flags, extra_rows = [], []
+    for (j, d, sh, kind), x in sorted(extras.items(), key=lambda kv: (kv[0][1], kv[0][2], kv[0][0])):
+        job = by_job.loc[j]
+        when = f"{x['t0']:%-I:%M %p}–{x['t1']:%-I:%M %p}" if x["n"] > 1 or x["t1"] - x["t0"] > pd.Timedelta(minutes=15) else f"{x['t1']:%-I:%M %p}"
+        if kind == "reassigned":
+            note = f"cieTrade: {x['lbs']:,.0f} lbs entered on the {x['from_shift']}-shift job {j} at {when}, during {sh} shift hours"
+            src_i = next((i for i in cov.index[cov['job'] == j] if cov.at[i, 'Date'] == d), None)
+            if src_i is not None:
+                cov.at[src_i, "note"] = (cov.at[src_i, "note"] + "; " if cov.at[src_i, "note"] else "") + f"cieTrade: {x['lbs']:,.0f} lbs entered at {when} counted on the {sh} shift"
+        else:
+            note = f"cieTrade: {kind} work on {d:%a %b %-d} ({when}), no End of Shift report expected"
+        s0 = d + pd.Timedelta(hours=SHIFT_HOURS[sh][0]); e0 = d + pd.Timedelta(hours=SHIFT_HOURS[sh][1])
+        last_seen = points.loc[points["Job No"] == j, "export_ts"].max()
+        mode = "partial" if (not job["posted"] and s0 <= last_seen < e0) else "exact"
+        extra_rows.append(dict(Date=d, Shift=sh, line=job["line"], Machine=job["machine"], job=int(j), mode=mode, lbs=x["lbs"], src="snap", note=note))
+        flags.append(dict(date=d, shift=sh, from_shift=x["from_shift"] if kind == "reassigned" else sh, kind=kind, line=job["line"],
+                          machine=job["machine"], job=int(j), lbs=float(x["lbs"]), windows=int(x["n"]), first=x["t0"], last=x["t1"]))
+    if extra_rows:
+        cov = pd.concat([cov, pd.DataFrame(extra_rows)], ignore_index=True)
 
     # jobs that own no shift-day: pin to the Job Date (their latest known output)
     orphans = set(m["Job No"]) - set(cov["job"].dropna().astype(int))
@@ -274,13 +381,15 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame) -> tuple
     for j in sorted(orphans):
         r = by_job.loc[j]
         extra.append(dict(Date=r["Job Date"], Shift=r["shift"], line=r["line"], Machine=r["machine"], job=int(j),
-                          mode="exact", lbs=float(r["Output Qty"]), src="snap" if j in snap_jobs else "job"))
+                          mode="exact", lbs=float(r["Output Qty"]), src="snap" if j in snap_jobs else "job", note=""))
     if extra:
         cov = pd.concat([cov, pd.DataFrame(extra)], ignore_index=True)
     known = by_job["Output Qty"].sum()
     assert abs(cov["lbs"].sum() - known) < 1e-6, (cov["lbs"].sum(), known)   # every known pound lands somewhere
     cov["n_days"] = cov["job"].map(cov.dropna(subset=["job"]).groupby("job").size())
-    return cov, pd.DataFrame(windows, columns=["job", "line", "machine", "shift", "t0", "t1", "lbs", "correction", "from_file", "to_file", "days"])
+    win_cols = ["job", "line", "machine", "shift", "t0", "t1", "lbs", "correction", "from_file", "to_file", "days", "kind"]
+    flag_cols = ["date", "shift", "from_shift", "kind", "line", "machine", "job", "lbs", "windows", "first", "last"]
+    return cov, pd.DataFrame(windows, columns=win_cols), pd.DataFrame(flags, columns=flag_cols)
 
 
 def to_cells(cov: pd.DataFrame) -> pd.DataFrame:
@@ -395,10 +504,17 @@ def run(export_dir: Path = CIETRADE_EXPORT_DIR, api_dir: Path = CIETRADE_DATA_DI
     last_seen = max(t for t in (last_poll, last_snap) if t is not None) if (last_poll is not None or last_snap is not None) else None
     horizon = max(t for t in [raw["export_ts"].max().normalize(), m["Post Date"].max(), last_seen.normalize() if last_seen is not None else pd.NaT] if pd.notna(t))
     cov = coverage(m, closed_days, horizon, last_seen)
-    cov, windows = attribute(m, cov, pts)
+    cov, windows, flags = attribute(m, cov, pts, closed_days=closed_days, polls=polls)
     if len(windows) and windows["correction"].any():
         n = int(windows["correction"].sum())
         warnings.append(f"{n} window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds")
+    if len(flags):
+        moved = flags[flags["kind"] == "reassigned"]
+        if len(moved):
+            warnings.append(f"{len(moved)} shift-day(s) with entries made during another shift's hours ({moved['lbs'].sum():,.0f} lbs), credited to the shift on the clock")
+        wk = flags[flags["kind"] != "reassigned"]
+        if len(wk):
+            warnings.append(f"{len(wk)} weekend/closure shift-day(s) ({wk['lbs'].sum():,.0f} lbs) kept on their own days")
     cells = to_cells(cov)
     val = validate(cells, aggregate) if Path(aggregate).exists() else None
     meta = dict(
@@ -424,7 +540,7 @@ def run(export_dir: Path = CIETRADE_EXPORT_DIR, api_dir: Path = CIETRADE_DATA_DI
         if val:
             print(f"validation {VALIDATION[0]:%b %d}–{VALIDATION[1]:%b %d}: {val['pct_exact']}% of {val['cells']} shift-days exact; "
                   f"plant {val['plant_est']:,.0f} vs {val['plant_truth']:,.0f}; {len(val['bad'])} disagreeing cell(s)")
-    return dict(meta=meta, cells=cells, cov=cov, windows=windows, log=export_log(raw, windows, polls), jobs=m, polls=polls)
+    return dict(meta=meta, cells=cells, cov=cov, windows=windows, flags=flags, log=export_log(raw, windows, polls), jobs=m, polls=polls)
 
 
 if __name__ == "__main__":
