@@ -69,10 +69,11 @@ a { color:var(--brand-ink); }
 .flags li { padding:6px 10px; border-left:3px solid var(--warn); background:var(--track); border-radius:0 6px 6px 0; margin-top:6px; }
 .sw { width:10px; height:10px; border-radius:3px; display:inline-block; vertical-align:-1px; flex:none; }
 .legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--ink-2); margin:2px 0 8px; } .legend span { display:inline-flex; align-items:center; gap:6px; }
-svg.live { width:100%; height:auto; display:block; } svg.live .grid, svg.live .axis { stroke:var(--grid); stroke-width:1; } svg.live .band { stroke:var(--grid); stroke-width:1; }
+svg.live { width:100%; max-width:100%; height:auto; display:block; } svg.live .grid, svg.live .axis { stroke:var(--grid); stroke-width:1; } svg.live .band { stroke:var(--grid); stroke-width:1; }
 svg.live .tick { font-size:11px; fill:var(--muted); } svg.live .yest { fill:none; stroke:var(--raw); stroke-width:1.5; stroke-linejoin:round; } svg.live .ylab { font-size:11px; fill:var(--muted); }
 svg.live .today { fill:none; stroke:var(--brand); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; } svg.live .end { fill:var(--card); stroke:var(--brand); stroke-width:2; }
 svg.live .now { stroke:var(--ink-2); stroke-width:1; opacity:.5; } svg.live .endlab { font-size:12px; font-weight:650; fill:var(--ink); }
+.legend .shades { margin-left:auto; color:var(--muted); } .legend .shades i { display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--ink-2); margin-right:2px; } .legend .shades i:last-of-type { margin-right:6px; }
 .legend .key { display:inline-block; width:14px; height:0; border-top:2px solid var(--brand); } .legend .key.yest { border-top:1.5px solid var(--raw); }
 .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--good); margin-left:8px; vertical-align:middle; } .dot.stale { background:var(--warn); } .dot.down { background:var(--bad); }
 .feed { list-style:none; margin:0; padding:0; font-size:13px; } .feed li.empty { display:block; color:var(--muted); border-top:0; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
@@ -86,7 +87,7 @@ td.mname { white-space:nowrap; font-weight:600; } td.mname .sw { margin-right:6p
 .day-head { font-size:14px; font-weight:650; margin:18px 0 8px; color:var(--ink-2); } .day-head:first-child { margin-top:0; }
 .eos.missing { border-style:dashed; }
 /* svg charts */
-svg.stack { width:100%; height:auto; display:block; } #weekChart { min-height:220px; } svg.stack .seg { stroke:none; } svg.stack .val { font-size:11px; fill:var(--ink); font-weight:600; }
+svg.stack { width:100%; max-width:100%; height:auto; display:block; } #weekChart { min-height:220px; } svg.stack .seg { stroke:none; } svg.stack .val { font-size:11px; fill:var(--ink); font-weight:600; }
 svg.stack .tick, svg.facet .tick { font-size:11px; fill:var(--muted); } svg.stack .axis, svg.facet .axis { stroke:var(--grid); stroke-width:1; }
 svg.stack .rule { stroke:var(--ink-2); stroke-width:1; } svg.stack .rule-lab { font-size:11px; fill:var(--ink-2); } svg.stack .muted { fill:var(--muted); font-size:12px; }
 .facets { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:12px; }
@@ -102,7 +103,7 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
 .tabbar { display:none; }
 .banner { background:#fdf2f2; border:1px solid #f1b8b8; color:#8a1c1c; border-radius:8px; padding:8px 12px; font-size:13px; margin-bottom:12px; }
 @media (max-width: 900px) {
-  .app { grid-template-columns:1fr; } .side { display:none; }
+  .app { grid-template-columns:minmax(0,1fr); } .side { display:none; } .main { min-width:0; }
   .main { padding:14px 16px 84px; }
   .topbar h1 { font-size:18px; } .hero-value { font-size:38px; }
   .stats { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .stat { padding:12px 12px 10px; min-height:0; } .stat-value { font-size:22px; }
@@ -362,7 +363,8 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
     const mins = [...new Set(machines.flatMap(m => L.series[m].map(p => p[0])))].sort((a, b) => a - b);
     const plant = mins.map(mn => [mn, machines.reduce((t, m) => { let v = 0; for (const p of L.series[m]) { if (p[0] <= mn) v = p[1]; } return t + v; }, 0)]);
     const yest = (L.yesterday && L.yesterday.lbs > 0 && L.yesterday.total && L.yesterday.total.length > 1) ? L.yesterday.total : [];   // a Sunday "yesterday" is just noise
-    const host = $("#liveChart"), width = Math.max(300, host.clientWidth || 560), height = 190, left = 8, right = 92, top = 20, bottom = 22, pw = width - left - right, ph = height - top - bottom;
+    const host = $("#liveChart"); host.replaceChildren();
+    const width = Math.max(300, host.clientWidth || 560), height = 190, left = 8, right = 92, top = 20, bottom = 22, pw = width - left - right, ph = height - top - bottom;
     const dayStart = parseTs(L.day_start), nowMin = Math.max(0, Math.min(1440, Math.round((Date.now() - dayStart) / 60000)));
     const vmax = Math.max(1, ...plant.map(p => p[1]), ...yest.map(p => p[1])) * 1.08;
     const x = mn => left + pw * mn / 1440, y = v => top + ph - ph * v / vmax;
@@ -403,6 +405,13 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
     pager($("#weekPager"), weekOptions, wk, v => { W.wk = v; renderWeek(); });
     const inWeek = r => DI[r[0]].wk === wk && shiftOk(r, sh);
     const perDay = aggBy(inWeek, r => D.dates[r[0]] + "|" + D.machines[r[2]]);
+    const perShift = aggBy(inWeek, r => D.dates[r[0]] + "|" + D.machines[r[2]] + "|" + D.shifts[r[1]]);
+    const pieces = (d, m) => {                          // the machine's day split by shift, for the shaded sub-segments
+      if (sh !== "all") return [[sh, val(d, m)]];
+      const out = SHIFT_ORDER.map(k => [k, (perShift.get(d + "|" + m + "|" + k) || {}).lbs || 0]).filter(([, v]) => v > 0);
+      const other = val(d, m) - out.reduce((t, [, v]) => t + v, 0); if (other > 0.5) out.push(["other", other]);
+      return out;
+    };
     const days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(wk, i)).filter((d, i) => i < 5 || [...perDay.keys()].some(k => k.startsWith(d)));
     const val = (d, m) => (perDay.get(d + "|" + m) || {}).lbs || 0;
     const totals = days.map(d => D.machines.reduce((t, m) => t + val(d, m), 0));
@@ -418,18 +427,21 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
     const [csub, ctone] = deltaHtml(total, lastLbs, wk === curWeek ? "last week at this point" : "the week before");
     $("#weekTitle").textContent = (wk === curWeek ? "This week the plant is at " : "The week of " + fmtDay(wk, { month: "short", day: "numeric" }) + " came to ") + compact(total) + " lbs" + (sh === "all" ? "" : " on the " + sh + " shift");
     $("#weekMeta").innerHTML = (csub ? '<span class="' + ctone + '">' + h(csub) + '</span> · ' : "") + "the rule is the 4-week average working day";
-    $("#weekLegend").innerHTML = machines.map(m => "<span>" + swatch(m) + h(name(m)) + "</span>").join("");
+    $("#weekLegend").innerHTML = machines.map(m => "<span>" + swatch(m) + h(name(m)) + "</span>").join("")
+      + (sh === "all" && machines.length ? '<span class="shades"><i style="opacity:1"></i><i style="opacity:.72"></i><i style="opacity:.46"></i>1st · 2nd · 3rd, bottom to top</span>' : "");
     // stacked columns
-    const chart = $("#weekChart"), width = Math.max(300, chart.clientWidth || 560), height = 220, left = 8, right = 8, top = 26, bottom = 22, pw = width - left - right, ph = height - top - bottom, gap = 2;
+    const chart = $("#weekChart"); chart.replaceChildren();          // measure the empty box: the old chart must not prop the width open
+    const width = Math.max(300, chart.clientWidth || 560), height = 220, left = 8, right = 8, top = 26, bottom = 22, pw = width - left - right, ph = height - top - bottom, gap = 2;
     const vmax = Math.max(1, ...totals, avg) * 1.08, y = v => top + ph - ph * v / vmax, band = pw / days.length, bw = Math.min(32, Math.round(band * 0.6));
     let s = '<svg class="stack" viewBox="0 0 ' + width + " " + height + '" role="img" aria-label="Pounds by day and machine">';
     s += '<line x1="' + left + '" x2="' + (left + pw) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" class="axis"/>';
     days.forEach((d, i) => {
       const cx = left + band * (i + 0.5), x = cx - bw / 2; let cum = 0;
       const stackM = machines.filter(m => val(d, m) > 0);
-      stackM.forEach((m, k) => { const v = val(d, m), y1 = y(cum + v), y0 = y(cum); const hh = Math.max(0, y0 - y1 - (k < stackM.length - 1 ? gap : 0));
-        const shape = k === stackM.length - 1 ? '<path d="' + roundTop(x, y1, bw, hh, 4) + '"' : '<rect x="' + x + '" y="' + y1.toFixed(1) + '" width="' + bw + '" height="' + hh.toFixed(1) + '"';
-        s += shape + ' class="seg" fill="' + h(D.colors[m]) + '" data-m="' + h(m) + '" data-d="' + d + '" data-v="' + v + '" data-t="' + totals[i] + '"/>'; cum += v; });
+      stackM.forEach((m, k) => { const mv = val(d, m), ps = pieces(d, m);
+        ps.forEach(([shift, v], j) => { const last = k === stackM.length - 1 && j === ps.length - 1, y1 = y(cum + v), y0 = y(cum); const hh = Math.max(0, y0 - y1 - (last ? 0 : gap));
+          const shape = last ? '<path d="' + roundTop(x, y1, bw, hh, 4) + '"' : '<rect x="' + x + '" y="' + y1.toFixed(1) + '" width="' + bw + '" height="' + hh.toFixed(1) + '"';
+          s += shape + ' class="seg" fill="' + h(D.colors[m]) + '" opacity="' + (SHADE[shift] || 1) + '" data-m="' + h(m) + '" data-s="' + h(shift) + '" data-d="' + d + '" data-v="' + v + '" data-mv="' + mv + '" data-t="' + totals[i] + '"/>'; cum += v; }); });
       if (totals[i] > 0) s += '<text x="' + cx.toFixed(1) + '" y="' + (y(totals[i]) - 5).toFixed(1) + '" class="val" text-anchor="middle">' + compact(totals[i]) + '</text>';
       s += '<text x="' + cx.toFixed(1) + '" y="' + (height - 6) + '" class="tick" text-anchor="middle">' + fmtDay(d, { weekday: "short", day: "numeric" }) + '</text>';
     });
@@ -437,7 +449,9 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
     if (!total) s += '<text x="' + (left + pw / 2) + '" y="' + (top + ph / 2) + '" class="muted" text-anchor="middle">Nothing booked' + (sh === "all" ? "" : " to the " + sh + " shift") + ' this week</text>';
     s += "</svg>";
     chart.innerHTML = s;
-    $$(".seg", chart).forEach(el => { const on = ev => showTip(ev, name(el.dataset.m) + " · " + fmtShort(el.dataset.d), [["Pounds", fmt(el.dataset.v)], ["Day total", fmt(el.dataset.t)]]); el.addEventListener("pointermove", on); el.addEventListener("pointerdown", on); el.addEventListener("pointerleave", leaveTip); });
+    $$(".seg", chart).forEach(el => { const on = ev => showTip(ev, name(el.dataset.m) + (sh === "all" ? " · " + el.dataset.s + " shift" : "") + " · " + fmtShort(el.dataset.d),
+      sh === "all" ? [["Pounds", fmt(el.dataset.v)], ["Machine, all shifts", fmt(el.dataset.mv)], ["Day total", fmt(el.dataset.t)]] : [["Pounds", fmt(el.dataset.v)], ["Day total", fmt(el.dataset.t)]]);
+      el.addEventListener("pointermove", on); el.addEventListener("pointerdown", on); el.addEventListener("pointerleave", leaveTip); });
     // table
     const rows = machines.map(m => ({ m, days: days.map(d => val(d, m)), total: days.reduce((t, d) => t + val(d, m), 0) })).sort((a, b) => b.total - a.total);
     $("#weekTable").innerHTML = !rows.length ? '<div class="empty">Nothing booked' + (sh === "all" ? "" : " to the " + sh + " shift") + ' this week.</div>'
