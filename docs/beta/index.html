@@ -67,8 +67,15 @@ a { color:var(--brand-ink); }
 .flags li { padding:6px 10px; border-left:3px solid var(--warn); background:var(--track); border-radius:0 6px 6px 0; margin-top:6px; }
 .sw { width:10px; height:10px; border-radius:3px; display:inline-block; vertical-align:-1px; flex:none; }
 .legend { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:12px; color:var(--ink-2); margin:2px 0 8px; } .legend span { display:inline-flex; align-items:center; gap:6px; }
-.feed { list-style:none; margin:10px 0 0; padding:0; font-size:13px; } .feed li { display:grid; grid-template-columns:52px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
-.feed .t { color:var(--muted); font-variant-numeric:tabular-nums; } .feed .v { font-weight:600; font-variant-numeric:tabular-nums; } .feed .v.neg { color:var(--bad); }
+svg.live { width:100%; height:auto; display:block; } svg.live .grid, svg.live .axis { stroke:var(--grid); stroke-width:1; } svg.live .band { stroke:var(--grid); stroke-width:1; }
+svg.live .tick { font-size:11px; fill:var(--muted); } svg.live .yest { fill:none; stroke:var(--raw); stroke-width:1.5; stroke-linejoin:round; } svg.live .ylab { font-size:11px; fill:var(--muted); }
+svg.live .today { fill:none; stroke:var(--brand); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; } svg.live .end { fill:var(--card); stroke:var(--brand); stroke-width:2; }
+svg.live .now { stroke:var(--ink-2); stroke-width:1; opacity:.5; } svg.live .endlab { font-size:12px; font-weight:650; fill:var(--ink); }
+.legend .key { display:inline-block; width:14px; height:0; border-top:2px solid var(--brand); } .legend .key.yest { border-top:1.5px solid var(--raw); }
+.dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--good); margin-left:8px; vertical-align:middle; } .dot.stale { background:var(--warn); } .dot.down { background:var(--bad); }
+.feed-wrap summary { cursor:pointer; font-size:13px; font-weight:600; margin-top:10px; color:var(--ink-2); }
+.feed { list-style:none; margin:6px 0 0; padding:0; font-size:13px; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
+.feed .t { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; } .feed .v { font-weight:600; font-variant-numeric:tabular-nums; } .feed .v.neg { color:var(--bad); }
 .table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; font-size:14px; }
 th { font-size:11px; color:var(--muted); font-weight:600; text-align:left; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid var(--line); }
 td { padding:8px; border-bottom:1px solid var(--line); vertical-align:top; } td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -131,8 +138,10 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
       </div>
       <div class="stats" id="todayStats"></div>
       <div class="card" id="liveCard" hidden>
-        <div class="card-head"><h2>Latest changes in cieTrade</h2><div class="card-meta" id="liveMeta"></div></div>
-        <ol class="feed" id="liveFeed"></ol>
+        <div class="card-head"><h2 id="liveTitle">Live</h2><div class="card-meta" id="liveMeta"></div></div>
+        <div id="liveChart"></div>
+        <div class="legend" id="liveLegend"></div>
+        <details class="feed-wrap"><summary id="liveFeedTitle">Latest changes</summary><ol class="feed" id="liveFeed"></ol></details>
       </div>
     </section>
     <section class="view" data-view="week" hidden>
@@ -319,14 +328,55 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
     // live changes
     const card = $("#liveCard"); card.hidden = !isLive;
     if (isLive) {
+      renderLiveChart(live);
       const feed = $("#liveFeed"); feed.replaceChildren();
+      $("#liveFeedTitle").textContent = "Latest changes (" + live.changes_today + " today)";
       (live.changes || []).slice(0, 12).forEach(c => {
         const li = document.createElement("li"); const t = document.createElement("span"); t.className = "t"; t.textContent = clock(parseTs(c.t1));
         const w = document.createElement("span"); w.textContent = name(c.m) + (c.s ? " · " + c.s : "") + (c.units ? " · " + (c.units > 0 ? "+" : "") + c.units + " units" : "");
         const v = document.createElement("span"); v.className = "v" + (c.lbs < 0 ? " neg" : ""); v.textContent = (c.lbs > 0 ? "+" : "") + fmt(c.lbs) + " lbs";
         li.append(t, w, v); feed.appendChild(li); });
-      $("#liveMeta").textContent = live.changes_today + " changes today · polled " + clock(parseTs(live.last_poll));
+      const age = Math.max(0, Math.round((Date.now() - parseTs(live.generated)) / 60000));
+      const state = !live.poll_ok ? "down" : age > 30 ? "stale" : "ok";
+      $("#liveTitle").innerHTML = 'Live <span class="dot ' + state + '" aria-label="' + state + '"></span>';
+      $("#liveMeta").textContent = (live.current_shift ? live.current_shift + " shift on now · " : "") + "polled " + clock(parseTs(live.last_poll)) + " · " + live.polls_today + " polls today"
+        + (state === "down" ? " · cieTrade unavailable since " + clock(parseTs(live.api_down_since || live.last_poll)) : state === "stale" ? " · feed is " + age + " min old" : "");
     }
+  }
+  function renderLiveChart(L) {
+    // today's plant total through the production day as a step line, yesterday's as a faint trace
+    const machines = Object.keys(L.series || {});
+    const mins = [...new Set(machines.flatMap(m => L.series[m].map(p => p[0])))].sort((a, b) => a - b);
+    const plant = mins.map(mn => [mn, machines.reduce((t, m) => { let v = 0; for (const p of L.series[m]) { if (p[0] <= mn) v = p[1]; } return t + v; }, 0)]);
+    const yest = (L.yesterday && L.yesterday.lbs > 0 && L.yesterday.total && L.yesterday.total.length > 1) ? L.yesterday.total : [];   // a Sunday "yesterday" is just noise
+    const host = $("#liveChart"), width = Math.max(300, host.clientWidth || 560), height = 190, left = 8, right = 92, top = 20, bottom = 22, pw = width - left - right, ph = height - top - bottom;
+    const dayStart = parseTs(L.day_start), nowMin = Math.max(0, Math.min(1440, Math.round((Date.now() - dayStart) / 60000)));
+    const vmax = Math.max(1, ...plant.map(p => p[1]), ...yest.map(p => p[1])) * 1.08;
+    const x = mn => left + pw * mn / 1440, y = v => top + ph - ph * v / vmax;
+    const path = pts => pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join(" ");
+    const sh = L.shift_hours || { "1st": [6, 14], "2nd": [14, 22], "3rd": [22, 30] }, start = sh["1st"][0];
+    const hm = hr => { const d = new Date(2000, 0, 1, hr % 24); return d.toLocaleTimeString("en-US", { hour: "numeric" }).replace(" ", "").toLowerCase(); };
+    let s = '<svg class="live" viewBox="0 0 ' + width + " " + height + '" role="img" aria-label="Pounds through the production day">';
+    const labelYs = [plant.length ? y(plant[plant.length - 1][1]) : null, yest.length ? y(yest[yest.length - 1][1]) : null].filter(v => v !== null);
+    [vmax * 0.5, vmax * 0.9].forEach(g => { s += '<line x1="' + left + '" x2="' + (left + pw) + '" y1="' + y(g).toFixed(1) + '" y2="' + y(g).toFixed(1) + '" class="grid"/>';
+      if (labelYs.every(v => Math.abs(v - y(g)) > 12)) s += '<text x="' + (left + pw + 4) + '" y="' + (y(g) + 3).toFixed(1) + '" class="tick">' + compact(g) + '</text>'; });   // the end labels win the gutter
+    Object.entries(sh).forEach(([k, [a, b]]) => { const xa = x((a - start) * 60), xb = x((b - start) * 60);
+      s += '<line x1="' + xa.toFixed(1) + '" x2="' + xa.toFixed(1) + '" y1="' + top + '" y2="' + (top + ph) + '" class="band"/>';
+      s += '<text x="' + ((xa + xb) / 2).toFixed(1) + '" y="' + (top - 7) + '" class="tick" text-anchor="middle">' + k + '</text>';
+      s += '<text x="' + xa.toFixed(1) + '" y="' + (height - 6) + '" class="tick" text-anchor="' + (a === start ? "start" : "middle") + '">' + hm(a) + '</text>'; });
+    s += '<text x="' + (left + pw).toFixed(1) + '" y="' + (height - 6) + '" class="tick" text-anchor="end">' + hm(start + 24) + '</text>';
+    s += '<line x1="' + left + '" x2="' + (left + pw) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" class="axis"/>';
+    if (yest.length) s += '<path d="' + path(yest) + '" class="yest"/><text x="' + (left + pw + 4) + '" y="' + (y(yest[yest.length - 1][1]) + 4).toFixed(1) + '" class="ylab">yesterday ' + compact(yest[yest.length - 1][1]) + '</text>';
+    if (plant.length) {
+      const last = plant[plant.length - 1], pts = plant.concat([[Math.max(last[0], nowMin), last[1]]]);
+      s += '<line x1="' + x(nowMin).toFixed(1) + '" x2="' + x(nowMin).toFixed(1) + '" y1="' + top + '" y2="' + (top + ph) + '" class="now"/>';
+      s += '<path d="' + path(pts) + '" class="today"/><circle cx="' + x(nowMin).toFixed(1) + '" cy="' + y(last[1]).toFixed(1) + '" r="4.5" class="end"/>';
+      let ly = y(last[1]) + 4; if (yest.length && Math.abs(ly - (y(yest[yest.length - 1][1]) + 4)) < 13) ly = y(yest[yest.length - 1][1]) + 4 - 13;
+      s += '<text x="' + (left + pw + 4) + '" y="' + ly.toFixed(1) + '" class="endlab">today ' + compact(last[1]) + '</text>';
+    } else s += '<text x="' + (left + pw / 2) + '" y="' + (top + ph / 2) + '" class="tick" text-anchor="middle">Nothing entered yet this production day</text>';
+    s += "</svg>";
+    host.innerHTML = s;
+    $("#liveLegend").innerHTML = '<span><i class="key today"></i>Today, all machines</span>' + (yest.length ? '<span><i class="key yest"></i>Yesterday (' + fmt(L.yesterday.lbs) + ' lbs)</span>' : "");
   }
 
   // ---- Week
