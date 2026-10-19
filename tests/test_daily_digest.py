@@ -92,3 +92,16 @@ def test_send_gate_once_per_day_after_hour(tmp_path) -> None:
     assert json.loads(st.read_text())["last_sent"] == "2026-09-22"
     assert dd.due_now(st, datetime(2026, 9, 22, 18, 0)) == (False, "already sent today")
     assert dd.due_now(st, datetime(2026, 9, 23, 6, 4), send_hour=6) == (True, "due")
+
+
+def test_email_lists_the_clock_corrections_for_the_week() -> None:
+    status = dict(STATUS, shift_flags=[
+        {"date": "2026-09-21", "shift": "3rd", "from_shift": "2nd", "kind": "reassigned", "machine": "GRINDER", "job": 17140, "lbs": 4269, "windows": 1, "first": "2026-09-22T05:13", "last": "2026-09-22T05:22"},
+        {"date": "2026-09-19", "shift": "1st", "from_shift": "1st", "kind": "weekend", "machine": "EXTRUDER", "job": 17145, "lbs": 5900, "windows": 4, "first": "2026-09-19T07:36", "last": "2026-09-19T12:06"},
+        {"date": "2026-09-10", "shift": "3rd", "from_shift": "2nd", "kind": "reassigned", "machine": "GRINDER", "job": 17140, "lbs": 10, "windows": 1, "first": "2026-09-11T05:00", "last": "2026-09-11T05:10"}])
+    dg = dd.build_digest(_df(), status, date(2026, 9, 21))
+    assert [f["date"] for f in dg["flags"]] == ["2026-09-21"]                       # only this week's days
+    html = dd.render_email(dg)
+    assert "Shift notes from the cieTrade clock" in html
+    assert "4,269 lbs entered on the 2nd-shift job at 5:13 AM–5:22 AM, during 3rd shift hours; counted as 3rd." in html
+    assert "cieTrade clock" not in dd.render_email(dd.build_digest(_df(), STATUS, date(2026, 9, 21)))

@@ -168,6 +168,76 @@ def test_model_credits_each_window_to_the_shift_between_polls(tmp_path) -> None:
     assert [e["delta_total"] for e in day] == [0.0, 4000.0, 3000.0]
 
 
+def test_classify_window_tolerates_spillover_but_catches_off_shift_entries() -> None:
+    on = lambda t0, t1, tag: model.classify_window(pd.Timestamp(t0), pd.Timestamp(t1), tag)
+    assert on("2026-10-16 13:56", "2026-10-16 14:06", "1st") == {"kind": "on", "date": pd.Timestamp("2026-10-16"), "shift": "1st"}   # logged just past 2 PM
+    assert on("2026-10-16 15:20", "2026-10-16 15:30", "1st")["kind"] == "on"                                                   # inside the 90-min grace
+    assert on("2026-10-16 15:30", "2026-10-16 15:40", "1st") == {"kind": "off", "date": pd.Timestamp("2026-10-16"), "shift": "2nd"}
+    assert on("2026-10-14 04:40", "2026-10-14 04:50", "2nd") == {"kind": "off", "date": pd.Timestamp("2026-10-13"), "shift": "3rd"}  # 3rd shift belongs to the day it started
+    assert on("2026-10-14 06:30", "2026-10-14 06:40", "3rd")["kind"] == "on"                                                   # 3rd shift logging after 6 AM
+    assert on("2026-10-14 06:30", "2026-10-14 06:40", "2nd") == {"kind": "off", "date": pd.Timestamp("2026-10-13"), "shift": "3rd"}
+    assert on("2026-10-07 11:05", "2026-10-07 15:30", "1st")["kind"] == "unresolved"                                            # a polling gap
+
+
+def _write_clock_api_dir(tmp_path: Path) -> Path:
+    """A 2nd-shift Grinder job (Mon-Fri) that gains pounds at 10 PM (2nd), 4:50 AM (3rd shift's
+    hours) and on Saturday morning; a 1st-shift Extruder job that runs on Saturday."""
+    api_dir = tmp_path / "cietrade"
+    (api_dir / "snapshots").mkdir(parents=True)
+    obs = [("2026-10-13T21:50:00", 0.0, 0.0), ("2026-10-13T22:00:00", 400.0, 0.0), ("2026-10-14T04:40:00", 400.0, 0.0),
+           ("2026-10-14T04:50:00", 3800.0, 0.0), ("2026-10-17T09:00:00", 3800.0, 0.0), ("2026-10-17T09:10:00", 3800.0, 2000.0)]
+    frames = []
+    for ts, grinder, extruder in obs:
+        df = api.normalize([job(500, "SHREDDER/GRINDER (2ND SHIFT)", "2026-10-12", "2:05PM", grinder),
+                            job(600, "EXTRUDER (1ST SHIFT)", "2026-10-12", "2:10PM", extruder)])
+        df.insert(0, "Snapshot", ts)
+        frames.append(df)
+    pd.concat(frames).to_csv(api_dir / "snapshots" / "2026-10-13.csv", index=False)
+    with (api_dir / "polls.jsonl").open("w") as fh:
+        for ts, _, _ in obs:
+            fh.write(json.dumps({"ts": ts, "ok": True, "changed": True}) + "\n")
+    return api_dir
+
+
+def test_model_credits_off_shift_entries_to_the_clock_and_keeps_weekend_work_apart(tmp_path) -> None:
+    api_dir = _write_clock_api_dir(tmp_path)
+    (tmp_path / "exports").mkdir()
+    res = model.run(export_dir=tmp_path / "exports", api_dir=api_dir, aggregate=tmp_path / "none.xlsx", verbose=False)
+    cov = res["cov"].dropna(subset=["lbs"])
+    by = {(d.strftime("%m-%d"), s, ln): float(v) for d, s, ln, v in zip(cov["Date"], cov["Shift"], cov["line"], cov["lbs"])}
+    assert by[("10-13", "2nd", "SHREDDER/GRINDER")] == 400                      # 9:50-10:00 PM stays on 2nd
+    assert by[("10-13", "3rd", "SHREDDER/GRINDER")] == 3400                     # 4:50 AM is 3rd shift's, on Tuesday's production day
+    assert by[("10-17", "1st", "EXTRUDER")] == 2000                              # Saturday gets its own row
+    assert ("10-16", "1st", "EXTRUDER") not in by or by[("10-16", "1st", "EXTRUDER")] == 0   # Friday is not inflated
+    f = res["flags"]
+    assert [(r.date.strftime("%m-%d"), r.shift, r.from_shift, r.kind, int(r.lbs)) for r in f.itertuples()] == [
+        ("10-13", "3rd", "2nd", "reassigned", 3400), ("10-17", "1st", "1st", "weekend", 2000)]
+    note = cov.loc[(cov["Date"] == pd.Timestamp("2026-10-13")) & (cov["Shift"] == "3rd") & (cov["line"] == "SHREDDER/GRINDER"), "note"].iloc[0]
+    assert "2nd-shift job 500" in note and "3rd shift hours" in note
+    assert any("credited to the shift on the clock" in w for w in res["meta"]["warnings"])
+    # the daily record carries the clock's note and the status lists the flags
+    rows, _, _ = daily.daily_rows(res, labor_path=tmp_path / "no-labor.xlsx", from_date="2026-10-01")
+    g3 = rows[(rows["Date"] == "2026-10-13") & (rows["Shift"] == "3rd") & (rows["Machine_Name"] == "GRINDER")]
+    assert g3["Actual_Output"].iloc[0] == 3400 and "2nd-shift job" in g3["Comment"].iloc[0]
+    sat = rows[(rows["Date"] == "2026-10-17")]
+    assert list(sat["Machine_Name"]) == ["EXTRUDER"] and "weekend work" in sat["Comment"].iloc[0]
+    st = daily.build_status(res, from_date="2026-10-01", labor_path=tmp_path / "no-labor.xlsx", api_dir=api_dir)
+    assert [(x["date"], x["machine"], x["kind"], x["lbs"]) for x in st["shift_flags"]] == [
+        ("2026-10-17", "EXTRUDER", "weekend", 2000), ("2026-10-13", "GRINDER", "reassigned", 3400)]
+
+
+def test_model_only_flags_when_reassignment_is_off(tmp_path) -> None:
+    api_dir = _write_clock_api_dir(tmp_path)
+    raw = model.load_observations(tmp_path / "exports", api_dir) if (tmp_path / "exports").exists() else model.load_observations(api_dir, api_dir)
+    polls = model.load_polls(api_dir)
+    m, _ = model.job_master(raw)
+    cov = model.coverage(m, model.closures(m), pd.Timestamp("2026-10-17"), pd.Timestamp("2026-10-17 09:10"))
+    cov, _, flags = model.attribute(m, cov, model.snapshot_points(raw, m), reassign=False, polls=polls)
+    g = cov[(cov["line"] == "SHREDDER/GRINDER") & (cov["Date"] == pd.Timestamp("2026-10-13"))].set_index("Shift")["lbs"]
+    assert g["2nd"] == 3800 and "3rd" not in g.index                            # pounds stay on the tag
+    assert list(flags["kind"]) == ["weekend"]                                      # weekend rows are always split out
+
+
 def test_read_export_csv_accepts_both_date_formats(tmp_path) -> None:
     p = tmp_path / "converting_2026-09-11T16-05-00.csv"
     p.write_text("Job No,Job Date,Warehouse,Warehouse Status,Machine,Status,Post Date,Start-Time,End-Time,Elapsed-Time,UOM,Output Qty\n"

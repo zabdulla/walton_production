@@ -90,6 +90,20 @@ evenly over the shift-days they own. Validated against the Aug 3–21 workbooks:
 shift-days to the pound. The shift under way at the last poll is *partial*; a shift that
 began before the last successful poll and has no job is idle.
 
+**The clock checks the tag.** Each change window is one polling interval wide (it starts at
+the last good poll before the change). If its midpoint falls in the tagged shift's hours, or
+within `SHIFT_GRACE_MINUTES` (90) after they end, the pounds stay on the tag: crews finish
+logging a little into the next shift and that is normal. Beyond the grace, the pounds are
+credited to the shift that was on the clock and the shift-day is flagged *reassigned* (seen
+on the Grinder: 3rd-shift bales entered on the 2nd-shift job at 4–5 AM). A window on a
+Saturday, Sunday or closure day keeps its shift but gets that day's own row, flagged
+*weekend*/*closure*, so a Saturday run never inflates Friday or Monday; weekday averages
+compare like with like because Saturday only ever compares with Saturdays. A window longer
+than `SHIFT_WINDOW_MAX_HOURS` (an outage) cannot be placed and is split by overlap as before.
+Every correction is written into the row's Comment, listed in `cietrade_status.json` under
+`shift_flags`, shown on the beta Today view for that day, and summarised in the daily email.
+`SHIFT_REASSIGN = False` keeps the flags but leaves every pound on its tagged shift.
+
 ## Into the dashboard — `src/cietrade_daily.py`
 
 From `config.CIETRADE_FROM_DATE` on, every run regenerates one aggregate row per
@@ -110,8 +124,8 @@ same plus the Gmail fetch and payroll, then commits and pushes.
   changes. Daily figures were already exact from the polls.
 - **Open next week's jobs** as before (one per machine and shift). The 1st-shift job is opened
   after the shift ends, which the model understands.
-- **Tag bales during the shift they come from.** Anything entered late lands in the window in
-  which it was entered. Weekly totals are unaffected.
+- **Tag bales during the shift they come from.** Up to 90 minutes late is fine; later than
+  that, the clock credits the shift that was running and flags it. Weekly totals are unaffected.
 - Deploy the End of Shift app (`setup/LABOR_CAPTURE.md`) so hours and operators flow in; until
   then rows carry output only and the validation report warns about output without hours.
 

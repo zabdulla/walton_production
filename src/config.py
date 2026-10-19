@@ -339,6 +339,20 @@ CIETRADE_LINE_TO_MACHINE: dict[str, str] = {
 # between two API polls across the shifts that ran in between.
 SHIFT_HOURS: dict[str, tuple[int, int]] = {"1st": (6, 14), "2nd": (14, 22), "3rd": (22, 30)}   # 6-2, 2-10, 10-6 (confirmed 2026-09-17)
 
+# Which shift a cieTrade entry belongs to is read from the job's tag, checked
+# against the clock. Entries within SHIFT_GRACE_MINUTES after a shift's end
+# still belong to that shift (crews finish logging a little into the next one).
+# Beyond the grace, an entry on a job tagged for another shift is credited to
+# the shift that was on the clock and flagged (seen on the Grinder: 3rd-shift
+# bales entered on the 2nd-shift job at 4-5 AM). Entries on a weekend or a
+# closure day get their own row for that day instead of inflating the nearest
+# weekday. Only windows shorter than SHIFT_WINDOW_MAX_HOURS are time-resolved;
+# a longer gap (an outage) is split by overlap as before. SHIFT_REASSIGN=False
+# keeps the flags but leaves every pound on its tagged shift.
+SHIFT_GRACE_MINUTES = 90
+SHIFT_WINDOW_MAX_HOURS = 3
+SHIFT_REASSIGN = True
+
 # Where the poller drops a copy of the freshly built pilot page so it can be
 # opened from a phone through OneDrive. Set to None to disable.
 LIVE_PAGE_COPY = Path.home() / "Library" / "CloudStorage" / "OneDrive-PlusMaterials" / "Walton Live" / "production.html"

@@ -86,8 +86,26 @@ def test_quiet_flag_only_for_machines_that_ran_this_shift(tmp_path) -> None:
 
 def test_build_live_with_no_data(tmp_path) -> None:
     d = tmp_path / "empty"; d.mkdir()
-    L = live.build_live(now=pd.Timestamp("2026-09-19 09:00:00"), api_dir=d)     # Saturday: no shift scheduled
-    assert L["machines"] == [] and L["changes"] == [] and L["current_shift"] is None and L["last_poll"] is None
+    L = live.build_live(now=pd.Timestamp("2026-09-19 09:00:00"), api_dir=d)     # Saturday: the clock still says 1st
+    assert L["machines"] == [] and L["changes"] == [] and L["current_shift"] == "1st" and L["weekend"] and L["last_poll"] is None
+
+
+def test_changes_credit_off_shift_entries_to_the_shift_on_the_clock(tmp_path) -> None:
+    d = tmp_path / "cietrade"; (d / "snapshots").mkdir(parents=True)
+    rows = [
+        _row("2026-10-13T22:00:00", 5, "SHREDDER/GRINDER (2ND SHIFT)", 1000, 0, job_date="2026-10-12", start="2:05PM"),
+        _row("2026-10-13T22:20:00", 5, "SHREDDER/GRINDER (2ND SHIFT)", 1400, 0, job_date="2026-10-12", start="2:05PM"),   # 20 min after 2nd ended: still 2nd
+        _row("2026-10-14T04:50:00", 5, "SHREDDER/GRINDER (2ND SHIFT)", 4800, 0, job_date="2026-10-12", start="2:05PM"),   # 4:50 AM: 3rd shift's work
+    ]
+    pd.DataFrame(rows, columns=COLS).to_csv(d / "snapshots" / "all.csv", index=False)
+    polls = ["2026-10-13T21:50:00", "2026-10-13T22:00:00", "2026-10-13T22:10:00", "2026-10-13T22:20:00", "2026-10-14T04:40:00", "2026-10-14T04:50:00"]
+    (d / "polls.jsonl").write_text("".join(json.dumps({"ts": t, "ok": True, "changed": True}) + "\n" for t in polls))
+    ch = live.changes(live.load_snapshots(d), live.load_polls(d))
+    assert [(r.lbs, r.shift, r.s_eff, r.off_shift) for r in ch.itertuples()] == [(400, "2nd", "2nd", False), (3400, "2nd", "3rd", True)]
+    L = live.build_live(now=pd.Timestamp("2026-10-14 05:00:00"), api_dir=d)
+    assert L["machines"][0]["by_shift"] == {"2nd": 400, "3rd": 3400}
+    assert L["flags"] == [{"m": "GRINDER", "from_shift": "2nd", "to_shift": "3rd", "lbs": 3400, "n": 1, "first": "2026-10-14T04:40:00", "last": "2026-10-14T04:50:00"}]
+    assert L["changes"][0]["s"] == "3rd" and L["changes"][0]["tag"] == "2nd" and L["changes"][0]["off_shift"]
 
 
 def test_outage_names_the_first_failed_poll_after_the_last_good_one(tmp_path) -> None:
