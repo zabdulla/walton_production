@@ -132,6 +132,8 @@ a { color:var(--brand-ink); }
 .pager { display:inline-flex; align-items:center; gap:4px; } .pager button { font:inherit; font-size:14px; color:var(--ink-2); background:var(--card); border:1px solid var(--line); border-radius:8px; width:34px; height:34px; cursor:pointer; }
 .pager button:disabled { opacity:.35; cursor:default; }
 .sel { font:inherit; font-size:14px; font-weight:600; color:var(--ink); background:var(--card); border:1px solid var(--line); border-radius:8px; padding:6px 10px; height:34px; max-width:60vw; }
+.hero { padding:4px 0 14px; } .hero-label { font-size:13px; color:var(--muted); } .hero-value { font-size:44px; font-weight:700; letter-spacing:-.02em; line-height:1.1; }
+.hero-sub { font-size:13px; color:var(--ink-2); margin-top:4px; }
 .stats { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:14px; }
 .stat { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px 12px; min-height:96px; }
 .stat-label { font-size:12px; color:var(--muted); margin-bottom:4px; } .stat-value { font-size:26px; font-weight:650; letter-spacing:-.01em; } .stat-value .of { font-size:16px; color:var(--muted); font-weight:500; }
@@ -162,8 +164,7 @@ svg.live .today { fill:none; stroke:var(--brand); stroke-width:2; stroke-linejoi
 svg.live .now { stroke:var(--ink-2); stroke-width:1; opacity:.5; } svg.live .endlab { font-size:12px; font-weight:650; fill:var(--ink); }
 .legend .key { display:inline-block; width:14px; height:0; border-top:2px solid var(--brand); } .legend .key.yest { border-top:1.5px solid var(--raw); }
 .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--good); margin-left:8px; vertical-align:middle; } .dot.stale { background:var(--warn); } .dot.down { background:var(--bad); }
-.feed-wrap summary { cursor:pointer; font-size:13px; font-weight:600; margin-top:10px; color:var(--ink-2); }
-.feed { list-style:none; margin:6px 0 0; padding:0; font-size:13px; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
+.feed { list-style:none; margin:0; padding:0; font-size:13px; } .feed li.empty { display:block; color:var(--muted); border-top:0; } .feed li { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:6px 0; border-top:1px solid var(--line); }
 .feed .t { color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; } .feed .v { font-weight:600; font-variant-numeric:tabular-nums; } .feed .v.neg { color:var(--bad); }
 .table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; font-size:14px; }
 th { font-size:11px; color:var(--muted); font-weight:600; text-align:left; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid var(--line); }
@@ -192,11 +193,11 @@ svg.facet .endlab { font-size:12px; font-weight:650; fill:var(--ink); } svg.face
 @media (max-width: 900px) {
   .app { grid-template-columns:1fr; } .side { display:none; }
   .main { padding:14px 16px 84px; }
-  .topbar h1 { font-size:18px; }
+  .topbar h1 { font-size:18px; } .hero-value { font-size:38px; }
   .stats { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; } .stat { padding:12px 12px 10px; min-height:0; } .stat-value { font-size:22px; }
   .bar-row { grid-template-columns:10px 96px minmax(0,1fr) 62px; gap:8px; font-size:13px; }
-  .tabbar { display:grid; grid-template-columns:repeat(5,1fr); position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:10; }
-  .tabbar a { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; color:var(--muted); text-decoration:none; padding:4px 0; }
+  .tabbar { display:grid; grid-template-columns:repeat(6,1fr); position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:10; }
+  .tabbar a { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10.5px; color:var(--muted); text-decoration:none; padding:4px 0; }
   .tabbar a.active { color:var(--brand-ink); font-weight:600; } .tabbar svg { width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
   .facets { grid-template-columns:1fr; }
   table { font-size:13px; } td, th { padding:7px 6px; }
@@ -209,9 +210,10 @@ ICONS = {
     "week": '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
     "shifts": '<svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>',
     "machines": '<svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 4-7 5 5"/><path d="M3 21h18"/></svg>',
+    "live": '<svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>',
     "more": '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>',
 }
-NAV = [("today", "Today"), ("week", "Week"), ("shifts", "Shifts"), ("machines", "Machines"), ("more", "More")]
+NAV = [("today", "Today"), ("live", "Live"), ("week", "Week"), ("shifts", "Shifts"), ("machines", "Machines"), ("more", "More")]
 
 JS = r"""
 (function () {
@@ -359,22 +361,28 @@ JS = r"""
       + stat("Week to date · " + days + " day" + (days === 1 ? "" : "s"), fmt(wtd), wsub, wtone)
       + stat("Open jobs in cieTrade", fmt(oj), fmt(ol) + " lbs not yet posted")
       + stat("End of Shift filed · " + fmtDay(day, { weekday: "long" }), nFiled + '<span class="of">/3</span>', fsub, nFiled === 3 ? "" : "warn");
-    // live changes
-    const card = $("#liveCard"); card.hidden = !isLive;
-    if (isLive) {
-      renderLiveChart(live);
-      const feed = $("#liveFeed"); feed.replaceChildren();
-      $("#liveFeedTitle").textContent = "Latest changes (" + live.changes_today + " today)";
-      (live.changes || []).slice(0, 12).forEach(c => {
+  }
+  function renderLive() {
+    const L = live;
+    if (!L) { $("#liveHeroSub").textContent = "live feed unavailable; the poller publishes it every 10 minutes"; return; }
+    const age = Math.max(0, Math.round((Date.now() - parseTs(L.generated)) / 60000));
+    const state = !L.poll_ok ? "down" : age > 30 ? "stale" : "ok";
+    $("#liveHeroLabel").innerHTML = "Pounds so far · " + h(fmtDay(L.day)) + (L.weekend ? " (weekend)" : "") + ' <span class="dot ' + state + '" aria-label="' + state + '"></span>';
+    $("#liveHeroValue").textContent = fmt(L.lbs_today);
+    $("#liveHeroSub").textContent = (L.current_shift ? L.current_shift + " shift on now · " : "") + "as of " + clock(parseTs(L.generated)) + " · " + L.open_jobs + " open jobs, " + fmt(L.open_lbs) + " lbs not yet posted"
+      + (state === "down" ? " · ⚠ cieTrade unavailable since " + clock(parseTs(L.api_down_since || L.last_poll)) : state === "stale" ? " · ⚠ feed is " + age + " min old" : "");
+    $("#liveMeta").textContent = "polled " + clock(parseTs(L.last_poll)) + " · " + L.polls_today + " polls today";
+    if (!$("#liveChart").clientWidth) return;                        // not on screen: drawn when the tab opens
+    renderLiveChart(L);
+    const feed = $("#liveFeed"); feed.replaceChildren();
+    $("#liveFeedTitle").textContent = "Latest changes (" + L.changes_today + " today)";
+    {
+      (L.changes || []).forEach(c => {
         const li = document.createElement("li"); const t = document.createElement("span"); t.className = "t"; t.textContent = clock(parseTs(c.t1));
         const w = document.createElement("span"); w.textContent = name(c.m) + (c.s ? " · " + c.s : "") + (c.units ? " · " + (c.units > 0 ? "+" : "") + c.units + " units" : "");
         const v = document.createElement("span"); v.className = "v" + (c.lbs < 0 ? " neg" : ""); v.textContent = (c.lbs > 0 ? "+" : "") + fmt(c.lbs) + " lbs";
         li.append(t, w, v); feed.appendChild(li); });
-      const age = Math.max(0, Math.round((Date.now() - parseTs(live.generated)) / 60000));
-      const state = !live.poll_ok ? "down" : age > 30 ? "stale" : "ok";
-      $("#liveTitle").innerHTML = 'Live <span class="dot ' + state + '" aria-label="' + state + '"></span>';
-      $("#liveMeta").textContent = (live.current_shift ? live.current_shift + " shift on now · " : "") + "polled " + clock(parseTs(live.last_poll)) + " · " + live.polls_today + " polls today"
-        + (state === "down" ? " · cieTrade unavailable since " + clock(parseTs(live.api_down_since || live.last_poll)) : state === "stale" ? " · feed is " + age + " min old" : "");
+      if (!(L.changes || []).length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = "Nothing entered yet this production day."; feed.appendChild(li); }
     }
   }
   function renderLiveChart(L) {
@@ -557,8 +565,8 @@ JS = r"""
   const app = $(".app");
   try { if (localStorage.getItem("beta-nav") === "collapsed") app.classList.add("collapsed"); } catch (e) {}
   $("#collapse").addEventListener("click", () => { app.classList.toggle("collapsed"); try { localStorage.setItem("beta-nav", app.classList.contains("collapsed") ? "collapsed" : "open"); } catch (e) {} });
-  const titles = { today: "Today", week: "Week at a glance", shifts: "End of Shift reports", machines: "Machines", more: "More" };
-  function show(n) { if (!titles[n]) n = "today"; $$(".view").forEach(v => { v.hidden = v.dataset.view !== n; }); $$("[data-nav]").forEach(a => a.classList.toggle("active", a.dataset.nav === n)); $("#pageTitle").textContent = titles[n]; hideTip(); window.scrollTo({ top: 0 }); if (n === "week" && typeof renderWeek === "function" && $("#weekPager").children.length) renderWeek(); }
+  const titles = { today: "Today", live: "Live", week: "Week at a glance", shifts: "End of Shift reports", machines: "Machines", more: "More" };
+  function show(n) { if (!titles[n]) n = "today"; $$(".view").forEach(v => { v.hidden = v.dataset.view !== n; }); $$("[data-nav]").forEach(a => a.classList.toggle("active", a.dataset.nav === n)); $("#pageTitle").textContent = titles[n]; hideTip(); window.scrollTo({ top: 0 }); if (n === "week" && typeof renderWeek === "function" && $("#weekPager").children.length) renderWeek(); if (n === "live" && typeof renderLive === "function") renderLive(); }
   window.addEventListener("hashchange", () => show(location.hash.slice(1)));
   show(location.hash.slice(1));
   seg($("#todaySeg"), shiftOptions, T.shift, k => { T.shift = k; renderToday(); });
@@ -566,7 +574,7 @@ JS = r"""
   seg($("#machSeg"), shiftOptions, M.shift, k => { M.shift = k; renderMachines(); });
   seg($("#metricSeg"), Object.entries(METRICS).map(([k, v]) => [k, v[0]]), M.metric, k => { M.metric = k; renderMachines(); });
   renderToday(); renderWeek(); renderShifts(); renderMachines();
-  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { renderWeek(); renderToday(); }, 150); });
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { renderWeek(); renderToday(); renderLive(); }, 150); });
 
   // ---- live feed
   function refresh() {
@@ -574,8 +582,8 @@ JS = r"""
     fetch(D.feed + "?t=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(L => {
       const first = !live; live = L; $("#feedState").textContent = "";
       if (first && !T.userSet) T.day = L.day;
-      renderToday(); if (first) { renderWeek(); renderShifts(); }
-    }).catch(() => { $("#feedState").textContent = "live feed unavailable; showing the last rebuild"; });
+      renderToday(); renderLive(); if (first) { renderWeek(); renderShifts(); }
+    }).catch(() => { $("#feedState").textContent = "live feed unavailable; showing the last rebuild"; renderLive(); });
   }
   refresh(); setInterval(refresh, 60000);
 })();
@@ -620,11 +628,17 @@ def render(D: dict) -> str:
         <div class="card-foot" id="todayFoot"></div>
       </div>
       <div class="stats" id="todayStats"></div>
-      <div class="card" id="liveCard" hidden>
-        <div class="card-head"><h2 id="liveTitle">Live</h2><div class="card-meta" id="liveMeta"></div></div>
+    </section>
+    <section class="view" data-view="live" hidden>
+      <div class="hero"><div class="hero-label" id="liveHeroLabel">Pounds today so far</div><div class="hero-value" id="liveHeroValue">–</div><div class="hero-sub" id="liveHeroSub">connecting to the live feed…</div></div>
+      <div class="card" id="liveCard">
+        <div class="card-head"><h2 id="liveTitle">Through the day</h2><div class="card-meta" id="liveMeta"></div></div>
         <div id="liveChart"></div>
         <div class="legend" id="liveLegend"></div>
-        <details class="feed-wrap"><summary id="liveFeedTitle">Latest changes</summary><ol class="feed" id="liveFeed"></ol></details>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2 id="liveFeedTitle">Latest changes</h2><div class="card-meta">newest first · each line is one cieTrade entry seen by the poller</div></div>
+        <ol class="feed" id="liveFeed"></ol>
       </div>
     </section>
     <section class="view" data-view="week" hidden>
