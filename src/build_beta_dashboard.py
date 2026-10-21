@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import DATA_DIR, DEFAULT_WEEKS, LIVE_FEED_URL, PROJECT_ROOT, RUNNING_AVG_WINDOW  # noqa: E402
+from config import DATA_DIR, DEFAULT_WEEKS, LIVE_FEED_URL, PROJECT_ROOT, RUNNING_AVG_WINDOW, machine_rank  # noqa: E402
 
 DEFAULT_INPUT = DATA_DIR / "aggregated_daily_data.xlsx"
 STATUS_PATH = DATA_DIR / "cietrade_status.json"
@@ -33,8 +33,6 @@ SHIFTS = ("1st", "2nd", "3rd", "unspecified")
 EMBED_WEEKS = 26                                   # complete weeks carried in the page, plus the current one
 # Fixed categorical slot per machine (validated order, see design/DESIGN.md). Colour follows the entity.
 MACHINE_SLOT = {"EXTRUDER": 1, "AUTO TIE BALER": 2, "GRINDER": 3, "GUILLOTINE": 4, "SHREDDER": 5, "GREEN MAX DENSIFIER (NEW)": 6}
-# Reading order on every view, the same whichever day or week is selected; machines without output are left out, never re-ranked.
-MACHINE_ORDER = ("EXTRUDER", "GRINDER", "AUTO TIE BALER", "SHREDDER", "GREEN MAX DENSIFIER (NEW)", "AVANGUARD DENSIFIER (OLD)", "GUILLOTINE")
 SLOT_HEX = {1: "#2a78d6", 2: "#eb6834", 3: "#1baf7a", 4: "#eda100", 5: "#e87ba4", 6: "#008300", 7: "#4a3aa7"}
 PRETTY = {"AUTO TIE BALER": "Auto Tie Baler", "GREEN MAX DENSIFIER (NEW)": "Green Max Densifier", "AVANGUARD DENSIFIER (OLD)": "Avanguard Densifier",
           "SMALL GRINDER": "Small Grinder", "BALER 1": "Baler 1", "BALER 2": "Baler 2"}
@@ -74,8 +72,7 @@ def dataset(df: pd.DataFrame, status: dict, today: date | None = None, weeks: in
     g = d.groupby(["Date", "Shift", "Machine_Name"], as_index=False).agg(lbs=("lbs", "sum"), mh=("Machine_Hours", "sum"), manh=("Man_Hours", "sum"), cost=("Total_Expense", "sum"))
     g = g[(g["lbs"] != 0) | (g["mh"] > 0) | (g["cost"] > 0)]
     totals = g.groupby("Machine_Name")["lbs"].sum()
-    rank = {m: i for i, m in enumerate(MACHINE_ORDER)}
-    machines = sorted(totals.index, key=lambda m: (rank.get(m, len(MACHINE_ORDER)), -totals[m]))
+    machines = sorted(totals.index, key=lambda m: (machine_rank(m), -totals[m]))   # config.MACHINE_ORDER, the same on every view
     dates = sorted(x.strftime("%Y-%m-%d") for x in g["Date"].unique())
     di = {s: i for i, s in enumerate(dates)}
     mi = {m: i for i, m in enumerate(machines)}
