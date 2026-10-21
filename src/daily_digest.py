@@ -195,7 +195,8 @@ def _flag_line(f: dict, e) -> str:
     return f'{e(day)} · <b>{m}</b>: {f["lbs"]:,} lbs of {e(f.get("kind", "weekend"))} work on the {e(f["shift"])} shift, kept on its own day.'
 
 
-def render_email(dg: dict) -> str:
+def render_email(dg: dict, extra_top: str = "") -> str:
+    """The email. extra_top is an optional block placed under the headline (the beta digest's bars); empty by default."""
     e = _h.escape
     wk = dg["week"]
     h2 = f'style="{F}font-size:17px;font-weight:bold;color:#1a1d21;margin:0;padding:22px 0 10px"'
@@ -223,7 +224,7 @@ def render_email(dg: dict) -> str:
   <div {_SMALL}>Walton production · daily email</div>
   <div style="{F}font-size:24px;font-weight:bold;color:#1a1d21;padding:2px 0 4px">{e(dg["day_label"])}</div>
   <div style="{F}font-size:15px;color:#1a1d21;padding-bottom:12px"><b>{_n(dg["day_total"]) or "0"} lbs</b> produced across three shifts</div>
-  {link}
+  {extra_top}{link}
 </td></tr>
 <tr><td style="padding:0 24px">
   <div {h2}>Week at a glance <span style="font-weight:normal;color:#6b7280;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}{", complete week" if datetime.strptime(dg["date"], "%Y-%m-%d").weekday() >= 4 else ""}, pounds by machine and day</span></div>
