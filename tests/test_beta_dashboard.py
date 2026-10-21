@@ -42,7 +42,7 @@ def test_dataset_is_compact_and_on_the_support_basis(tmp_path) -> None:
     df, status = _load(tmp_path)
     D = bb.dataset(df, status, today=date(2026, 9, 30))
     assert D["data_through"] == "2026-09-29" and D["today"] == "2026-09-30"
-    assert D["machines"] == ["EXTRUDER", "GRINDER", "GUILLOTINE"]                # fixed slot order, not rank
+    assert D["machines"] == ["EXTRUDER", "GRINDER", "GUILLOTINE"]                # fixed reading order, not rank
     assert D["dates"][0] == "2026-03-30" and D["dates"][-1] == "2026-09-29"       # 26 complete weeks plus the current one
     by = {(D["dates"][r[0]], D["shifts"][r[1]], D["machines"][r[2]]): r for r in D["rows"]}
     assert by[("2026-09-29", "1st", "GUILLOTINE")][3] == 6000                    # rolls count when it books no output
