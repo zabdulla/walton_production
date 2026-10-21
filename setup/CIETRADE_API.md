@@ -189,20 +189,16 @@ Recipients are comma-separated; setting a secret replaces the whole list, so inc
 `data/digest_state.json` (committed) records the last send so the ten-minute chain sends
 exactly once a day; the repository variable `DIGEST_SEND_HOUR` moves the hour.
 
-### Beta email with the bars drawn in — `src/daily_digest_beta.py`
+### Pounds by machine, drawn inside the email
 
-The same message with the dashboard's "Pounds by machine" card under the headline: one bar
-per machine in the reading order, 1st / 2nd / 3rd shift shades, a tick at the machine's normal
-same weekday and the difference beside the value. No images and no attachments: the bars are
-table cells with background colours, so every mail client draws them. The regular email is
-unchanged while this is tried out.
+The first card is the dashboard's "Pounds by machine" bars for the day: one bar per machine
+in the reading order, 1st / 2nd / 3rd shift shades, a tick at the machine's normal same
+weekday and the difference beside the value. No images and no attachments: the bars are
+table cells with background colours, so every mail client draws them.
 
-    python3 src/daily_digest_beta.py                        # preview: reports/digest/<date>-beta.html
-    python3 src/daily_digest_beta.py --date 2026-10-16      # another day
-    python3 src/daily_digest_beta.py --send --to me@x.com   # send through the digest's Gmail token
-
-`digest-beta.yml` (Actions tab, "Daily email (beta sample)") sends one sample from the runner,
-which holds the token: give it a recipient and, optionally, the production day.
+`digest-sample.yml` (Actions tab, "Daily email (sample)") sends one copy of the email from
+the runner for a chosen production day to a recipient typed at dispatch, without touching
+the once-a-day send. It rebuilds the day's rows from the poll log first, like the 7 AM send.
 
 ## Operations
 

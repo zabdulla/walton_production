@@ -1,9 +1,9 @@
-name: Daily email (beta sample)
+name: Daily email (sample)
 
-# Sends one sample of the beta daily email (src/daily_digest_beta.py): the
-# regular message plus the dashboard's "Pounds by machine" bars drawn inside
-# it from table cells. Run it from the Actions tab with a recipient and an
-# optional production day. The regular daily email is untouched.
+# Sends one copy of the daily email (src/daily_digest.py) for a chosen
+# production day to a recipient typed at dispatch, without touching the
+# once-a-day send or its state. Run it from the Actions tab to check a layout
+# change or to re-send a day.
 #
 # Needs GMAIL_SEND_TOKEN_JSON (the same send token the daily digest uses).
 
@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: digest-beta
+  group: digest-sample
   cancel-in-progress: false
 
 jobs:
@@ -75,4 +75,4 @@ jobs:
             echo "::error::GMAIL_SEND_TOKEN_JSON secret is not set"; exit 1
           fi
           echo "::add-mask::$TO"
-          python3 src/daily_digest_beta.py --send --to "$TO" ${DAY:+--date "$DAY"}
+          python3 src/daily_digest.py --send --to "$TO" ${DAY:+--date "$DAY"}
