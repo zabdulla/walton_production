@@ -1,9 +1,15 @@
-"""Daily production email: yesterday, in two parts.
+"""Daily production email: yesterday, in three parts.
 
-1. Week at a glance, one card per shift (1st, 2nd, 3rd): pounds per machine per
+1. Pounds by machine, the dashboard's Today bars drawn inside the message: one
+   bar per machine in the reading order, 1st / 2nd / 3rd shift shades, a tick at
+   the machine's normal same weekday (last four) and the difference beside the
+   value. The bars are table cells with background colours, the shades are
+   pre-mixed solid colours and the tick is a 2px cell, so Gmail, Outlook, Apple
+   Mail and the phones all draw them.
+2. Week at a glance, one card per shift (1st, 2nd, 3rd): pounds per machine per
    day for the current week through yesterday, week-to-date, plant total.
    Weekdays only: Monday's email covers Friday and the complete previous week.
-2. Yesterday's three End of Shift reports, each laid out like the dashboard's
+3. Yesterday's three End of Shift reports, each laid out like the dashboard's
    submitted forms (machine, machine h, man h, operators, material, downtime,
    reason, comments, shift notes). A shift nobody filed says so.
 
@@ -35,6 +41,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_beta_dashboard import pretty, slot_color  # noqa: E402
 from config import DATA_DIR, PROJECT_ROOT, WALTON_CONFIG_DIR, machine_rank  # noqa: E402
 
 AGG_PATH = DATA_DIR / "aggregated_daily_data.xlsx"
@@ -47,6 +54,10 @@ SEND_SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 SEND_TOKEN_PATH = WALTON_CONFIG_DIR / "gmail_send_token.json"
 CREDENTIALS_PATH = WALTON_CONFIG_DIR / "gmail_credentials.json"
 SHIFTS = ("1st", "2nd", "3rd")
+SHADE = {"1st": 1.0, "2nd": 0.72, "3rd": 0.46}        # the dashboard's shift shades, mixed with the surface below
+TRACK = "#f1efe9"                                      # the empty part of a bar
+TICK = "#4b5563"                                       # the normal-weekday marker
+NORMAL_DAYS = 4                                        # same weekdays averaged for "normal"
 
 
 # ---------------------------------------------------------------- data
@@ -92,6 +103,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
         totals = [round(float(v)) for v in piv.sum(axis=0)] if len(piv) else [0 for _ in wdays]
         week_by_shift.append({"shift": sh, "rows": rows, "totals": totals, "wtd": sum(totals), "day": totals[-1] if totals else 0})
     plant_days = [round(float(wk[wk["Date"] == x]["lbs"].sum())) for x in wdays]
+    bars = bars_for_day(df, for_date)
     # yesterday's End of Shift reports, as filed
     eos = status.get("end_of_shift") or {}
     filed = {r["shift"]: r for r in eos.get("reports", []) if r.get("date") == for_date.isoformat()}
@@ -115,7 +127,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
                      "plant_wtd": sum(plant_days), "by_shift": week_by_shift},
             "reports": reports,
             "flags": [f for f in status.get("shift_flags", []) if monday.strftime("%Y-%m-%d") <= f.get("date", "") <= for_date.isoformat()],
-            "status": {"last_poll": status.get("last_poll")}, "url": DASHBOARD_URL, "classic_url": CLASSIC_URL}
+            "bars": bars, "status": {"last_poll": status.get("last_poll")}, "url": DASHBOARD_URL, "classic_url": CLASSIC_URL}
 
 
 # ---------------------------------------------------------------- email (inline styles only: mail clients strip stylesheets)
@@ -195,10 +207,106 @@ def _flag_line(f: dict, e) -> str:
     return f'{e(day)} · <b>{m}</b>: {f["lbs"]:,} lbs of {e(f.get("kind", "weekend"))} work on the {e(f["shift"])} shift, kept on its own day.'
 
 
-def render_email(dg: dict, extra_top: str = "") -> str:
-    """The email. extra_top is an optional block placed under the headline (the beta digest's bars); empty by default."""
+# ---------------------------------------------------------------- pounds by machine, drawn from table cells
+
+def mix(hex_color: str, alpha: float, over: str = "#ffffff") -> str:
+    """The colour an alpha-blended fill would show over a white surface, as a solid hex."""
+    c = [int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]
+    o = [int(over[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(a * alpha + b * (1 - alpha)):02x}" for a, b in zip(c, o))
+
+
+def bars_for_day(df: pd.DataFrame, for_date: date) -> dict:
+    """Pounds per machine and shift for the day, plus each machine's normal same weekday (the dashboard's basis)."""
+    d = df.copy()
+    d["lbs"] = _lbs(d)
+    d["Shift"] = d["Shift"].astype(str)
+    day = pd.Timestamp(for_date)
+    today = d[d["Date"] == day]
+    per = today.groupby("Machine_Name")["lbs"].sum()
+    by_shift = today.groupby(["Machine_Name", "Shift"])["lbs"].sum()
+    earlier = d[(d["Date"] < day) & (d["Date"].dt.weekday == day.weekday()) & (d["lbs"] > 0)]
+    days = sorted(earlier["Date"].unique())[-NORMAL_DAYS:]
+    base = earlier[earlier["Date"].isin(days)]
+    normal = (base.groupby("Machine_Name")["lbs"].sum() / len(days)) if len(days) else pd.Series(dtype=float)
+    machines = sorted([m for m, v in per.items() if v > 0], key=machine_rank)
+    rows = []
+    for m in machines:
+        shifts = {sh: float(by_shift.get((m, sh), 0.0)) for sh in SHIFTS}
+        nv = float(normal.get(m, 0.0))
+        lbs = float(per[m])
+        rows.append({"machine": m, "name": pretty(m), "color": slot_color(m), "lbs": round(lbs), "by_shift": {k: round(v) for k, v in shifts.items()},
+                     "normal": round(nv), "pct": (round(100 * (lbs - nv) / nv) if nv > 0 else None)})
+    scale = max([1.0] + [r["lbs"] for r in rows] + [r["normal"] for r in rows])
+    return {"date": for_date.isoformat(), "weekday": day.strftime("%A"), "rows": rows, "scale": scale, "normal_days": len(days),
+            "total": round(float(per.sum())), "normal_total": round(float(normal.sum())) if len(days) else 0}
+
+
+def _track(row: dict, scale: float) -> str:
+    """One bar as a single-row table: shift cells in three shades, the normal tick as a 2px cell, the rest as track."""
+    width = 100.0
+    # fills: each shift's share of the bar, left to right; the remainder is empty track
+    fills, left = [], 0.0
+    for sh in SHIFTS:
+        w = 100.0 * row["by_shift"][sh] / scale
+        if w > 0:
+            fills.append((left, left + w, mix(row["color"], SHADE[sh]), sh)); left += w
+    other = 100.0 * row["lbs"] / scale - left
+    if other > 0.05:
+        fills.append((left, left + other, mix(row["color"], 0.28), "")); left += other
+    fills.append((left, width, TRACK, ""))
+    # cut every fill at the tick so the tick can sit inside it as its own cell
+    tick = 100.0 * row["normal"] / scale if row["normal"] else None
+    cells = []
+    for a, b, color, label in fills:
+        if tick is not None and a <= tick < b:
+            if tick - a > 0.05:
+                cells.append((tick - a, color, label))
+            cells.append((None, TICK, ""))                        # the tick: 2px, not a percentage
+            if b - tick > 0.05:
+                cells.append((b - tick, color, ""))
+        else:
+            cells.append((b - a, color, label))
+    out = []
+    for w, color, label in cells:
+        if w is None:
+            out.append(f'<td width="2" bgcolor="{TICK}" style="width:2px;background:{TICK};font-size:1px;line-height:18px;height:18px">&nbsp;</td>')
+            continue
+        text = (f'<span style="{F}font-size:10px;font-weight:bold;color:#ffffff;letter-spacing:.04em">{label}</span>' if label and w >= 9 else "&nbsp;")
+        out.append(f'<td width="{w:.1f}%" bgcolor="{color}" style="width:{w:.1f}%;background:{color};font-size:1px;line-height:18px;height:18px;padding:0 0 0 {4 if label and w >= 9 else 0}px;white-space:nowrap;overflow:hidden">{text}</td>')
+    return f'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;table-layout:fixed;height:18px"><tr>{"".join(out)}</tr></table>'
+
+
+def render_bars_card(b: dict, day_label: str) -> str:
+    e = _h.escape
+    if not b["rows"]:
+        body = f'<div style="{F}font-size:13px;color:#6b7280;padding:4px 0">Nothing booked this day.</div>'
+    else:
+        lines = []
+        for r in b["rows"]:
+            pct = r["pct"]
+            delta = "" if pct is None else f'<br><span style="font-size:11px;font-weight:normal;color:{"#006300" if pct >= 0 else "#d03b3b"}">{"+" if pct >= 0 else ""}{pct}%</span>'
+            lines.append(
+                f'<tr>'
+                f'<td width="10" style="width:10px;padding:6px 0"><div style="width:10px;height:10px;border-radius:3px;background:{r["color"]};font-size:1px;line-height:10px">&nbsp;</div></td>'
+                f'<td width="118" style="{F}font-size:13px;font-weight:bold;color:#1a1d21;padding:6px 8px;white-space:nowrap">{e(r["name"])}</td>'
+                f'<td style="padding:6px 0">{_track(r, b["scale"])}</td>'
+                f'<td width="64" align="right" style="{F}font-size:13px;font-weight:bold;color:#1a1d21;padding:6px 0 6px 10px;text-align:right;white-space:nowrap;line-height:1.2">{r["lbs"]:,}{delta}</td>'
+                f'</tr>')
+        sq = "".join(f'<span style="display:inline-block;width:9px;height:9px;background:{mix("#4b5563", a)};vertical-align:middle"></span>' for a in SHADE.values())
+        key = (f'<div style="{F}font-size:11px;color:#4b5563;padding:6px 0 0 18px;line-height:1.6">'
+               f'<span style="display:inline-block;width:2px;height:11px;background:{TICK};vertical-align:middle;margin-right:5px"></span>'
+               + (f'normal {e(b["weekday"])} for the machine (last {b["normal_days"]}), with the difference beside the value' if b["normal_days"] else f'no earlier {e(b["weekday"])}s to compare against')
+               + f' &nbsp;&nbsp; {sq} <span style="margin-left:4px">1st · 2nd · 3rd</span></div>')
+        body = f'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">{"".join(lines)}</table>{key}'
+    meta = f'{b["total"]:,} lbs' + (f' · a normal {e(b["weekday"])} is {b["normal_total"]:,}' if b["normal_total"] else "")
+    return _card(f'Pounds by machine · {e(day_label)}', meta, body)
+
+
+def render_email(dg: dict) -> str:
     e = _h.escape
     wk = dg["week"]
+    bars_card = render_bars_card(dg["bars"], dg["day_label"]) if dg.get("bars") else ""
     h2 = f'style="{F}font-size:17px;font-weight:bold;color:#1a1d21;margin:0;padding:22px 0 10px"'
     classic = dg.get("classic_url") or dg["url"] + "classic/"
     link = (f'<div style="{F}font-size:13px;color:#1a1d21;background:#e7f3ee;border:1px solid #cfe5db;border-radius:8px;padding:10px 14px;line-height:1.5">'
@@ -224,7 +332,7 @@ def render_email(dg: dict, extra_top: str = "") -> str:
   <div {_SMALL}>Walton production · daily email</div>
   <div style="{F}font-size:24px;font-weight:bold;color:#1a1d21;padding:2px 0 4px">{e(dg["day_label"])}</div>
   <div style="{F}font-size:15px;color:#1a1d21;padding-bottom:12px"><b>{_n(dg["day_total"]) or "0"} lbs</b> produced across three shifts</div>
-  {extra_top}{link}
+  {bars_card}{link}
 </td></tr>
 <tr><td style="padding:0 24px">
   <div {h2}>Week at a glance <span style="font-weight:normal;color:#6b7280;font-size:13px">week of {e(datetime.strptime(wk["monday"], "%Y-%m-%d").strftime("%b %-d"))}{", complete week" if datetime.strptime(dg["date"], "%Y-%m-%d").weekday() >= 4 else ""}, pounds by machine and day</span></div>

@@ -124,3 +124,23 @@ def test_report_rows_follow_the_machine_reading_order() -> None:
     dg = dd.build_digest(_df(), status, date(2026, 9, 21))
     r = next(x for x in dg["reports"] if x["shift"] == "1st")
     assert [m["machine"] for m in r["machines"]] == ["EXTRUDER", "AUTO TIE BALER", "GUILLOTINE", "REPACKAGING"]
+
+
+def test_mix_blends_toward_white() -> None:
+    assert dd.mix("#2a78d6", 1.0) == "#2a78d6" and dd.mix("#000000", 0.5) == "#808080"
+
+
+def test_bars_follow_the_reading_order_with_shift_split_and_normal() -> None:
+    b = dd.bars_for_day(_df(), date(2026, 9, 21))
+    assert [r["machine"] for r in b["rows"]] == ["EXTRUDER", "GUILLOTINE"]
+    ext = b["rows"][0]
+    assert ext["by_shift"]["1st"] == 5000 and ext["lbs"] == 10000 and ext["normal"] == 10500 and ext["pct"] == -5   # earlier Mondays: 5100..5400 per shift
+    assert b["normal_days"] == 4 and b["total"] == 22000
+
+
+def test_email_carries_the_bars_as_cells_not_images() -> None:
+    dg = dd.build_digest(_df(), STATUS, date(2026, 9, 21))
+    html = dd.render_email(dg)
+    assert "Pounds by machine" in html and 'bgcolor="#2a78d6"' in html and "<img" not in html
+    assert 'bgcolor="#4b5563"' in html                        # the normal-day tick is a 2px cell
+    assert html.index("Pounds by machine") < html.index("Week at a glance")
