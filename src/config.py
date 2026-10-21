@@ -32,6 +32,18 @@ OT_MULTIPLIER_2: float = 2.0   # Overtime tier 2 multiplier
 # Machine definitions
 # ---------------------------------------------------------------------------
 
+# Reading order for machines on the dashboard and in the daily email, the same whichever day or
+# week is shown; a machine with no output is left out, never re-ranked. Unknown machines follow.
+MACHINE_ORDER: tuple[str, ...] = ("EXTRUDER", "GRINDER", "AUTO TIE BALER", "SHREDDER", "GREEN MAX DENSIFIER (NEW)",
+                                  "AVANGUARD DENSIFIER (OLD)", "GUILLOTINE")
+
+
+def machine_rank(name: str) -> int:
+    """Position of a machine in MACHINE_ORDER; unknown machines sort after the listed ones."""
+    key = str(name or "").strip().upper()
+    return MACHINE_ORDER.index(key) if key in MACHINE_ORDER else len(MACHINE_ORDER)
+
+
 # Row ranges for each machine in the Excel processing sheets (used by aggregation)
 MACHINE_DATA_RANGES: dict[str, tuple[int, int]] = {
     "AUTO TIE BALER": (4, 13),

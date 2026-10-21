@@ -35,7 +35,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from config import DATA_DIR, PROJECT_ROOT, WALTON_CONFIG_DIR  # noqa: E402
+from config import DATA_DIR, PROJECT_ROOT, WALTON_CONFIG_DIR, machine_rank  # noqa: E402
 
 AGG_PATH = DATA_DIR / "aggregated_daily_data.xlsx"
 STATUS_PATH = DATA_DIR / "cietrade_status.json"
@@ -88,7 +88,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
         piv = s.pivot_table(index="Machine_Name", columns="Date", values="lbs", aggfunc="sum").reindex(columns=wdays).fillna(0.0)
         piv = piv[piv.sum(axis=1) > 0]
         rows = [{"machine": m, "days": [round(float(v)) for v in piv.loc[m]], "wtd": round(float(piv.loc[m].sum()))}
-                for m in piv.sum(axis=1).sort_values(ascending=False).index]
+                for m in sorted(piv.index, key=machine_rank)]                      # the dashboard's reading order, not rank
         totals = [round(float(v)) for v in piv.sum(axis=0)] if len(piv) else [0 for _ in wdays]
         week_by_shift.append({"shift": sh, "rows": rows, "totals": totals, "wtd": sum(totals), "day": totals[-1] if totals else 0})
     plant_days = [round(float(wk[wk["Date"] == x]["lbs"].sum())) for x in wdays]
@@ -103,7 +103,7 @@ def build_digest(df: pd.DataFrame, status: dict, for_date: date) -> dict:
         machines = [{"machine": m.get("machine", ""), "machine_hours": m.get("machine_hours"), "man_hours": m.get("man_hours"),
                      "operators": m.get("operators", "") or "", "material": m.get("material", "") or "",
                      "downtime_min": m.get("downtime_min") or 0, "reason": m.get("reason", "") or "", "comment": m.get("comment", "") or ""}
-                    for m in r.get("machines", [])]
+                    for m in sorted(r.get("machines", []), key=lambda m: machine_rank(m.get("machine", "")))]
         reports.append({"shift": sh, "filed": True, "by": r.get("by", ""), "filed_at": r.get("filed_at", ""), "machines": machines,
                         "notes": list(r.get("notes", [])),
                         "machine_h": round(sum((m["machine_hours"] or 0) for m in machines), 2),

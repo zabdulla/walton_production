@@ -44,7 +44,7 @@ def test_build_digest_week_by_shift_and_reports() -> None:
     assert dg["day_total"] == 22000 and dg["week"]["days"] == ["Mon 21"] and dg["week"]["plant_wtd"] == 22000
     first = dg["week"]["by_shift"][0]
     assert first["shift"] == "1st" and first["wtd"] == 11000 and first["day"] == 11000
-    assert [r["machine"] for r in first["rows"]] == ["GUILLOTINE", "EXTRUDER"]          # rolls counted in when no output is booked
+    assert [r["machine"] for r in first["rows"]] == ["EXTRUDER", "GUILLOTINE"]          # reading order; Guillotine's rolls count as output
     assert next(r for r in first["rows"] if r["machine"] == "EXTRUDER")["days"] == [5000]
     assert dg["week"]["by_shift"][2]["rows"] == [] and dg["week"]["by_shift"][2]["wtd"] == 0
     reps = {r["shift"]: r for r in dg["reports"]}
@@ -112,3 +112,15 @@ def test_email_links_the_dashboard_and_the_classic_site() -> None:
     assert html.count('href="https://zabdulla.github.io/walton_production/"') == 2          # top and bottom banners
     assert html.count('href="https://zabdulla.github.io/walton_production/classic/"') == 2
     assert "Production dashboard" in html and "Classic dashboard" in html and "beta" not in html.lower()
+
+
+def test_report_rows_follow_the_machine_reading_order() -> None:
+    """A form filed Guillotine-first still reads Extruder, Grinder, Auto Tie Baler, ..., Guillotine in the email."""
+    import copy
+    status = copy.deepcopy(STATUS)
+    status["end_of_shift"]["reports"][0]["machines"] = [
+        {"machine": "GUILLOTINE", "machine_hours": 7, "man_hours": 7}, {"machine": "AUTO TIE BALER", "machine_hours": 7, "man_hours": 7},
+        {"machine": "EXTRUDER", "machine_hours": 7, "man_hours": 14}, {"machine": "REPACKAGING", "machine_hours": 1, "man_hours": 1}]
+    dg = dd.build_digest(_df(), status, date(2026, 9, 21))
+    r = next(x for x in dg["reports"] if x["shift"] == "1st")
+    assert [m["machine"] for m in r["machines"]] == ["EXTRUDER", "AUTO TIE BALER", "GUILLOTINE", "REPACKAGING"]
