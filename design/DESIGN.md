@@ -51,9 +51,14 @@ name dates from its beta period) from the same data as the classic site, which m
     one card per shift with a dashed card where none was filed; a week picker.
   - *Machines*: one small chart per machine, 20 complete weeks, the 4-week average as
     the line, raw weeks as a faint step behind, latest value labelled; a shift selector
-    and a metric selector (pounds, lbs per machine hour, labor $ per machine hour,
-    labor $ per lb). Per-hour figures use only rows with reported hours, and the rolling
-    average is a ratio of sums, so a week without hours is a gap, not a zero.
+    and a metric selector (pounds, lbs per machine hour, labor $ per lb). Per-hour
+    figures use only rows with reported hours, and the rolling average is a ratio of
+    sums, so a week without hours is a gap, not a zero. A ratio chart is scaled to its
+    average line and raw weeks above the plot are clipped, since one week with a few
+    reported hours can be many times the rest.
+  - Machines are listed in one fixed reading order on every view (Extruder, Grinder,
+    Auto Tie Baler, Shredder, densifiers, Guillotine), whichever day or week is
+    selected; a machine with no output is left out, never re-ranked.
   - *More*: links to the classic dashboard, its daily details, the End of Shift form and
     the wall screen.
   - *Wall screen* (`docs/wall/`, built by the same script): dark, large type, nothing to

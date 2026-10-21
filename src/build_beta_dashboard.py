@@ -33,6 +33,8 @@ SHIFTS = ("1st", "2nd", "3rd", "unspecified")
 EMBED_WEEKS = 26                                   # complete weeks carried in the page, plus the current one
 # Fixed categorical slot per machine (validated order, see design/DESIGN.md). Colour follows the entity.
 MACHINE_SLOT = {"EXTRUDER": 1, "AUTO TIE BALER": 2, "GRINDER": 3, "GUILLOTINE": 4, "SHREDDER": 5, "GREEN MAX DENSIFIER (NEW)": 6}
+# Reading order on every view, the same whichever day or week is selected; machines without output are left out, never re-ranked.
+MACHINE_ORDER = ("EXTRUDER", "GRINDER", "AUTO TIE BALER", "SHREDDER", "GREEN MAX DENSIFIER (NEW)", "AVANGUARD DENSIFIER (OLD)", "GUILLOTINE")
 SLOT_HEX = {1: "#2a78d6", 2: "#eb6834", 3: "#1baf7a", 4: "#eda100", 5: "#e87ba4", 6: "#008300", 7: "#4a3aa7"}
 PRETTY = {"AUTO TIE BALER": "Auto Tie Baler", "GREEN MAX DENSIFIER (NEW)": "Green Max Densifier", "AVANGUARD DENSIFIER (OLD)": "Avanguard Densifier",
           "SMALL GRINDER": "Small Grinder", "BALER 1": "Baler 1", "BALER 2": "Baler 2"}
@@ -72,7 +74,8 @@ def dataset(df: pd.DataFrame, status: dict, today: date | None = None, weeks: in
     g = d.groupby(["Date", "Shift", "Machine_Name"], as_index=False).agg(lbs=("lbs", "sum"), mh=("Machine_Hours", "sum"), manh=("Man_Hours", "sum"), cost=("Total_Expense", "sum"))
     g = g[(g["lbs"] != 0) | (g["mh"] > 0) | (g["cost"] > 0)]
     totals = g.groupby("Machine_Name")["lbs"].sum()
-    machines = sorted(totals.index, key=lambda m: (MACHINE_SLOT.get(m, 7), -totals[m]))
+    rank = {m: i for i, m in enumerate(MACHINE_ORDER)}
+    machines = sorted(totals.index, key=lambda m: (rank.get(m, len(MACHINE_ORDER)), -totals[m]))
     dates = sorted(x.strftime("%Y-%m-%d") for x in g["Date"].unique())
     di = {s: i for i, s in enumerate(dates)}
     mi = {m: i for i, m in enumerate(machines)}
@@ -152,7 +155,7 @@ a { color:var(--brand-ink); }
 .card-head { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:4px 14px; margin-bottom:8px; }
 .card h2 { margin:0; font-size:16px; font-weight:650; } .card-meta { font-size:12px; color:var(--muted); } .card-foot { font-size:12px; color:var(--muted); margin-top:8px; }
 /* headline bars (Today) */
-.bars { display:grid; gap:8px; margin-top:6px; }
+.bars { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; margin-top:6px; }
 .bar-row { display:grid; grid-template-columns:10px 150px minmax(0,1fr) 72px; gap:10px; align-items:center; font-size:14px; }
 .bar-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .bar-track { position:relative; height:22px; background:var(--track); border-radius:0 4px 4px 0; }
@@ -161,7 +164,7 @@ a { color:var(--brand-ink); }
 .bar-seg span { position:absolute; left:6px; top:0; line-height:22px; font-size:10px; font-weight:600; letter-spacing:.04em; color:#fff; opacity:.9; white-space:nowrap; }
 :root[data-theme="dark"] .bar-seg span { color:#111; } @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bar-seg span { color:#111; } }
 .bar-norm { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink-2); }
-.bar-val { text-align:right; font-weight:650; font-variant-numeric:tabular-nums; } .bar-sub { grid-column:2/5; font-size:11px; color:var(--muted); margin-top:-6px; }
+.bar-val { text-align:right; font-weight:650; font-variant-numeric:tabular-nums; } .bar-sub { grid-column:2/5; font-size:11px; color:var(--muted); margin-top:-4px; }
 .bar-val small { display:block; font-size:11px; font-weight:500; }
 .empty { color:var(--muted); font-size:14px; padding:8px 0; }
 .flags { list-style:none; margin:8px 0 0; padding:0; font-size:13px; color:var(--ink-2); } .flags:empty { display:none; }
@@ -278,8 +281,8 @@ JS = r"""
 
   // ---- aggregation over the embedded rows: [dateIdx, shiftIdx, machineIdx, lbs, mh, manh, cost]
   const shiftOk = (r, sh) => sh === "all" || D.shifts[r[1]] === sh;
-  function acc() { return { lbs: 0, mh: 0, lbs_h: 0, cost: 0, mh_c: 0, cost_c: 0, lbs_c: 0, manh: 0 }; }
-  function add(a, r) { a.lbs += r[3]; a.manh += r[5]; if (r[4] > 0) { a.mh += r[4]; a.lbs_h += r[3]; if (r[6] > 0) { a.mh_c += r[4]; a.cost_c += r[6]; } } if (r[6] > 0) { a.cost += r[6]; a.lbs_c += r[3]; } }
+  function acc() { return { lbs: 0, mh: 0, lbs_h: 0, cost: 0, lbs_c: 0, manh: 0 }; }
+  function add(a, r) { a.lbs += r[3]; a.manh += r[5]; if (r[4] > 0) { a.mh += r[4]; a.lbs_h += r[3]; } if (r[6] > 0) { a.cost += r[6]; a.lbs_c += r[3]; } }
   function aggBy(pred, keyFn) { const out = new Map(); for (const r of D.rows) { if (!pred(r)) continue; const k = keyFn(r); let a = out.get(k); if (!a) { a = acc(); out.set(k, a); } add(a, r); } return out; }
   const byMachine = pred => aggBy(pred, r => D.machines[r[2]]);
   const sumLbs = pred => { let t = 0; for (const r of D.rows) if (pred(r)) t += r[3]; return t; };
@@ -312,6 +315,8 @@ JS = r"""
   document.addEventListener("pointerdown", ev => { if (!ev.target.closest(".bar-seg, svg.facet, svg.stack")) hideTip(); });
   const swatch = m => '<span class="sw" style="background:' + h(D.colors[m] || "#4a3aa7") + '"></span>';
   const name = m => D.names[m] || m;
+  const rank = m => { const i = D.machines.indexOf(m); return i < 0 ? 1e9 : i; };   // the fixed reading order from the data
+  const byOrder = key => (a, b) => rank(key(a)) - rank(key(b));
   const shiftOptions = [["all", "All shifts"], ["1st", "1st"], ["2nd", "2nd"], ["3rd", "3rd"]];
   const SHIFT_ORDER = ["1st", "2nd", "3rd"], SHADE = { "1st": 1, "2nd": 0.72, "3rd": 0.46, other: 0.28 };
   const shiftWord = sh => sh === "all" ? "all shifts" : sh + " shift";
@@ -343,7 +348,7 @@ JS = r"""
       per.forEach((a, m) => { a.by = {}; ps.forEach((v, k) => { if (k.startsWith(m + "|")) a.by[k.split("|")[1]] = v.lbs; }); });
     }
     const norm = normalFor(day, sh);
-    const ms = [...per.entries()].filter(([, a]) => a.lbs > 0).sort((a, b) => b[1].lbs - a[1].lbs);
+    const ms = [...per.entries()].filter(([, a]) => a.lbs > 0).sort(byOrder(x => x[0]));
     let max = 1; ms.forEach(([m, a]) => { max = Math.max(max, a.lbs, (norm.per.get(m) || {}).lbs || 0); });
     const total = ms.reduce((t, [, a]) => t + a.lbs, 0);
     $("#todayTitle").textContent = "Pounds by machine · " + fmtDay(day) + (isLive ? " so far" : "") + (sh === "all" ? "" : " · " + sh + " shift");
@@ -362,10 +367,10 @@ JS = r"""
       } else fill = '<div class="bar-fill" style="width:' + (100 * a.lbs / max).toFixed(1) + '%;background:' + col + '"></div>';
       return '<div class="bar-row" data-lbs="' + Math.round(a.lbs) + '">' + swatch(m) + '<span class="bar-name">' + h(name(m)) + '</span><div class="bar-track">' + fill
         + (nv ? '<div class="bar-norm" style="left:' + (100 * nv / max).toFixed(1) + '%" title="normal ' + fmt(nv) + '"></div>' : "") + '</div>'
-        + '<span class="bar-val">' + fmt(a.lbs) + (p === null ? "" : '<small class="' + (p >= 0 ? "up" : "down") + '">' + (p >= 0 ? "+" : "") + p + '%</small>') + '</span></div>'
-        + (a.flag ? '<div class="bar-sub warn">quiet ' + a.quiet + ' min</div>' : ""); }).join("");
+        + '<span class="bar-val">' + fmt(a.lbs) + (p === null ? "" : '<small class="' + (p >= 0 ? "up" : "down") + '">' + (p >= 0 ? "+" : "") + p + '%</small>') + '</span>'
+        + (a.flag ? '<div class="bar-sub warn">quiet ' + a.quiet + ' min</div>' : "") + '</div>'; }).join("");
     $$(".bar-seg", bars).forEach(el => {
-      const lab = el.firstChild; lab.style.visibility = el.clientWidth >= 26 ? "" : "hidden";
+      const lab = el.firstChild; lab.style.visibility = el.clientWidth >= lab.scrollWidth + 12 ? "" : "hidden";
       const row = el.closest(".bar-row"), mname = row.querySelector(".bar-name").textContent, dayLbs = +row.dataset.lbs;
       const shiftName = lab.textContent || "other", lbsSeg = +el.dataset.lbs;
       const on = ev => { ev.stopPropagation(); showTip(ev, mname + " · " + shiftName + " shift", [["Pounds", fmt(lbsSeg)], ["Share of the day", Math.round(100 * lbsSeg / Math.max(dayLbs, 1)) + "%"], ["Machine total", fmt(dayLbs)]]); };
@@ -449,7 +454,7 @@ JS = r"""
   }
   function renderLiveTiles(L) {                          // one tile per machine: pounds today, split by shift
     const box = $("#liveTiles"); box.replaceChildren();
-    const ms = L.machines || [];
+    const ms = (L.machines || []).slice().sort(byOrder(m => m.m));
     if (!ms.length) { const t = document.createElement("div"); t.className = "tile empty"; t.textContent = "Nothing entered yet this production day."; box.appendChild(t); return; }
     ms.forEach(m => {
       const t = document.createElement("div"); t.className = "tile";
@@ -565,7 +570,7 @@ JS = r"""
       sh === "all" ? [["Pounds", fmt(el.dataset.v)], ["Machine, all shifts", fmt(el.dataset.mv)], ["Day total", fmt(el.dataset.t)]] : [["Pounds", fmt(el.dataset.v)], ["Day total", fmt(el.dataset.t)]]);
       el.addEventListener("pointermove", on); el.addEventListener("pointerdown", on); el.addEventListener("pointerleave", leaveTip); });
     // table
-    const rows = machines.map(m => ({ m, days: days.map(d => val(d, m)), total: days.reduce((t, d) => t + val(d, m), 0) })).sort((a, b) => b.total - a.total);
+    const rows = machines.map(m => ({ m, days: days.map(d => val(d, m)), total: days.reduce((t, d) => t + val(d, m), 0) }));
     $("#weekTable").innerHTML = !rows.length ? '<div class="empty">Nothing booked' + (sh === "all" ? "" : " to the " + sh + " shift") + ' this week.</div>'
       : '<div class="table-wrap"><table><thead><tr><th>Machine</th>' + days.map(d => '<th class="num">' + fmtDay(d, { weekday: "short", day: "numeric" }) + '</th>').join("") + '<th class="num">Week</th></tr></thead><tbody>'
         + rows.map(r => '<tr><td class="mname">' + swatch(r.m) + h(name(r.m)) + '</td>' + r.days.map(v => '<td class="num">' + (v ? fmt(v) : '<span class="muted">–</span>') + '</td>').join("") + '<td class="num total">' + fmt(r.total) + '</td></tr>').join("")
@@ -610,27 +615,34 @@ JS = r"""
   }
 
   // ---- Machines
-  const METRICS = { lbs: ["Pounds", "lbs/wk", v => compact(v)], lbs_h: ["Lbs per hour", "lbs per machine hour", v => fmt(v)], cost_h: ["Labor $ per hour", "labor $ per machine hour", v => money(v, 0)], cost_lb: ["Labor $ per lb", "labor $ per lb", v => money(v, 3)] };
+  const METRICS = { lbs: ["Pounds", "lbs/wk", v => compact(v)], lbs_h: ["Lbs per hour", "lbs per machine hour", v => fmt(v)], cost_lb: ["Labor $ per lb", "labor $ per lb", v => money(v, 3)] };
+  // Pounds scale to the largest week; a ratio scales to its average line, since one week with a few reported hours can be 20x the
+  // rest and would flatten the line that matters. Raw weeks above the plot are clipped at the top.
+  function scaleOf(f) {
+    const avg = f.avg.filter(v => v !== null), raw = f.raw.filter(v => v !== null);
+    if (f.k === "lbs" || !avg.length) return Math.max(1e-9, ...avg, ...raw) * 1.08;
+    const top = Math.max(...avg); return Math.max(1e-9, top, ...raw.filter(v => v <= top * 1.6)) * 1.15;
+  }
   const M = { shift: "all", metric: "lbs" };
   const completeWeeks = allWeeks.filter(w => w < curWeek);
-  function metricOf(a, k) { if (!a) return k === "lbs" ? 0 : null; if (k === "lbs") return a.lbs; if (k === "lbs_h") return a.mh > 0 ? a.lbs_h / a.mh : null; if (k === "cost_h") return a.mh_c > 0 ? a.cost_c / a.mh_c : null; return a.lbs_c > 0 ? a.cost / a.lbs_c : null; }
+  function metricOf(a, k) { if (!a) return k === "lbs" ? 0 : null; if (k === "lbs") return a.lbs; if (k === "lbs_h") return a.mh > 0 ? a.lbs_h / a.mh : null; return a.lbs_c > 0 ? a.cost / a.lbs_c : null; }
   function rollOf(list, k) {                           // ratio of sums over the window; a plain mean for pounds
     const s = acc(); let n = 0; list.forEach(a => { n++; if (!a) return; for (const f in s) s[f] += a[f]; });
     if (k === "lbs") return n ? s.lbs / n : null; return metricOf(s, k);
   }
   function facetSvg(f, fmtV) {
     const width = 320, height = 128, top = 10, bottom = 20, left = 8, right = 62, pw = width - left - right, ph = height - top - bottom;
-    const vals = f.raw.concat(f.avg).filter(v => v !== null), vmax = Math.max(1, ...vals) * 1.08, k = f.avg.length;
+    const vmax = scaleOf(f), k = f.avg.length, clip = "clip" + f.m.replace(/\W/g, "");
     const x = i => left + pw * i / Math.max(k - 1, 1), y = v => top + ph - ph * v / vmax;
     const lastI = (() => { for (let i = k - 1; i >= 0; i--) if (f.avg[i] !== null) return i; return -1; })();
     const ye = lastI >= 0 ? y(f.avg[lastI]) : null;
-    let s = '<svg class="facet" viewBox="0 0 ' + width + " " + height + '" role="img" aria-label="' + h(name(f.m)) + '">';
+    let s = '<svg class="facet" viewBox="0 0 ' + width + " " + height + '" role="img" aria-label="' + h(name(f.m)) + '"><defs><clipPath id="' + clip + '"><rect x="0" y="0" width="' + (left + pw + 1) + '" height="' + (top + ph + 1) + '"/></clipPath></defs>';
     [vmax * 0.5, vmax * 0.9].forEach(g => { s += '<line x1="' + left + '" x2="' + (left + pw) + '" y1="' + y(g).toFixed(1) + '" y2="' + y(g).toFixed(1) + '" class="grid"/>';
       if (ye === null || Math.abs(y(g) - ye) > 12) s += '<text x="' + (left + pw + 4) + '" y="' + (y(g) + 3).toFixed(1) + '" class="tick">' + fmtV(g) + '</text>'; });
     s += '<line x1="' + left + '" x2="' + (left + pw) + '" y1="' + y(0).toFixed(1) + '" y2="' + y(0).toFixed(1) + '" class="axis"/>';
     const poly = (arr, cls) => { let out = "", run = []; const flush = () => { if (run.length) out += '<polyline points="' + run.join(" ") + '" class="' + cls + '"/>'; run = []; };
       arr.forEach((v, i) => { if (v === null) flush(); else run.push(x(i).toFixed(1) + "," + y(v).toFixed(1)); }); flush(); return out; };
-    s += poly(f.raw, "raw") + poly(f.avg, "avg");
+    s += '<g clip-path="url(#' + clip + ')">' + poly(f.raw, "raw") + '</g>' + poly(f.avg, "avg");
     if (lastI >= 0) s += '<circle cx="' + x(lastI).toFixed(1) + '" cy="' + ye.toFixed(1) + '" r="4.5" class="end"/><text x="' + (left + pw + 4) + '" y="' + (ye + 4).toFixed(1) + '" class="endlab">' + fmtV(f.avg[lastI]) + '</text>';
     s += '<text x="' + left + '" y="' + (height - 6) + '" class="tick">' + fmtDay(f.weeks[0], { month: "short", day: "numeric" }) + '</text><text x="' + (left + pw) + '" y="' + (height - 6) + '" class="tick" text-anchor="end">' + fmtDay(f.weeks[k - 1], { month: "short", day: "numeric" }) + '</text>';
     s += '<line class="xh" style="display:none"/><circle class="hover-dot" r="4" style="display:none"/></svg>';
@@ -647,9 +659,8 @@ JS = r"""
       const avg = shown.map(w => { const i = span.indexOf(w); return rollOf(span.slice(Math.max(0, i - win + 1), i + 1).map(x => per.get(x + "|" + m)), k); });
       const lastI = avg.map((v, i) => v === null ? -1 : i).filter(i => i >= 0).pop();
       const last = lastI === undefined ? null : avg[lastI], prev = lastI !== undefined && lastI - win >= 0 ? avg[lastI - win] : null;
-      facets.push({ m, weeks: shown, raw, avg, last, prev });
+      facets.push({ m, k, weeks: shown, raw, avg, last, prev });
     });
-    facets.sort((a, b) => (b.last || 0) - (a.last || 0));
     $("#machNote").textContent = mlabel + " per machine by week, last " + D.facet_weeks + " complete weeks" + (sh === "all" ? "" : ", " + sh + " shift") + ". The line is the " + win + "-week average; the faint trace is each week as booked. Hover or tap a chart for values." + (k === "lbs" ? "" : " Hour and cost figures use only rows where hours were reported (the End of Shift form), so weeks without them show a gap. Labor cost is man hours at the operator rate; no overhead is added.");
     $("#facets").innerHTML = !facets.length ? '<div class="empty">No ' + mlabel.toLowerCase() + ' data for this selection.</div>' : facets.map(f => {
       const [sub, tone] = f.prev !== null && f.last !== null ? deltaHtml(f.last, f.prev, win + " weeks ago") : ["", ""];
@@ -658,7 +669,7 @@ JS = r"""
     $$("svg.facet", $("#facets")).forEach((svg, i) => {
       const f = facets[i], vb = svg.viewBox.baseVal, kk = f.avg.length, left = 8, pw = vb.width - 8 - 62, x = j => left + pw * j / Math.max(kk - 1, 1);
       const xh = $(".xh", svg), dot = $(".hover-dot", svg);
-      const vals = f.raw.concat(f.avg).filter(v => v !== null), vmax = Math.max(1, ...vals) * 1.08, y = v => 10 + (vb.height - 30) - (vb.height - 30) * v / vmax;
+      const vmax = scaleOf(f), y = v => 10 + (vb.height - 30) - (vb.height - 30) * v / vmax;
       function at(ev) { const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * vb.width / r.width; let j = Math.round((px - left) / pw * Math.max(kk - 1, 1)); j = Math.max(0, Math.min(kk - 1, j));
         xh.setAttribute("x1", x(j)); xh.setAttribute("x2", x(j)); xh.setAttribute("y1", 4); xh.setAttribute("y2", vb.height - 18); xh.style.display = "";
         if (f.avg[j] !== null) { dot.setAttribute("cx", x(j)); dot.setAttribute("cy", y(f.avg[j])); dot.style.display = ""; } else dot.style.display = "none";
@@ -851,7 +862,8 @@ WALL_JS = r"""
     const per = new Map((L.machines || []).map(m => [m.m, m.lbs]));
     const usual = norm ? Object.keys(norm.per) : [];
     usual.forEach(m => { if (!per.has(m)) per.set(m, 0); });
-    const rows = [...per.entries()].sort((a, b) => b[1] - a[1]);
+    const rank = m => { const i = (D.machines || []).indexOf(m); return i < 0 ? 1e9 : i; };
+    const rows = [...per.entries()].sort((a, b) => rank(a[0]) - rank(b[0]));
     const max = Math.max(1, ...rows.map(r => r[1]), ...rows.map(r => (norm && norm.per[r[0]]) || 0));
     $("#bars").innerHTML = rows.map(([m, v]) => { const nv = (norm && norm.per[m]) || 0;
       return '<div class="nm' + (v ? "" : " idle") + '"><span class="sw" style="background:' + h(col(m)) + (v ? "" : ";opacity:.5") + '"></span>' + h(name(m)) + '</div>'
@@ -877,7 +889,7 @@ WALL_JS = r"""
 
 def render_wall(D: dict) -> str:
     """The wall screen: today so far in large type for a TV on the floor; nothing to tap."""
-    small = {k: D[k] for k in ("feed", "names", "colors", "normals", "shift_hours")}
+    small = {k: D[k] for k in ("feed", "machines", "names", "colors", "normals", "shift_hours")}
     small["reports"] = [{"date": r["date"], "shift": r["shift"], "by": r.get("by", "")} for r in D["reports"][-12:]]
     data = json.dumps(small, separators=(",", ":")).replace("</", "<\\/")
     return f"""<!DOCTYPE html>
