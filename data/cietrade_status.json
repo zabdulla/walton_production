@@ -1,6 +1,18 @@
 {
  "shift_flags": [
   {
+   "date": "2026-10-22",
+   "shift": "2nd",
+   "from_shift": "1st",
+   "kind": "reassigned",
+   "machine": "AUTO TIE BALER",
+   "job": 17144,
+   "lbs": 4548,
+   "windows": 3,
+   "first": "2026-10-22T15:26",
+   "last": "2026-10-22T17:47"
+  },
+  {
    "date": "2026-10-21",
    "shift": "2nd",
    "from_shift": "1st",
@@ -179,26 +191,14 @@
    "windows": 2,
    "first": "2026-10-02T04:43",
    "last": "2026-10-02T05:20"
-  },
-  {
-   "date": "2026-09-24",
-   "shift": "3rd",
-   "from_shift": "2nd",
-   "kind": "reassigned",
-   "machine": "SHREDDER",
-   "job": 17139,
-   "lbs": 1400,
-   "windows": 3,
-   "first": "2026-09-25T01:43",
-   "last": "2026-09-25T04:48"
   }
  ],
  "data_through": "2026-10-22",
- "last_poll": "2026-10-22T00:49:05",
- "last_snapshot": "2026-10-22T00:49:05",
- "polls": 5174,
+ "last_poll": "2026-10-22T20:55:52",
+ "last_snapshot": "2026-10-22T19:59:13",
+ "polls": 5297,
  "open_jobs": 18,
- "open_lbs": 376286,
+ "open_lbs": 440551,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -212,66 +212,6 @@
   "2027-01-01"
  ],
  "awaiting": [
-  [
-   "2026-10-22",
-   "1st",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-10-22",
-   "1st",
-   "EXTRUDER"
-  ],
-  [
-   "2026-10-22",
-   "1st",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-10-22",
-   "1st",
-   "GRINDER"
-  ],
-  [
-   "2026-10-22",
-   "1st",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-10-22",
-   "1st",
-   "SHREDDER"
-  ],
-  [
-   "2026-10-22",
-   "2nd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-10-22",
-   "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-10-22",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-10-22",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-10-22",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-10-22",
-   "2nd",
-   "SHREDDER"
-  ],
   [
    "2026-10-22",
    "3rd",
@@ -306,7 +246,7 @@
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "3 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
-  "16 shift-day(s) with entries made during another shift's hours (47,391 lbs), credited to the shift on the clock",
+  "17 shift-day(s) with entries made during another shift's hours (51,939 lbs), credited to the shift on the clock",
   "5 weekend/closure shift-day(s) (22,466 lbs) kept on their own days"
  ],
  "end_of_shift": {
@@ -319,7 +259,12 @@
       "filed": false
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon",
+      "machines": 2,
+      "machine_hours": 11.2,
+      "man_hours": 11.2,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -346,7 +291,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 3,
+      "machine_hours": 17.3,
+      "man_hours": 22.6,
+      "downtime_min": 90
      }
     }
    },
@@ -461,10 +411,20 @@
     }
    }
   ],
-  "filed": 10,
-  "entries": 241,
-  "last_filed": "2026-10-21",
+  "filed": 12,
+  "entries": 246,
+  "last_filed": "2026-10-22",
   "recent": [
+   {
+    "date": "2026-10-21",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, Daniel",
+    "hours": 5.3,
+    "downtime_min": 90,
+    "reason": "",
+    "comment": "Screen change and blades at start of shift \nCutter backup at 2:30 had to clean cutter out\nThan do another screen and blade change"
+   },
    {
     "date": "2026-10-21",
     "shift": "2nd",
@@ -554,19 +514,19 @@
     "downtime_min": 60,
     "reason": "",
     "comment": "Maintenance did screen change and had to change the blades 3 times"
-   },
-   {
-    "date": "2026-10-16",
-    "shift": "1st",
-    "machine": "GRINDER",
-    "operator": "Anthony",
-    "hours": 7.25,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Training"
    }
   ],
   "notes": [
+   {
+    "date": "2026-10-22",
+    "shift": "2nd",
+    "note": "Brandon was on maintenance Steven a was cleaning Tevin was cleaning"
+   },
+   {
+    "date": "2026-10-21",
+    "shift": "3rd",
+    "note": "Dee was transferring small boxes of bopp into big boxes as requested by Tim"
+   },
    {
     "date": "2026-10-21",
     "shift": "2nd",
@@ -586,19 +546,83 @@
     "date": "2026-10-16",
     "shift": "2nd",
     "note": "Steven a was cleaning"
-   },
-   {
-    "date": "2026-10-15",
-    "shift": "2nd",
-    "note": "The new guy was on the extruder too"
-   },
-   {
-    "date": "2026-10-15",
-    "shift": "1st",
-    "note": "Kemonica was cleaning and moving material"
    }
   ],
   "reports": [
+   {
+    "date": "2026-10-22",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "10/22/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 5.2,
+      "man_hours": 5.2,
+      "operators": "Steven B",
+      "material": "Mixed Plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 6.0,
+      "man_hours": 6.0,
+      "operators": "Andrew",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Brandon was on maintenance Steven a was cleaning Tevin was cleaning"
+    ]
+   },
+   {
+    "date": "2026-10-21",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "10/22/2026",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Darius",
+      "material": "Hdpe",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.3,
+      "man_hours": 10.6,
+      "operators": "Connor, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 90,
+      "reason": "",
+      "comment": "Screen change and blades at start of shift \nCutter backup at 2:30 had to clean cutter out\nThan do another screen and blade change"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Daniel",
+      "material": "BOPP slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Dee was transferring small boxes of bopp into big boxes as requested by Tim"
+    ]
+   },
    {
     "date": "2026-10-21",
     "shift": "2nd",
@@ -2990,5 +3014,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-22T00:49:21"
+ "generated": "2026-10-22T20:56:14"
 }
