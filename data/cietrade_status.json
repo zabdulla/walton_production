@@ -217,10 +217,10 @@
    "last": "2026-10-02T05:20"
   }
  ],
- "data_through": "2026-10-24",
- "last_poll": "2026-10-24T13:06:16",
- "last_snapshot": "2026-10-24T11:13:17",
- "polls": 5554,
+ "data_through": "2026-10-25",
+ "last_poll": "2026-10-25T09:15:08",
+ "last_snapshot": "2026-10-25T00:02:00",
+ "polls": 5683,
  "open_jobs": 18,
  "open_lbs": 499430,
  "from_date": "2026-08-24",
@@ -243,8 +243,22 @@
   "7 weekend/closure shift-day(s) (32,860 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-24",
+  "as_of": "2026-10-25",
   "days": [
+   {
+    "date": "2026-10-25",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-10-24",
     "shifts": {
@@ -381,20 +395,6 @@
       "machine_hours": 16.0,
       "man_hours": 21.0,
       "downtime_min": 120
-     }
-    }
-   },
-   {
-    "date": "2026-10-18",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
      }
     }
    }
@@ -2994,5 +2994,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-24T13:06:34"
+ "generated": "2026-10-25T09:15:31"
 }
