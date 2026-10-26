@@ -26,6 +26,9 @@ name: cieTrade poll
 # cannot edit gists). Without GIST_TOKEN the Live card is not refreshed, but
 # the deployed dashboards still are. Optional: SHEETS_TOKEN_JSON and
 # WALTON_LABOR_SHEET_ID pull End of Shift hours from the web app's sheet
+# (or, with the repository variable EOS_SOURCE=microsoft, GRAPH_* and
+# EOS_WORKBOOK_URL read the Excel log in SharePoint; MAIL_PROVIDER=microsoft
+# sends the daily email from the Outlook mailbox — setup/MICROSOFT_365_SETUP.md)
 # (setup/LABOR_CAPTURE.md). See setup/CIETRADE_API.md.
 #
 # Timing: GitHub's cron is unreliable for this repo — its scheduled runs have
@@ -136,7 +139,22 @@ jobs:
         env:
           SHEETS_TOKEN_JSON: ${{ secrets.SHEETS_TOKEN_JSON }}
           WALTON_LABOR_SHEET_ID: ${{ secrets.WALTON_LABOR_SHEET_ID }}
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER || 'google' }}
+          EOS_SOURCE: ${{ vars.EOS_SOURCE || 'google' }}
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
+          EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
         run: |
+          if [ "$EOS_SOURCE" = "microsoft" ]; then
+            if [ -z "$GRAPH_CLIENT_SECRET" ] || [ -z "$EOS_WORKBOOK_URL" ]; then
+              echo "::warning::EOS_SOURCE=microsoft but GRAPH_CLIENT_SECRET / EOS_WORKBOOK_URL not set — dashboards carry output only, no hours."
+              exit 0
+            fi
+            python3 src/labor_sheet.py
+            exit 0
+          fi
           if [ -z "$SHEETS_TOKEN_JSON" ] || [ -z "$WALTON_LABOR_SHEET_ID" ]; then
             echo "::warning::SHEETS_TOKEN_JSON / WALTON_LABOR_SHEET_ID not set — dashboards carry output only, no hours."
             exit 0
@@ -167,8 +185,19 @@ jobs:
           DIGEST_TO: ${{ secrets.DIGEST_TO }}
           DIGEST_BCC: ${{ secrets.DIGEST_BCC }}
           DIGEST_SEND_HOUR: ${{ vars.DIGEST_SEND_HOUR || '7' }}
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER || 'google' }}
+          EOS_SOURCE: ${{ vars.EOS_SOURCE || 'google' }}
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
+          EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
         run: |
-          if [ -z "$GMAIL_SEND_TOKEN_JSON" ] || [ -z "$DIGEST_TO" ]; then
+          if [ "$MAIL_PROVIDER" = "microsoft" ]; then
+            if [ -z "$GRAPH_CLIENT_SECRET" ] || [ -z "$DIGEST_TO" ]; then
+              echo "digest not configured (GRAPH_CLIENT_SECRET / DIGEST_TO)"; exit 0
+            fi
+          elif [ -z "$GMAIL_SEND_TOKEN_JSON" ] || [ -z "$DIGEST_TO" ]; then
             echo "digest not configured (GMAIL_SEND_TOKEN_JSON / DIGEST_TO)"; exit 0
           fi
           python3 src/daily_digest.py --send-if-due

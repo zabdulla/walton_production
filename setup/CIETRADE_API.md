@@ -177,7 +177,9 @@ stored on the site for it.
     python3 src/daily_digest.py                        # preview: reports/digest/<date>.html (gitignored)
     python3 src/daily_digest.py --send --to me@x.com   # send now through the Gmail API
 
-Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fetch):
+With the repository variable `MAIL_PROVIDER=microsoft` the email goes out from the Outlook
+mailbox through Graph instead (secrets `GRAPH_*`, setup/MICROSOFT_365_SETUP.md); the content
+is identical. Gmail setup, once, on the Mac (the OAuth client already exists for the weekly fetch):
 
     python3 src/daily_digest.py --authorize            # browser consent for gmail.send only -> ~/.config/walton/gmail_send_token.json
     gh secret set GMAIL_SEND_TOKEN_JSON < ~/.config/walton/gmail_send_token.json

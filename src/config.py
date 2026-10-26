@@ -7,6 +7,7 @@ dashboard building, and validation scripts.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -36,6 +37,23 @@ OT_MULTIPLIER_2: float = 2.0   # Overtime tier 2 multiplier
 # week is shown; a machine with no output is left out, never re-ranked. Unknown machines follow.
 MACHINE_ORDER: tuple[str, ...] = ("EXTRUDER", "GRINDER", "AUTO TIE BALER", "SHREDDER", "GREEN MAX DENSIFIER (NEW)",
                                   "AVANGUARD DENSIFIER (OLD)", "GUILLOTINE")
+
+
+# ---------------------------------------------------------------------------
+# Cloud services: Google (the original) or Microsoft 365. Read at call time so
+# a workflow variable, a shell export or a test decides. Default stays Google
+# until the Microsoft path is proven (setup/MICROSOFT_365_SETUP.md).
+# ---------------------------------------------------------------------------
+def mail_provider() -> str:
+    """'google' (Gmail API) or 'microsoft' (Outlook through Graph): the mailbox the pipeline reads and sends from."""
+    v = os.environ.get("MAIL_PROVIDER", "google").strip().lower()
+    return v if v in ("google", "microsoft") else "google"
+
+
+def eos_source() -> str:
+    """'google' (the web app's Sheet) or 'microsoft' (an Excel log in SharePoint): where End of Shift rows come from."""
+    v = os.environ.get("EOS_SOURCE", "google").strip().lower()
+    return v if v in ("google", "microsoft") else "google"
 
 
 def machine_rank(name: str) -> int:

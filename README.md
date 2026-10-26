@@ -118,7 +118,9 @@ Column meanings for the aggregated data: [setup/DATA_DICTIONARY.md](setup/DATA_D
 ## One-time setup on a new machine
 
 1. `pip install -r requirements.lock`
-2. Gmail API: follow [setup/GMAIL_API_SETUP.md](setup/GMAIL_API_SETUP.md)
+2. Mail and the End of Shift log: Google ([setup/GMAIL_API_SETUP.md](setup/GMAIL_API_SETUP.md)) or
+   Microsoft 365 ([setup/MICROSOFT_365_SETUP.md](setup/MICROSOFT_365_SETUP.md)); the switches
+   `MAIL_PROVIDER` and `EOS_SOURCE` pick, default Google
 3. Payroll (optional): copy `data/employee_roster.example.json` →
    `data/employee_roster.json` and fill in real names/roles
 4. Schedule: `scripts/install_schedule.sh` (Monday noon launchd job)

@@ -23,8 +23,8 @@ unloading / dumping trash") — labor that belongs to the shift, not a machine.
 
 `src/cietrade_daily.py` reads this file: a (date, shift, machine) row with an entry gets its
 hours, crew, operators, material and comments from here, next to the cieTrade pounds. The
-cloud poll workflow (`.github/workflows/cietrade-poll.yml`) pulls the web app's sheet before
-every rebuild, so a report filed on a phone is on the dashboard within ten minutes. It needs
+cloud poll workflow (`.github/workflows/cietrade-poll.yml`) pulls the web app's sheet (or, with the repository
+variable `EOS_SOURCE=microsoft`, the Excel log in SharePoint) before every rebuild, so a report filed on a phone is on the dashboard within ten minutes. It needs
 two repository secrets, made once on the Mac after the app is deployed (step 5 below):
 
 ```bash
@@ -33,7 +33,60 @@ gh secret set SHEETS_TOKEN_JSON < ~/.config/walton/sheets_token.json
 gh secret set WALTON_LABOR_SHEET_ID --body "<spreadsheet id>"
 ```
 
-## Route 1 — the End of Shift web app (target state)
+## Route 1 on Microsoft 365 — the same page, a Power Automate flow, an Excel log
+
+The target state after the move off Google. `docs/eos/index.html` is the same phone
+page as the Apps Script one (date and shift from the clock, one card per machine, chips,
+drafts kept on the phone), served from GitHub Pages. Each report is posted to a Power
+Automate flow that appends the rows to the Excel log in SharePoint and emails the
+summary. The reader (`src/labor_sheet.py` with `EOS_SOURCE=microsoft`) downloads that
+workbook before every rebuild, so a report is on the dashboard within ten minutes, as
+before. Nothing in the pipeline after `data/labor_entries.xlsx` changes.
+
+Set up once (about twenty minutes, in your Microsoft 365 account):
+
+1. **The log workbook.** In the SharePoint site for operations, create
+   `Walton End of Shift (log).xlsx` with two sheets, each holding one formatted table
+   (Insert → Table, "My table has headers"): sheet `Entries`, table `Entries`, headings
+   `Timestamp, Submission ID, Date, Shift, Machine, Machine hours operated, Total man
+   hours, Operator(s), Material run, Downtime minutes, Downtime reason, Comments,
+   Submitted by`; sheet `Submissions`, table `Submissions`, headings `Timestamp,
+   Submission ID, Date, Shift, Submitted by, Shift notes, Machines reported, Replaces
+   earlier`. Copy the file's sharing link for `EOS_WORKBOOK_URL`
+   (setup/MICROSOFT_365_SETUP.md).
+2. **The flow** (make.powerautomate.com → Create → Instant cloud flow → *When an HTTP
+   request is received*):
+   - Trigger: method **POST**, *Who can trigger the flow*: **Anyone** (the URL is the key,
+     treat it like one; the Apps Script app worked the same way). No request schema needed.
+   - **Compose** `req`: expression `json(string(triggerBody()))` (the page sends the JSON
+     as plain text so phones can post without a CORS preflight).
+   - **Apply to each** over `outputs('req')?['entries']`, containing **Add a row into a
+     table** (Excel Online (Business)): the log workbook, table `Entries`, each column
+     mapped to `items('Apply_to_each')?['<column heading>']`.
+   - **Add a row into a table**: table `Submissions`, columns from
+     `outputs('req')?['submission']?['<column heading>']`.
+   - **Send an email (V2)** (Office 365 Outlook): To the people who should hear about
+     every report (you, Thomas, Tim), Subject `outputs('req')?['notice']?['subject']`,
+     Body `outputs('req')?['notice']?['body']` (switch the body editor to plain text /
+     code view so the line breaks survive).
+   - **Response**: status 200, **Headers** `Access-Control-Allow-Origin: *` and
+     `Content-Type: application/json`, Body `{"id": "@{outputs('req')?['id']}"}`.
+     The header is what lets the page read the confirmation; without it the supervisor
+     sees "no answer from the flow" even though the rows were saved.
+   - Save; copy the trigger's **HTTP POST URL**.
+3. **Point the page at the flow**: put that URL in `FLOW_URL` at the top of
+   `docs/eos/index.html` and commit. Open the page: the preview banner is gone, send a
+   test report, check the two tables and the email.
+4. **Switch the reader**: repository secrets `GRAPH_*` and `EOS_WORKBOOK_URL`, then
+   `gh variable set EOS_SOURCE --body microsoft`. The old Sheet is no longer read.
+5. **Move the floor's link**: make `docs/shift/index.html` forward to `../eos/` instead
+   of the Apps Script URL. The short link and the printed QR code keep working.
+
+The chip lists (operators, materials, downtime reasons) live at the top of the page
+now, next to `FLOW_URL`, since there is no sheet to read them from. The flow runs
+whether or not anyone's computer is on.
+
+## Route 1 — the End of Shift web app on Google (until the move completes)
 
 `scripts/end_of_shift_app/` is a phone-first page that mirrors the paper sheet: date
 (defaults to today, or last night for a 3rd-shift report filed before 6 AM), shift

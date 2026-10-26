@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import logging
 import subprocess
+import os
 import sys
 import time
 from datetime import datetime
@@ -83,12 +84,18 @@ def check_dependencies() -> list[str]:
         ("plotly", "plotly"),
         ("openpyxl", "openpyxl"),
         ("pymupdf", "pymupdf"),  # PDF parsing
-        ("googleapiclient", "google-api-python-client"),
-        ("google.auth", "google-auth"),
-        ("google_auth_oauthlib", "google-auth-oauthlib"),
-        ("google_auth_httplib2", "google-auth-httplib2"),
-        ("httplib2", "httplib2"),
     ]
+    from config import mail_provider
+    if mail_provider() == "microsoft":
+        required += [("msal", "msal"), ("requests", "requests")]
+    else:
+        required += [
+            ("googleapiclient", "google-api-python-client"),
+            ("google.auth", "google-auth"),
+            ("google_auth_oauthlib", "google-auth-oauthlib"),
+            ("google_auth_httplib2", "google-auth-httplib2"),
+            ("httplib2", "httplib2"),
+        ]
     missing: list[str] = []
     for module_name, pip_name in required:
         try:
@@ -287,17 +294,26 @@ def step_labor_pull() -> bool:
     _ensure_src_importable()
     try:
         import labor_sheet
-        sid, _ = labor_sheet.load_settings()
-        if not sid or not labor_sheet.TOKEN_PATH.exists():
-            if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
-                log_warn("End of Shift sheet not configured here (setup/LABOR_CAPTURE.md): hours and reports stay as last recorded")
-            return False
-        service = labor_sheet.get_sheets_service()
-        raw = labor_sheet.read_responses(service, sid, labor_sheet.load_settings()[1])
-        try:
-            notes_raw = labor_sheet.read_responses(service, sid, labor_sheet.NOTES_RANGE)
-        except Exception:  # noqa: BLE001
-            notes_raw = None
+        from config import eos_source
+        if eos_source() == "microsoft":
+            import eos_workbook
+            if not eos_workbook.configured() or not os.environ.get("GRAPH_CLIENT_ID"):
+                if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
+                    log_warn("End of Shift workbook not configured here (setup/MICROSOFT_365_SETUP.md): hours and reports stay as last recorded")
+                return False
+            raw, notes_raw = labor_sheet.fetch_from_workbook()
+        else:
+            sid, _ = labor_sheet.load_settings()
+            if not sid or not labor_sheet.TOKEN_PATH.exists():
+                if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
+                    log_warn("End of Shift sheet not configured here (setup/LABOR_CAPTURE.md): hours and reports stay as last recorded")
+                return False
+            service = labor_sheet.get_sheets_service()
+            raw = labor_sheet.read_responses(service, sid, labor_sheet.load_settings()[1])
+            try:
+                notes_raw = labor_sheet.read_responses(service, sid, labor_sheet.NOTES_RANGE)
+            except Exception:  # noqa: BLE001
+                notes_raw = None
         entries, notes = labor_sheet.responses_to_entries(raw)
         if notes_raw is not None and len(notes_raw):
             notes = pd.concat([notes, labor_sheet.submissions_to_notes(notes_raw)], ignore_index=True)

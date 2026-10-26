@@ -30,7 +30,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterator
 
-# Lazy imports — fail with friendly message if google-api-python-client missing
+# The Google libraries are needed only while MAIL_PROVIDER is google; with
+# Outlook (graph_mail.GraphMailbox) they may be absent.
 try:
     import httplib2
     import socket
@@ -40,11 +41,19 @@ try:
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
-except ImportError as e:
-    print(f"ERROR: Missing Google API libraries.\n"
-          f"  Install with: pip install -r requirements.txt\n"
-          f"  Underlying error: {e}", file=sys.stderr)
-    sys.exit(1)
+    GOOGLE_IMPORT_ERROR: Exception | None = None
+except ImportError as e:                       # pragma: no cover - depends on the environment
+    GOOGLE_IMPORT_ERROR = e
+
+    class HttpError(Exception):                # so `except HttpError` still parses
+        pass
+
+try:
+    from graph_client import GraphError  # noqa: E402
+except ImportError:                            # pragma: no cover - requests/msal absent and Google in use
+    class GraphError(Exception):
+        pass
+FETCH_ERRORS = (HttpError, GraphError)
 
 # Per-API-call HTTP timeout in seconds. Without this, a hung connection can
 # wedge the whole job for hours. 60s is generous for any single call.
@@ -56,6 +65,7 @@ RETRY_BACKOFF_SEC = 5
 _RETRY_STATUS = {500, 502, 503, 504}
 
 from config import (
+    mail_provider,
     REPORTS_DIR,           # processing_reports/
     PAYROLL_PDF_DIR,       # data/payroll_pdfs/
 )
@@ -84,11 +94,20 @@ PAYROLL_QUERY = (
 
 
 def get_service() -> Any:
-    """Authenticate and return a Gmail API service object.
+    """The mailbox to read: a Gmail API service, or an Outlook mailbox through Graph
+    when MAIL_PROVIDER=microsoft. Both answer the calls below the same way.
 
-    First call requires OAuth consent in browser. Subsequent calls use the
+    Gmail: the first call requires OAuth consent in a browser; later calls use the
     saved token.json (auto-refreshed when it expires).
     """
+    if mail_provider() == "microsoft":
+        from graph_mail import GraphMailbox
+        return GraphMailbox.from_env()
+    if GOOGLE_IMPORT_ERROR is not None:
+        print(f"ERROR: Missing Google API libraries (MAIL_PROVIDER=google).\n"
+              f"  Install with: pip install -r requirements.txt\n"
+              f"  Underlying error: {GOOGLE_IMPORT_ERROR}", file=sys.stderr)
+        sys.exit(1)
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     creds: Credentials | None = None
 
@@ -168,6 +187,8 @@ def _with_retry(api_call_fn, *, label: str = "Gmail API call"):
 
 def list_messages(service, query: str, max_results: int = 50) -> list[dict]:
     """Return a list of message metadata dicts matching ``query``."""
+    if getattr(service, "is_graph", False):
+        return service.list_messages(query, max_results)
     response = _with_retry(
         lambda: service.users().messages().list(
             userId="me", q=query, maxResults=max_results
@@ -179,6 +200,8 @@ def list_messages(service, query: str, max_results: int = 50) -> list[dict]:
 
 def get_message(service, msg_id: str) -> dict:
     """Get a full message including payload + headers + attachment metadata."""
+    if getattr(service, "is_graph", False):
+        return service.get_message(msg_id)
     return _with_retry(
         lambda: service.users().messages().get(
             userId="me", id=msg_id, format="full"
@@ -209,6 +232,8 @@ def iter_attachments(payload: dict) -> Iterator[dict]:
 
 def download_attachment_bytes(service, msg_id: str, attachment_id: str) -> bytes:
     """Download attachment bytes (decodes base64url)."""
+    if getattr(service, "is_graph", False):
+        return service.download_attachment_bytes(msg_id, attachment_id)
     att = _with_retry(
         lambda: service.users().messages().attachments().get(
             userId="me", messageId=msg_id, id=attachment_id
@@ -426,9 +451,12 @@ def main() -> int:
 
     if args.auth:
         # Reaching here means auth succeeded
-        profile = service.users().getProfile(userId="me").execute()
-        print(f"Authenticated as: {profile['emailAddress']}")
-        print(f"Token saved to: {TOKEN_PATH}")
+        if getattr(service, "is_graph", False):
+            print(f"Authenticated as: {service.whoami()} (Microsoft Graph)")
+        else:
+            profile = service.users().getProfile(userId="me").execute()
+            print(f"Authenticated as: {profile['emailAddress']}")
+            print(f"Token saved to: {TOKEN_PATH}")
         if not (args.processing_weights or args.payroll or args.all):
             return 0
 
@@ -442,7 +470,7 @@ def main() -> int:
         try:
             saved = fetch_processing_weights(service, days_back=days, dry_run=args.list)
             print(f"  {len(saved)} new file(s) downloaded" if not args.list else "  (dry-run)")
-        except HttpError as e:
+        except FETCH_ERRORS as e:
             print(f"ERROR fetching processing weights: {e}", file=sys.stderr)
             exit_code = 1
 
@@ -452,7 +480,7 @@ def main() -> int:
         try:
             saved = fetch_payroll_pdfs(service, days_back=days, dry_run=args.list)
             print(f"  {len(saved)} new file(s) downloaded" if not args.list else "  (dry-run)")
-        except HttpError as e:
+        except FETCH_ERRORS as e:
             print(f"ERROR fetching payroll: {e}", file=sys.stderr)
             exit_code = 1
 

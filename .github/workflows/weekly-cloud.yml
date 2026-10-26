@@ -71,7 +71,8 @@ jobs:
         run: pip install -r requirements.lock
 
       - name: Write Gmail credentials from secrets
-        if: steps.guard.outputs.skip != 'true'
+        # Only while MAIL_PROVIDER is google; the Outlook path needs no files, just GRAPH_* below.
+        if: steps.guard.outputs.skip != 'true' && (vars.MAIL_PROVIDER || 'google') == 'google'
         run: |
           mkdir -p ~/.config/walton
           printf '%s' '${{ secrets.GMAIL_CREDENTIALS_JSON }}' > ~/.config/walton/gmail_credentials.json
@@ -89,11 +90,27 @@ jobs:
         env:
           SHEETS_TOKEN_JSON: ${{ secrets.SHEETS_TOKEN_JSON }}
           WALTON_LABOR_SHEET_ID: ${{ secrets.WALTON_LABOR_SHEET_ID }}
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER || 'google' }}
+          EOS_SOURCE: ${{ vars.EOS_SOURCE || 'google' }}
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
+          EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
         run: |
+          if [ "$EOS_SOURCE" = "microsoft" ]; then
+            if [ -z "$GRAPH_CLIENT_SECRET" ] || [ -z "$EOS_WORKBOOK_URL" ]; then
+              echo "::warning::EOS_SOURCE=microsoft but GRAPH_CLIENT_SECRET / EOS_WORKBOOK_URL not set — rows keep the hours already on file."
+              exit 0
+            fi
+            python3 src/labor_sheet.py
+            exit 0
+          fi
           if [ -z "$SHEETS_TOKEN_JSON" ] || [ -z "$WALTON_LABOR_SHEET_ID" ]; then
             echo "::warning::SHEETS_TOKEN_JSON / WALTON_LABOR_SHEET_ID not set — rows keep the hours already on file."
             exit 0
           fi
+          mkdir -p ~/.config/walton
           printf '%s' "$SHEETS_TOKEN_JSON" > ~/.config/walton/sheets_token.json
           chmod 600 ~/.config/walton/sheets_token.json
           python3 src/labor_sheet.py
@@ -101,6 +118,13 @@ jobs:
       - name: Run weekly update pipeline
         if: steps.guard.outputs.skip != 'true'
         env:
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER || 'google' }}
+          EOS_SOURCE: ${{ vars.EOS_SOURCE || 'google' }}
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
+          EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
           WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
         run: python3 src/weekly_update.py
 

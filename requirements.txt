@@ -11,7 +11,11 @@ openpyxl>=3.1,<4.0
 # PDF parsing for payroll reports
 pymupdf>=1.24,<2.0
 
-# Gmail API (src/fetch_emails.py)
+# Microsoft 365 through Graph (src/graph_client.py, graph_mail.py, eos_workbook.py)
+msal>=1.28,<2.0
+requests>=2.31,<3.0
+
+# Gmail API (src/fetch_emails.py) — only while MAIL_PROVIDER=google
 google-api-python-client>=2.100,<3.0
 google-auth>=2.30,<3.0
 google-auth-oauthlib>=1.2,<2.0

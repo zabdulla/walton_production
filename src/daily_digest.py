@@ -42,7 +42,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_beta_dashboard import pretty, slot_color  # noqa: E402
-from config import DATA_DIR, PROJECT_ROOT, WALTON_CONFIG_DIR, machine_rank  # noqa: E402
+from config import DATA_DIR, PROJECT_ROOT, WALTON_CONFIG_DIR, machine_rank, mail_provider  # noqa: E402
 
 AGG_PATH = DATA_DIR / "aggregated_daily_data.xlsx"
 STATUS_PATH = DATA_DIR / "cietrade_status.json"
@@ -374,17 +374,25 @@ def authorize() -> Path:
     return SEND_TOKEN_PATH
 
 
+PLAIN_TEXT = ("Walton daily production email. Open in an HTML mail client, or see the dashboard at " + DASHBOARD_URL
+              + " (classic site: " + CLASSIC_URL + ")")
+
+
 def build_message(to: list[str], subject: str, html: str, bcc: list[str] | None = None) -> dict:
     msg = MIMEMultipart("alternative")
     msg["To"], msg["Subject"] = ", ".join(to), subject
     if bcc:
         msg["Bcc"] = ", ".join(bcc)      # Gmail delivers to Bcc and strips the header from what recipients see
-    msg.attach(MIMEText("Walton daily production email. Open in an HTML mail client, or see the dashboard at " + DASHBOARD_URL + " (classic site: " + CLASSIC_URL + ")", "plain"))
+    msg.attach(MIMEText(PLAIN_TEXT, "plain"))
     msg.attach(MIMEText(html, "html"))
     return {"raw": base64.urlsafe_b64encode(msg.as_bytes()).decode()}
 
 
 def send(to: list[str], subject: str, html: str, bcc: list[str] | None = None) -> str:
+    """Send through Gmail, or through the Outlook mailbox when MAIL_PROVIDER=microsoft."""
+    if mail_provider() == "microsoft":
+        from graph_mail import GraphMailbox
+        return GraphMailbox.from_env().send(to, subject, html, text=PLAIN_TEXT, bcc=bcc)
     svc = gmail_send_service()
     r = svc.users().messages().send(userId="me", body=build_message(to, subject, html, bcc)).execute()
     return r.get("id", "")
