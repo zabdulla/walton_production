@@ -51,7 +51,7 @@ class FakeClient:
 
 def test_send_posts_a_graph_message_with_html_and_bcc() -> None:
     client = FakeClient({}); mb = graph_mail.GraphMailbox(client)
-    assert mb.send(["a@x.com", "b@x.com"], "Subj", "<b>hi</b>", bcc=["c@x.com"]) == "sent"
+    assert mb.send(["a@x.com", "b@x.com"], "Subj", "<b>hi</b>", bcc=["c@x.com"]).startswith("via Graph")
     path, body = client.posts[0]
     assert path == "/users/ops@plusmaterials.com/sendMail" and body["saveToSentItems"] is True
     m = body["message"]
