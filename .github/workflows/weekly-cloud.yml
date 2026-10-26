@@ -7,11 +7,9 @@ name: Weekly Cloud Fallback
 # never go stale because of a single machine.
 #
 # Details that make this work headless:
-#   - Gmail OAuth credentials/token come from repo secrets, written to
-#     ~/.config/walton/ where fetch_emails.py expects them.
-#   - Aggregation is incremental by default: the fresh checkout has an
-#     EMPTY processing_reports/ folder; only newly fetched workbooks are
-#     parsed and merged into the tracked aggregate.
+#   - Nothing is fetched by email any more: production comes from the
+#     cieTrade poll log (committed) and the End of Shift log; the fresh
+#     checkout's empty processing_reports/ folder is fine.
 #   - The payroll dashboard is skipped automatically (PII roster is a
 #     local-only file, never in the repo).
 #   - Pushes made with GITHUB_TOKEN do not trigger `push` workflows, so
@@ -69,15 +67,6 @@ jobs:
       - name: Install dependencies (locked)
         if: steps.guard.outputs.skip != 'true'
         run: pip install -r requirements.lock
-
-      - name: Write Gmail credentials from secrets
-        # Only while MAIL_PROVIDER is google; the Outlook path needs no files, just GRAPH_* below.
-        if: steps.guard.outputs.skip != 'true' && (vars.MAIL_PROVIDER || 'google') == 'google'
-        run: |
-          mkdir -p ~/.config/walton
-          printf '%s' '${{ secrets.GMAIL_CREDENTIALS_JSON }}' > ~/.config/walton/gmail_credentials.json
-          printf '%s' '${{ secrets.GMAIL_TOKEN_JSON }}' > ~/.config/walton/gmail_token.json
-          chmod 600 ~/.config/walton/gmail_*.json
 
       - name: Configure git identity
         if: steps.guard.outputs.skip != 'true'

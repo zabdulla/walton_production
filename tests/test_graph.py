@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from src import config, daily_digest as dd, eos_workbook, fetch_emails, graph_mail, labor_sheet
+from src import config, daily_digest as dd, eos_workbook, graph_mail, labor_sheet
 from src.graph_client import GraphClient, GraphError
 
 
@@ -42,58 +42,15 @@ class FakeClient:
         return "ops@plusmaterials.com"
 
 
-MSG = {"id": "m1", "subject": "Walton processing weights for the week of 8/17/26-8/21/26",
-       "receivedDateTime": "2026-08-24T09:21:53Z", "from": {"emailAddress": {"name": "Carl Maddox", "address": "carl@plusmaterials.com"}},
-       "hasAttachments": True}
-ATTS = {"value": [
-    {"@odata.type": "#microsoft.graph.fileAttachment", "id": "a1", "name": "1st shift processing weights.xlsx", "size": 1200, "contentType": "application/vnd.ms-excel"},
-    {"@odata.type": "#microsoft.graph.fileAttachment", "id": "a2", "name": "Walton PayPeriod_Report(2026-08-20).pdf", "size": 900, "contentType": "application/pdf"},
-    {"@odata.type": "#microsoft.graph.fileAttachment", "id": "a3", "name": "logo.png", "size": 10, "contentType": "image/png", "isInline": True},
-]}
 
 
-def _mailbox():
-    client = FakeClient({"/messages": {"value": [MSG]}, "/messages/m1/attachments": ATTS, "/messages/m1": MSG},
-                        raw={"/attachments/a1/$value": b"xlsx-bytes"})
-    return graph_mail.GraphMailbox(client), client
 
 
-def test_gmail_query_becomes_a_graph_filter() -> None:
-    mb, client = _mailbox()
-    stubs = mb.list_messages(fetch_emails.PROCESSING_WEIGHTS_QUERY + " newer_than:14d")
-    assert [s["id"] for s in stubs] == ["m1"]
-    path, params = client.calls[0]
-    assert path.endswith("/messages") and "from/emailAddress/address eq 'carl@plusmaterials.com'" in params["$filter"]
-    assert "hasAttachments eq true" in params["$filter"] and "contains(subject,'processing weights for the week of')" in params["$filter"]
-    assert "receivedDateTime ge 20" in params["$filter"] and "$search" not in params
 
-
-def test_filename_query_keeps_only_messages_carrying_such_a_file() -> None:
-    mb, _ = _mailbox()
-    assert [s["id"] for s in mb.list_messages("from:carl@plusmaterials.com filename:PayPeriod has:attachment newer_than:90d")] == ["m1"]
-    assert mb.list_messages("from:carl@plusmaterials.com filename:Nothing has:attachment") == []
-
-
-def test_message_has_the_gmail_layout_the_fetchers_walk() -> None:
-    mb, _ = _mailbox()
-    msg = mb.get_message("m1")
-    assert fetch_emails.header_value(msg, "Subject").startswith("Walton processing weights")
-    assert fetch_emails.header_value(msg, "Date") == "Mon, 24 Aug 2026 09:21:53 +0000"
-    names = [p["filename"] for p in fetch_emails.iter_attachments(msg["payload"])]
-    assert names == ["1st shift processing weights.xlsx", "Walton PayPeriod_Report(2026-08-20).pdf"]   # inline image dropped
-    assert fetch_emails.download_attachment_bytes(mb, "m1", "a1") == b"xlsx-bytes"
-    assert fetch_emails.list_messages(mb, "from:carl@plusmaterials.com has:attachment")[0]["id"] == "m1"
-
-
-def test_fetch_processing_weights_runs_on_the_graph_mailbox(tmp_path, monkeypatch) -> None:
-    mb, _ = _mailbox()
-    monkeypatch.setattr(fetch_emails, "REPORTS_DIR", tmp_path)
-    saved = fetch_emails.fetch_processing_weights(mb, days_back=14)
-    assert [p.name for p in saved] == ["1st shift processing weights 08-17-26 to 08-21-26.xlsx"] and saved[0].read_bytes() == b"xlsx-bytes"
 
 
 def test_send_posts_a_graph_message_with_html_and_bcc() -> None:
-    mb, client = _mailbox()
+    client = FakeClient({}); mb = graph_mail.GraphMailbox(client)
     assert mb.send(["a@x.com", "b@x.com"], "Subj", "<b>hi</b>", bcc=["c@x.com"]) == "sent"
     path, body = client.posts[0]
     assert path == "/users/ops@plusmaterials.com/sendMail" and body["saveToSentItems"] is True

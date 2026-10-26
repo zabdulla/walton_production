@@ -6,7 +6,7 @@ switches choose, read at run time, default `google`:
 
 | Switch | Values | Decides |
 |---|---|---|
-| `MAIL_PROVIDER` | `google` / `microsoft` | the mailbox the weekly fetch reads (Carl's workbooks, payroll PDFs, shift photos) and the daily email is sent from |
+| `MAIL_PROVIDER` | `google` / `microsoft` | the mailbox the daily email is sent from |
 | `EOS_SOURCE` | `google` / `microsoft` | where End of Shift rows come from: the web app's Sheet, or the Excel log in SharePoint |
 
 On GitHub they are **repository variables** (Settings > Secrets and variables >
@@ -27,7 +27,7 @@ the Application Administrator or Global Administrator role.
    but someone has to make a new one and update the secret.
 3. **API permissions > Add a permission > Microsoft Graph > Application
    permissions**, add:
-   - `Mail.Read` and `Mail.Send` — read Carl's emails and send the daily email
+   - `Mail.Send` — send the daily email (nothing is read: production comes from cieTrade and the End of Shift log)
    - `Sites.Selected` — read the one site that holds the End of Shift log
    Then **Grant admin consent**.
 4. **Limit mail access to the one mailbox.** Application `Mail.*` permissions
@@ -37,8 +37,7 @@ the Application Administrator or Global Administrator role.
        New-ApplicationAccessPolicy -AppId <client id> -PolicyScopeGroupId <mailbox address> -AccessRight RestrictAccess -Description "Walton pipeline: one mailbox"
        Test-ApplicationAccessPolicy -AppId <client id> -Identity <mailbox address>
 
-   The mailbox is the one Carl's emails arrive in and the daily email goes
-   out from (`GRAPH_MAILBOX`). A shared mailbox such as production@ keeps it
+   The mailbox is the one the daily email goes out from (`GRAPH_MAILBOX`). A shared mailbox such as production@ keeps it
    off a person's account; your own works too.
 5. **Grant the app the End of Shift site** (`Sites.Selected` grants nothing by
    itself). With the site's id (`https://<tenant>.sharepoint.com/sites/<name>/_api/site/id`),
@@ -94,15 +93,14 @@ Delegated sign-in, no client secret: set `GRAPH_CLIENT_ID` and `GRAPH_TENANT_ID`
 "Allow public client flows" on), then
 
     python3 src/graph_client.py          # device-code sign-in once; token cached in ~/.config/walton/
-    MAIL_PROVIDER=microsoft python3 src/fetch_emails.py --list --all
     EOS_SOURCE=microsoft python3 src/labor_sheet.py --dry-run
     MAIL_PROVIDER=microsoft python3 src/daily_digest.py --send --to you@plusmaterials.com
 
 ## 5. What runs where afterwards
 
 Everything runs in GitHub Actions and Microsoft 365: the ten-minute poll and
-site deploy, the 7 AM email, the Monday fetch and rebuild (`weekly-cloud.yml`,
-promoted from fallback to primary), the End of Shift flow. No Mac is needed;
+site deploy, the 7 AM email, the Monday rebuild (`weekly-cloud.yml`), the End
+of Shift flow. No Mac is needed;
 the launchd jobs in `scripts/` can be uninstalled (`scripts/uninstall_schedule.sh`).
 The payroll dashboard is the exception while the employee roster stays a
 local-only file.

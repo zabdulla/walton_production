@@ -18,8 +18,8 @@ name: cieTrade poll
 # It used to run on one Mac via launchd and stopped whenever the laptop slept.
 # Single writer: with this enabled, uninstall the Mac's poller and daily job
 # (scripts/uninstall_schedule.sh cietrade_poll; ... daily_update). The Monday
-# weekly run on the Mac (Gmail workbooks, payroll) still works: it pulls main
-# before building.
+# weekly run (Mac or weekly-cloud.yml) rebuilds and commits the same way; it
+# pulls main before building.
 #
 # Secrets: CIETRADE_USER_ID, CIETRADE_API_KEY (the poller's credentials) and
 # GIST_TOKEN (a classic PAT with the `gist` scope; the built-in GITHUB_TOKEN

@@ -82,20 +82,6 @@ def test_build_step_surfaces_notable_output(monkeypatch, tmp_path, capsys) -> No
     assert "uplift" in captured.lower()
 
 
-def test_fetch_step_reports_missing_credentials(monkeypatch) -> None:
-    """A FileNotFoundError from get_service (no OAuth file) is a clean
-    step failure with ok=False, not a crash."""
-    import fetch_emails as fe
-
-    def raise_fnf():
-        raise FileNotFoundError("OAuth credentials not found")
-    monkeypatch.setattr(fe, "get_service", raise_fnf)
-
-    result = wu.step_fetch_emails()
-    assert result["ok"] is False
-    assert result["processing"] == 0
-
-
 def test_aggregate_step_returns_structured_counts(monkeypatch, tmp_path) -> None:
     """step_aggregate consumes run_aggregation()'s dict directly."""
     import aggregate_daily_data as agg

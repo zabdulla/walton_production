@@ -1,6 +1,11 @@
-# Gmail API Setup for `fetch_emails.py`
+# Google OAuth client (while the pipeline still uses Google)
 
-This is a one-time setup. After completing it, `src/fetch_emails.py` can run unattended (cron, launchd, scheduled task) without needing Chrome or any UI.
+One Google Cloud OAuth client serves the two Google calls the pipeline still
+makes until the Microsoft 365 move completes (setup/MICROSOFT_365_SETUP.md):
+the daily email send (`src/daily_digest.py --authorize`, scope `gmail.send`) and
+the End of Shift Sheet reader (`src/labor_sheet.py`, scope `spreadsheets.readonly`).
+The weekly email fetch this guide was written for (`fetch_emails.py`) is retired:
+the workbooks and pay-period PDFs are no longer sent.
 
 ---
 
@@ -37,7 +42,7 @@ This is a one-time setup. After completing it, `src/fetch_emails.py` can run una
 1. Left sidebar → **APIs & Services → Credentials**.
 2. Click **+ Create Credentials → OAuth client ID**.
 3. Application type: **Desktop app**.
-4. Name: `Walton fetch_emails CLI`.
+4. Name: `Walton production pipeline`.
 5. Click **Create**.
 6. A modal pops up. Click **Download JSON** — this saves a file like `client_secret_<long-id>.apps.googleusercontent.com.json`.
 
@@ -56,10 +61,10 @@ cd ~/Projects/processing_analysis
 pip install -r requirements.txt
 ```
 
-## Step 7 — Run the OAuth flow once
+## Step 7 — Run an OAuth flow once
 
 ```bash
-python3 src/fetch_emails.py --auth
+python3 src/daily_digest.py --authorize
 ```
 
 Your browser opens. Click through:
@@ -72,49 +77,15 @@ Token is saved to `~/.config/walton/gmail_token.json` (chmod 600). Auto-refreshe
 
 ---
 
-## Daily usage
+## Usage
 
 ```bash
-# Fetch latest weekly processing-weights xlsx files (last 14 days)
-python3 src/fetch_emails.py --processing-weights
-
-# Fetch latest pay-period PDFs (last 90 days)
-python3 src/fetch_emails.py --payroll
-
-# Both
-python3 src/fetch_emails.py --all
-
-# Dry-run — show what would download without writing anything
-python3 src/fetch_emails.py --all --list
+python3 src/daily_digest.py --authorize     # consent once for gmail.send -> ~/.config/walton/gmail_send_token.json
+python3 src/labor_sheet.py --dry-run        # consent once for Sheets read -> ~/.config/walton/sheets_token.json
 ```
 
-The script is idempotent: files that already exist on disk are skipped. Safe to run multiple times.
-
----
-
-## Replace the Chrome-based Monday cron
-
-Old workflow (Chrome-MCP click marathon):
-1. Open Chrome
-2. Navigate to Gmail
-3. Click each email
-4. Click "Download all" or hover for download icon
-5. Move zip to project, extract, rename, etc.
-
-New workflow:
-```bash
-python3 src/fetch_emails.py --all
-python3 src/aggregate_daily_data.py
-python3 src/parse_payroll_pdf.py --pdf-dir data/payroll_pdfs
-python3 src/build_interactive_dashboard.py
-python3 src/build_daily_dashboard.py
-python3 src/build_payroll_dashboard.py
-python3 src/build_profit_dashboard.py
-python3 src/build_operator_dashboard.py
-git add data/ docs/ && git commit -m "Weekly auto-update" && git push
-```
-
-This is what the Monday morning cron should run instead of opening Chrome.
+Both tokens become repository secrets (`GMAIL_SEND_TOKEN_JSON`, `SHEETS_TOKEN_JSON`)
+so the GitHub runner can use them; see setup/CIETRADE_API.md and setup/LABOR_CAPTURE.md.
 
 ---
 

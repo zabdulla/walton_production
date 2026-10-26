@@ -29,7 +29,7 @@ from config import WALTON_CONFIG_DIR  # noqa: E402
 
 GRAPH = "https://graph.microsoft.com/v1.0"
 APP_SCOPES = ["https://graph.microsoft.com/.default"]
-DELEGATED_SCOPES = ["Mail.Read", "Mail.Send", "Files.Read.All", "Sites.Read.All"]
+DELEGATED_SCOPES = ["Mail.Send", "Files.Read.All", "Sites.Read.All"]
 TOKEN_CACHE_PATH = WALTON_CONFIG_DIR / "graph_token_cache.json"
 TIMEOUT_SEC = 60
 RETRIES = 3

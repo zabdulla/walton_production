@@ -8,9 +8,7 @@ in brackets after the operators' names and sometimes add notes in the margin.
 
 Two steps, runnable together or apart:
 
-    python3 src/shift_report_ocr.py fetch             # Gmail -> data/shift_reports/*.jpg
     python3 src/shift_report_ocr.py extract --image photo.jpg [--dry-run]
-    python3 src/shift_report_ocr.py run               # fetch, then extract anything new
 
 Extraction uses Claude's vision through the Anthropic SDK (pip install anthropic;
 credentials via ANTHROPIC_API_KEY or `ant auth login`). Every row carries a
@@ -39,8 +37,6 @@ from labor_entries import (
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-opus-5"
-DEFAULT_QUERY = 'subject:"end of shift" has:attachment'
-IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_EDGE = 2000  # px; phone photos are 4000+ and the grid reads fine at half that
 
 
@@ -176,40 +172,6 @@ def report_to_entries(report: ShiftReport, source: str, captured_at: str | None 
     return (pd.DataFrame(rows) if rows else empty_entries(), pd.DataFrame(notes) if notes else empty_notes())
 
 
-# ---------------------------------------------------------------------------
-# Gmail fetch
-# ---------------------------------------------------------------------------
-
-def fetch_images(query: str = DEFAULT_QUERY, days_back: int = 30, out_dir: Path = SHIFT_REPORT_DIR,
-                 service: Any = None) -> list[Path]:
-    """Save image attachments from matching emails. Skips files already present."""
-    import fetch_emails as fe
-    service = service or fe.get_service()
-    out_dir.mkdir(parents=True, exist_ok=True)
-    saved: list[Path] = []
-    for stub in fe.list_messages(service, f"{query} newer_than:{days_back}d"):
-        msg = fe.get_message(service, stub["id"])
-        raw_date = fe.header_value(msg, "Date")
-        try:
-            from email.utils import parsedate_to_datetime
-            stamp = parsedate_to_datetime(raw_date).strftime("%Y%m%d_%H%M")
-        except Exception:
-            stamp = "undated"
-        n = 0
-        for part in fe.iter_attachments(msg["payload"]):
-            mime = part.get("mimeType", "")
-            if mime not in IMAGE_TYPES:
-                continue
-            n += 1
-            ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}[mime]
-            target = out_dir / f"{stamp}_{stub['id'][:8]}_{n}.{ext}"
-            if target.exists():
-                continue
-            target.write_bytes(fe.download_attachment_bytes(service, stub["id"], part["body"]["attachmentId"]))
-            logger.info("Saved %s", target.name)
-            saved.append(target)
-    return saved
-
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -243,24 +205,14 @@ def _extract_paths(paths: list[Path], dry_run: bool, model: str, output: Path) -
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    f = sub.add_parser("fetch", help="Download report photos from Gmail")
-    f.add_argument("--query", default=DEFAULT_QUERY); f.add_argument("--days", type=int, default=30)
-    f.add_argument("--out", type=Path, default=SHIFT_REPORT_DIR)
     x = sub.add_parser("extract", help="Read photos into labor entries")
     x.add_argument("--image", type=Path, nargs="*", help="Specific photo(s)")
     x.add_argument("--dir", type=Path, default=SHIFT_REPORT_DIR, help="Or every unprocessed photo in a folder")
     x.add_argument("--model", default=MODEL); x.add_argument("--dry-run", action="store_true")
     x.add_argument("--output", type=Path, default=LABOR_ENTRIES_PATH)
-    r = sub.add_parser("run", help="fetch, then extract anything new")
-    r.add_argument("--query", default=DEFAULT_QUERY); r.add_argument("--days", type=int, default=30)
-    r.add_argument("--model", default=MODEL); r.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
-    if args.cmd == "fetch":
-        saved = fetch_images(args.query, args.days, args.out)
-        print(f"{len(saved)} new photo(s) saved to {args.out}")
-        return 0
     if args.cmd == "extract":
         paths = list(args.image or []) or sorted(
             p for p in args.dir.glob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
@@ -268,10 +220,6 @@ def main() -> int:
         if not paths:
             print("Nothing to extract."); return 0
         return _extract_paths(paths, args.dry_run, args.model, args.output)
-    if args.cmd == "run":
-        saved = fetch_images(args.query, args.days)
-        print(f"{len(saved)} new photo(s)")
-        return _extract_paths(saved, args.dry_run, args.model, LABOR_ENTRIES_PATH) if saved else 0
     return 1
 
 

@@ -66,7 +66,7 @@ breaks. If the Actions tab shows no run in the last 20 minutes, seed it by hand:
 **One writer.** With the cloud poller enabled, uninstall the Mac's poller and daily job
 (`scripts/uninstall_schedule.sh cietrade_poll` and `... daily_update`); a second poller
 appending to the same files would make every push conflict. The Monday weekly run stays on
-the Mac (Gmail workbooks, payroll) and pulls `main` (fast-forward only) before it builds.
+the Mac, or the cloud fallback, and pulls `main` (fast-forward only) before it builds (nothing is fetched by email any more).
 Running the poller by hand on the Mac is still fine for a `--dry-run`. `--rebuild` (pilot
 page + OneDrive copy) is a Mac-only convenience; the public dashboard has replaced it.
 
@@ -115,8 +115,8 @@ workbook convention (rolls in as `Actual_Input`, no `Actual_Output`). Rows carry
 
 `src/weekly_update.py --daily --no-commit` runs after every cloud poll: cieTrade rows →
 validate → build dashboards, and the workflow deploys the result to
-<https://zabdulla.github.io/walton_production/> (classic site under `/classic/`). The Monday weekly run on the Mac does the
-same plus the Gmail fetch and payroll, then commits and pushes.
+<https://zabdulla.github.io/walton_production/> (classic site under `/classic/`). The Monday weekly run does the
+same and then commits and pushes.
 
 ## Weekly routine for the office
 
