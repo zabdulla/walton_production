@@ -30,10 +30,12 @@ the Application Administrator or Global Administrator role.
    Put the expiry date in a calendar: the heartbeat workflow warns 30 days ahead,
    but someone has to make a new one and update the secret.
 3. **API permissions > Add a permission > Microsoft Graph > Application
-   permissions**, add:
+   permissions** (not Delegated), tick:
    - `Mail.Send` — send the daily email (nothing is read: production comes from cieTrade and the End of Shift log)
-   - `Sites.Selected` — read the one site that holds the End of Shift log
-   Then **Grant admin consent**.
+   - `Files.Read.All` — read the End of Shift log workbook wherever it lives (SharePoint or a OneDrive)
+   **Add permissions**, then **Grant admin consent for Plus Materials** > Yes. The
+   status column should read "Granted" for both. (`Sites.Selected` plus a per-site
+   grant, step 5, is the tighter alternative; not needed with `Files.Read.All`.)
 4. **Limit mail access to the one mailbox (optional, can be done later).**
    There is no page for this in any admin portal; it is a PowerShell step. With
    application `Mail.Send` the app could send from any mailbox in the tenant, and
@@ -58,8 +60,8 @@ the Application Administrator or Global Administrator role.
    Overview page (not the app registration's). The mailbox is the one the daily
    email goes out from (`GRAPH_MAILBOX`). A shared mailbox such as production@
    keeps it off a person's account; your own works too.
-5. **Grant the app the End of Shift site** (`Sites.Selected` grants nothing by
-   itself). Words first:
+5. **Grant the app the End of Shift site (only if you chose `Sites.Selected` in
+   step 3 instead of `Files.Read.All`; skip otherwise).** Words first:
    - *Tenant*: your Microsoft 365 organization, Plus Materials. Its name in URLs
      is `plusmaterials`, so SharePoint lives at `https://plusmaterials.sharepoint.com`
      and OneDrives at `https://plusmaterials-my.sharepoint.com`.
@@ -82,11 +84,9 @@ the Application Administrator or Global Administrator role.
        POST https://graph.microsoft.com/v1.0/sites/{site-id}/permissions
        {"roles": ["read"], "grantedToIdentities": [{"application": {"id": "<client id>", "displayName": "Walton production pipeline"}}]}
 
-   **Simpler alternative, no site grant:** give the app the application permission
-   `Files.Read.All` instead of `Sites.Selected` (step 3) and keep the workbook in a
-   SharePoint site or a OneDrive. The app can then read any file in the tenant, which
-   is broader than it needs, but there is no step 5. Either way `EOS_WORKBOOK_URL`
-   is the workbook's sharing link.
+   With `Files.Read.All` (the default in step 3) none of this is needed: the app can
+   read any file in the tenant, broader than it needs, but there is no site grant.
+   Either way `EOS_WORKBOOK_URL` is the workbook's sharing link.
 
 ## 2. Repository secrets and variables
 
@@ -95,6 +95,9 @@ the Application Administrator or Global Administrator role.
     gh secret set GRAPH_CLIENT_SECRET --body "<secret value>"
     gh secret set GRAPH_MAILBOX --body "production@plusmaterials.com"
     gh secret set EOS_WORKBOOK_URL --body "<sharing link of the End of Shift log workbook>"
+
+Without the `gh` tool: GitHub > the repository > Settings > Secrets and variables >
+Actions > **New repository secret**, one per line above (name and value).
 
 The sharing link is SharePoint's **Copy link** on the workbook (any link the app's
 site permission covers; the pipeline reads it through Graph's `/shares` endpoint).
