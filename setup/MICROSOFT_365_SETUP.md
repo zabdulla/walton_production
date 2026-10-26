@@ -18,7 +18,11 @@ the same scripts, the same files on disk, the same dashboards and email.
 Done in the Microsoft Entra admin center (entra.microsoft.com) by someone with
 the Application Administrator or Global Administrator role.
 
-1. **Identity > Applications > App registrations > New registration.** Name
+1. **Entra ID > App registrations > New registration** (in the left menu of
+   entra.microsoft.com the top node is called *Entra ID*; expand it and *App
+   registrations* is in its list, or type "App registrations" in the search box
+   at the top of the page; the direct link is
+   https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade). Name
    `Walton production pipeline`, single tenant, no redirect URI. Note the
    **Application (client) ID** and the **Directory (tenant) ID**.
 2. **Certificates & secrets > New client secret.** Description `GitHub Actions`,
