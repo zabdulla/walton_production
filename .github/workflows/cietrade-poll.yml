@@ -150,7 +150,7 @@ jobs:
           EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
         run: |
           if [ "$EOS_SOURCE" = "microsoft" ]; then
-            if [ -z "$GRAPH_CLIENT_SECRET" ] || { [ -z "$EOS_WORKBOOK_URL" ] && [ -z "$EOS_WORKBOOK_ITEM_ID" ]; }; then
+            if [ -z "$GRAPH_CLIENT_SECRET" ] || { [ -z "$EOS_WORKBOOK_URL" ] && { [ -z "$EOS_WORKBOOK_DRIVE_ID" ] || [ -z "$EOS_WORKBOOK_ITEM_ID" ]; }; }; then
               echo "::warning::EOS_SOURCE=microsoft but GRAPH_CLIENT_SECRET / EOS_WORKBOOK_URL (or EOS_WORKBOOK_DRIVE_ID + EOS_WORKBOOK_ITEM_ID) not set — dashboards carry output only, no hours."
               exit 0
             fi

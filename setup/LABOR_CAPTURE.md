@@ -73,10 +73,10 @@ Set up once (about fifteen minutes):
    `gh variable set EOS_SOURCE --body microsoft` (or the Variables tab on GitHub).
 
 The chip lists (operators, materials, downtime reasons) are at the top of `Code.gs`
-(or the `OPERATORS` property). `docs/eos/index.html`, a static copy of the page, can post
-to the same script's `doPost` if the page is ever hosted outside Apps Script; it is not
-needed for this route. `Code.sheets.gs` is the earlier Google Sheets version, kept for
-reference.
+(or the `OPERATORS` property). The script's `doPost` also takes a report as text/plain
+JSON (the same object `submitReport` takes), for a test from the command line or a
+future page hosted elsewhere. `Code.sheets.gs` is the earlier Google Sheets version,
+kept for reference.
 
 ## Route 1 — the End of Shift web app on Google (until the move completes)
 
