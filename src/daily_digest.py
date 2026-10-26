@@ -392,7 +392,7 @@ def send(to: list[str], subject: str, html: str, bcc: list[str] | None = None) -
     """Send through Gmail, or through the Outlook mailbox when MAIL_PROVIDER=microsoft."""
     if mail_provider() == "microsoft":
         from graph_mail import GraphMailbox
-        return GraphMailbox.from_env().send(to, subject, html, text=PLAIN_TEXT, bcc=bcc)
+        return GraphMailbox.from_env().send(to, subject, html, bcc=bcc)
     svc = gmail_send_service()
     r = svc.users().messages().send(userId="me", body=build_message(to, subject, html, bcc)).execute()
     return r.get("id", "")

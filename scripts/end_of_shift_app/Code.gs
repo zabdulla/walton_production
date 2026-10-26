@@ -117,7 +117,21 @@ function num_(v) {
   return isNaN(n) ? '' : n;
 }
 
-function normDate_(v) { return String(v || '').slice(0, 10); }
+/** Excel keeps the dates the script writes as date cells, and Graph returns those as serial
+ *  numbers (days since 1899-12-30, fractions for the time of day, in the wall clock they were
+ *  written in). This turns one back into a Date whose UTC fields are that wall clock. */
+function serialToDate_(v) {
+  return new Date(Math.round((Number(v) - 25569) * 86400000));
+}
+
+function isSerial_(v) { return typeof v === 'number' && isFinite(v) && v > 20000; }
+
+/** 'yyyy-MM-dd' from whatever the cell holds: a serial, a Date, or the text as written. */
+function normDate_(v) {
+  if (isSerial_(v)) return Utilities.formatDate(serialToDate_(v), 'UTC', 'yyyy-MM-dd');
+  if (v instanceof Date) return Utilities.formatDate(v, 'UTC', 'yyyy-MM-dd');
+  return String(v || '').slice(0, 10);
+}
 
 /** Has this date + shift already been submitted? Used to warn before a duplicate. */
 function getExisting(date, shift) {
@@ -128,6 +142,7 @@ function getExisting(date, shift) {
 }
 
 function fmtTime_(stamp) {
+  if (isSerial_(stamp)) return Utilities.formatDate(serialToDate_(stamp), 'UTC', 'MMM d, h:mm a');
   var d = new Date(String(stamp).replace(' ', 'T'));
   return isNaN(d.getTime()) ? String(stamp) : Utilities.formatDate(d, Session.getScriptTimeZone(), 'MMM d, h:mm a');
 }
@@ -166,7 +181,8 @@ function submitReport(p) {
   }
 }
 
-/** The static page (docs/eos/) can post here too: text/plain JSON with the same fields. */
+/** Any HTTP client can file a report here too: a text/plain body holding the JSON that
+ *  submitReport takes ({date, shift, submittedBy, shiftNotes, machines: [{machine, ran, ...}]}). */
 function doPost(e) {
   var out = {};
   try {
@@ -219,6 +235,10 @@ function selfTest() {
   var subs = tableValues_('Submissions');
   var entries = tableValues_('Entries');
   var msg = 'Log reachable: ' + entries.length + ' entries, ' + subs.length + ' submissions. Notice recipients: ' + notifyRecipients_().join(', ');
+  if (subs.length) {                                   // shows the date handling on a real row
+    var last = subs[subs.length - 1];
+    msg += '. Last submission: ' + normDate_(last[2]) + ' ' + last[3] + ' filed ' + fmtTime_(last[0]) + ' by ' + last[4];
+  }
   sendMail_(notifyRecipients_(), 'End of Shift · test from the web app', 'The End of Shift web app can reach the log workbook and send from ' + prop_('GRAPH_MAILBOX') + '.\n\n' + msg);
   console.log(msg + ' — test notice sent.');
   return msg;

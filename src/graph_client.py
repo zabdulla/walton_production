@@ -19,6 +19,7 @@ import json
 import os
 import sys
 import time
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,23 @@ DELEGATED_SCOPES = ["Mail.Send", "Files.Read.All", "Sites.Read.All"]
 TOKEN_CACHE_PATH = WALTON_CONFIG_DIR / "graph_token_cache.json"
 TIMEOUT_SEC = 60
 RETRIES = 3
+
+
+def retry_after_seconds(header: str | None, attempt: int, now: float | None = None) -> float:
+    """Seconds to wait before retrying: the Retry-After header as a number or an HTTP-date
+    (both are legal), else exponential backoff; never more than a minute."""
+    wait: float | None = None
+    if header:
+        try:
+            wait = float(header)
+        except ValueError:
+            try:
+                wait = parsedate_to_datetime(header).timestamp() - (now if now is not None else time.time())
+            except (TypeError, ValueError):
+                wait = None
+    if wait is None:
+        wait = float(2 ** attempt)
+    return min(max(wait, 0.0), 60.0)
 
 
 class GraphError(RuntimeError):
@@ -52,6 +70,7 @@ class GraphClient:
         self._cache: Any = None
         self._token: str | None = None
         self._token_expires = 0.0
+        self._refresh = False                       # set after a 401: the next token() must not come from a cache
 
     # ---------------------------------------------------------------- setup
     @classmethod
@@ -60,9 +79,7 @@ class GraphClient:
                 client_secret=os.environ.get("GRAPH_CLIENT_SECRET") or None, mailbox=os.environ.get("GRAPH_MAILBOX") or None)
         if not c.client_id:
             raise FileNotFoundError("GRAPH_CLIENT_ID is not set (see setup/MICROSOFT_365_SETUP.md)")
-        if c.app_only and not c.mailbox:
-            raise FileNotFoundError("GRAPH_MAILBOX is required with app-only credentials (the mailbox to read and send from)")
-        return c
+        return c                                    # GRAPH_MAILBOX is checked when a mailbox call is made, not here
 
     @property
     def app_only(self) -> bool:
@@ -70,7 +87,10 @@ class GraphClient:
 
     @property
     def mailbox_path(self) -> str:
-        """The URL prefix for mailbox calls: a named user for app-only, /me for a signed-in person."""
+        """The URL prefix for mailbox calls: a named user for app-only, /me for a signed-in person.
+        Reading a workbook needs no mailbox, so its absence only matters here."""
+        if self.app_only and not self.mailbox:
+            raise FileNotFoundError("GRAPH_MAILBOX is required with app-only credentials (the mailbox to send from)")
         return f"/users/{self.mailbox}" if (self.app_only or self.mailbox) else "/me"
 
     # ---------------------------------------------------------------- tokens
@@ -80,7 +100,7 @@ class GraphClient:
         import msal
         authority = f"https://login.microsoftonline.com/{self.tenant or 'organizations'}"
         if self.app_only:
-            if self._app is None:
+            if self._app is None or self._refresh:   # a fresh MSAL app has an empty cache, so this really re-requests
                 self._app = msal.ConfidentialClientApplication(self.client_id, authority=authority, client_credential=self.client_secret)
             result = self._app.acquire_token_for_client(scopes=APP_SCOPES)
         else:
@@ -90,7 +110,7 @@ class GraphClient:
                     self._cache.deserialize(self.cache_path.read_text())
                 self._app = msal.PublicClientApplication(self.client_id, authority=authority, token_cache=self._cache)
             accounts = self._app.get_accounts()
-            result = self._app.acquire_token_silent(DELEGATED_SCOPES, account=accounts[0]) if accounts else None
+            result = self._app.acquire_token_silent(DELEGATED_SCOPES, account=accounts[0], force_refresh=self._refresh) if accounts else None
             if not result:
                 flow = self._app.initiate_device_flow(scopes=DELEGATED_SCOPES)
                 if "user_code" not in flow:
@@ -105,6 +125,7 @@ class GraphClient:
             raise GraphError(0, f"token request failed: {result.get('error')}: {result.get('error_description')}")
         self._token = result["access_token"]
         self._token_expires = time.time() + float(result.get("expires_in", 3600))
+        self._refresh = False
         return self._token
 
     # ---------------------------------------------------------------- http
@@ -116,10 +137,10 @@ class GraphClient:
             h = {"Authorization": f"Bearer {self.token()}", **(headers or {})}
             r = self.session.request(method, url, params=params, json=json_body, headers=h, timeout=TIMEOUT_SEC)
             if r.status_code in (429, 500, 502, 503, 504) and attempt < RETRIES:
-                time.sleep(min(float(r.headers.get("Retry-After", 2 ** attempt)), 60))
+                time.sleep(retry_after_seconds(r.headers.get("Retry-After"), attempt))
                 continue
             if r.status_code == 401 and attempt == 0:
-                self._token = None                       # one refresh, then give up
+                self._token, self._refresh = None, True  # one real refresh (past any cache), then give up
                 continue
             if r.status_code >= 400:
                 try:

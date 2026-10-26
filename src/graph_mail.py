@@ -30,7 +30,9 @@ class GraphMailbox:
         return self.client.mailbox_path
 
     # ---------------------------------------------------------------- send
-    def send(self, to: list[str], subject: str, html: str, text: str | None = None, bcc: list[str] | None = None) -> str:
+    def send(self, to: list[str], subject: str, html: str, bcc: list[str] | None = None) -> str:
+        """One HTML message. Graph's sendMail carries a single body, so there is no plain-text
+        alternative to attach (the Gmail path builds a multipart message instead)."""
         msg: dict[str, Any] = {
             "subject": subject,
             "body": {"contentType": "HTML", "content": html},

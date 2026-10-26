@@ -105,8 +105,8 @@ def responses_to_entries(df: pd.DataFrame, source: str = "form") -> tuple[pd.Dat
             rows.append(make_entry(
                 Date=date_s, Shift=shift, Machine_Name=machine,
                 Machine_Hours=to_number(get("machine_hours")), Man_Hours=to_number(get("man_hours")),
-                Operator=parse_operators(get("operators")), Material=(str(get("material")).strip() or None) if get("material") is not None and str(get("material")).strip() != "nan" else None,
-                Comment=(str(get("comment")).strip() or None) if get("comment") is not None and str(get("comment")).strip() != "nan" else None,
+                Operator=parse_operators(get("operators")), Material=_text(get("material")),
+                Comment=_text(get("comment")),
                 Downtime_Minutes=to_number(get("downtime_minutes")),
                 Downtime_Reason=_text(get("downtime_reason")),
                 Source=source, Confidence=1.0,
