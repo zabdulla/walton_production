@@ -59,14 +59,34 @@ the Application Administrator or Global Administrator role.
    email goes out from (`GRAPH_MAILBOX`). A shared mailbox such as production@
    keeps it off a person's account; your own works too.
 5. **Grant the app the End of Shift site** (`Sites.Selected` grants nothing by
-   itself). With the site's id (`https://<tenant>.sharepoint.com/sites/<name>/_api/site/id`),
-   as an admin in Graph Explorer or PowerShell:
+   itself). Words first:
+   - *Tenant*: your Microsoft 365 organization, Plus Materials. Its name in URLs
+     is `plusmaterials`, so SharePoint lives at `https://plusmaterials.sharepoint.com`
+     and OneDrives at `https://plusmaterials-my.sharepoint.com`.
+   - *Site*: a SharePoint site is a shared document space with its own URL. Every
+     tenant has a root site, `https://plusmaterials.sharepoint.com`, with a
+     Documents library; team sites look like `https://plusmaterials.sharepoint.com/sites/Operations`.
+     The End of Shift log workbook needs a home that is not one person's OneDrive,
+     so pick (or create, in the SharePoint admin center) a site, make a folder such
+     as `Walton Production` in its Documents library, and put the workbook there.
+     The root site is fine.
+
+   The site's id: open `https://plusmaterials.sharepoint.com/_api/site/id` in the
+   browser (for a team site, `https://plusmaterials.sharepoint.com/sites/<name>/_api/site/id`);
+   the GUID in the response is the site id.
+
+   The grant, in Graph Explorer (https://developer.microsoft.com/graph/graph-explorer,
+   signed in as an admin; the first time it asks you to consent to `Sites.FullControl.All`
+   for Graph Explorer itself):
 
        POST https://graph.microsoft.com/v1.0/sites/{site-id}/permissions
        {"roles": ["read"], "grantedToIdentities": [{"application": {"id": "<client id>", "displayName": "Walton production pipeline"}}]}
 
-   If the log lives in a personal OneDrive instead, `Files.Read.All` replaces
-   `Sites.Selected` (broader; a site is the better home).
+   **Simpler alternative, no site grant:** give the app the application permission
+   `Files.Read.All` instead of `Sites.Selected` (step 3) and keep the workbook in a
+   SharePoint site or a OneDrive. The app can then read any file in the tenant, which
+   is broader than it needs, but there is no step 5. Either way `EOS_WORKBOOK_URL`
+   is the workbook's sharing link.
 
 ## 2. Repository secrets and variables
 
