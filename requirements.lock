@@ -11,7 +11,9 @@ cffi==2.0.0
 charset-normalizer==3.4.7
     # via requests
 cryptography==48.0.0
-    # via google-auth
+    # via
+    #   google-auth
+    #   msal
 et-xmlfile==2.0.0
     # via openpyxl
 google-api-core==2.31.0
@@ -42,6 +44,8 @@ idna==3.18
     # via requests
 iniconfig==2.3.0
     # via pytest
+msal==1.39.0
+    # via -r requirements.txt
 numpy==2.4.6
     # via
     #   -r requirements.txt
@@ -75,6 +79,8 @@ pycparser==3.0
     # via cffi
 pygments==2.20.0
     # via pytest
+pyjwt==2.14.0
+    # via msal
 pymupdf==1.27.2.3
     # via -r requirements.txt
 pyparsing==3.3.2
