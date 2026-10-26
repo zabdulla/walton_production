@@ -34,15 +34,30 @@ the Application Administrator or Global Administrator role.
    - `Mail.Send` — send the daily email (nothing is read: production comes from cieTrade and the End of Shift log)
    - `Sites.Selected` — read the one site that holds the End of Shift log
    Then **Grant admin consent**.
-4. **Limit mail access to the one mailbox.** Application `Mail.*` permissions
-   cover every mailbox in the tenant until an access policy narrows them. In
-   Exchange Online PowerShell (`Connect-ExchangeOnline`):
+4. **Limit mail access to the one mailbox (optional, can be done later).**
+   There is no page for this in any admin portal; it is a PowerShell step. With
+   application `Mail.Send` the app could send from any mailbox in the tenant, and
+   only the GitHub runner holds the secret, so this narrows the blast radius if the
+   secret ever leaked. Skip it to get going; come back to it any time.
 
-       New-ApplicationAccessPolicy -AppId <client id> -PolicyScopeGroupId <mailbox address> -AccessRight RestrictAccess -Description "Walton pipeline: one mailbox"
-       Test-ApplicationAccessPolicy -AppId <client id> -Identity <mailbox address>
+   Where: a PowerShell window on any Windows PC or Mac (PowerShell 7), signed in as
+   an Exchange administrator:
 
-   The mailbox is the one the daily email goes out from (`GRAPH_MAILBOX`). A shared mailbox such as production@ keeps it
-   off a person's account; your own works too.
+       Install-Module ExchangeOnlineManagement -Scope CurrentUser   # once
+       Connect-ExchangeOnline -UserPrincipalName admin@plusmaterials.com
+
+   Then the current method, RBAC for Applications (replaces the older
+   application access policies):
+
+       New-ServicePrincipal -AppId <client id> -ObjectId <enterprise app object id> -DisplayName "Walton production pipeline"
+       New-ManagementScope -Name "Walton pipeline mailbox" -RecipientRestrictionFilter "PrimarySmtpAddress -eq '<mailbox address>'"
+       New-ManagementRoleAssignment -Name "Walton pipeline send" -Role "Application Mail.Send" -App <client id> -CustomResourceScope "Walton pipeline mailbox"
+       Test-ServicePrincipalAuthorization -Identity <client id> -Resource <mailbox address>
+
+   The enterprise app object id is on **Entra ID > Enterprise apps >** the app's
+   Overview page (not the app registration's). The mailbox is the one the daily
+   email goes out from (`GRAPH_MAILBOX`). A shared mailbox such as production@
+   keeps it off a person's account; your own works too.
 5. **Grant the app the End of Shift site** (`Sites.Selected` grants nothing by
    itself). With the site's id (`https://<tenant>.sharepoint.com/sites/<name>/_api/site/id`),
    as an admin in Graph Explorer or PowerShell:
