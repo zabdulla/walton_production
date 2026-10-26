@@ -1,5 +1,9 @@
 """
-Weekly orchestrator: fetch new data, aggregate, build dashboards, commit, push.
+Weekly orchestrator: aggregate, derive the cieTrade rows, validate, build dashboards, commit, push.
+
+Production comes from the cieTrade poll log and the End of Shift reports; the
+weekly workbook emails and the pay-period PDFs are no longer produced, so
+nothing is fetched here any more (payroll will come from QuickBooks later).
 
 Designed to run unattended on a schedule (launchd, cron). All steps emit
 structured progress to stdout and append to ``logs/weekly_update.log``. Any
@@ -11,14 +15,13 @@ Usage:
     python3 src/weekly_update.py                # full run
     python3 src/weekly_update.py --no-push      # build but skip git push
     python3 src/weekly_update.py --daily --no-commit   # build only (the cloud poll workflow commits/deploys itself)
-    python3 src/weekly_update.py --no-fetch     # skip Gmail fetch (rebuild only)
-    python3 src/weekly_update.py --dry-run      # show what would happen
 """
 from __future__ import annotations
 
 import argparse
 import logging
 import subprocess
+import os
 import sys
 import time
 from datetime import datetime
@@ -82,12 +85,6 @@ def check_dependencies() -> list[str]:
         ("numpy", "numpy"),  # imported at module scope by two dashboard builders
         ("plotly", "plotly"),
         ("openpyxl", "openpyxl"),
-        ("pymupdf", "pymupdf"),  # PDF parsing
-        ("googleapiclient", "google-api-python-client"),
-        ("google.auth", "google-auth"),
-        ("google_auth_oauthlib", "google-auth-oauthlib"),
-        ("google_auth_httplib2", "google-auth-httplib2"),
-        ("httplib2", "httplib2"),
     ]
     missing: list[str] = []
     for module_name, pip_name in required:
@@ -206,44 +203,6 @@ def _ensure_src_importable() -> None:
         sys.path.insert(0, str(SRC_DIR))
 
 
-def step_fetch_emails(dry_run: bool = False) -> dict[str, Any]:
-    """Fetch new attachments via the Gmail API (in-process).
-
-    Calling fetch_emails' functions directly (instead of shelling out and
-    regex-scraping its stdout) gives structured counts and real tracebacks.
-    """
-    result: dict[str, Any] = {"ok": False, "processing": 0, "payroll": 0}
-    _ensure_src_importable()
-    try:
-        # fetch_emails calls sys.exit(1) at import time if the Google libs
-        # are missing; check_dependencies() runs before this step, but keep
-        # the guard so a partial environment degrades to a step failure.
-        import fetch_emails as fe
-    except SystemExit:
-        log_err("Fetch unavailable: Google API libraries missing")
-        return result
-
-    try:
-        service = fe.get_service()
-        saved_pw = fe.fetch_processing_weights(service, dry_run=dry_run)
-        saved_pr = fe.fetch_payroll_pdfs(service, dry_run=dry_run)
-    except FileNotFoundError as e:
-        # Missing OAuth credentials — actionable, not a crash.
-        log_err(f"Fetch failed: {e}")
-        return result
-    except Exception as e:
-        logging.exception("Fetch failed")
-        log_err(f"Fetch failed: {e.__class__.__name__}: {e}")
-        return result
-
-    result.update(ok=True,
-                  processing=len(saved_pw or []),
-                  payroll=len(saved_pr or []))
-    log_ok(f"Processing weights: {result['processing']} new file(s)")
-    log_ok(f"Payroll PDFs: {result['payroll']} new file(s)")
-    return result
-
-
 def step_aggregate() -> dict[str, Any]:
     """Run aggregation. Snapshots the previous aggregated file first so the
     orchestrator can roll back if downstream validation gates the run.
@@ -287,17 +246,26 @@ def step_labor_pull() -> bool:
     _ensure_src_importable()
     try:
         import labor_sheet
-        sid, _ = labor_sheet.load_settings()
-        if not sid or not labor_sheet.TOKEN_PATH.exists():
-            if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
-                log_warn("End of Shift sheet not configured here (setup/LABOR_CAPTURE.md): hours and reports stay as last recorded")
-            return False
-        service = labor_sheet.get_sheets_service()
-        raw = labor_sheet.read_responses(service, sid, labor_sheet.load_settings()[1])
-        try:
-            notes_raw = labor_sheet.read_responses(service, sid, labor_sheet.NOTES_RANGE)
-        except Exception:  # noqa: BLE001
-            notes_raw = None
+        from config import eos_source
+        if eos_source() == "microsoft":
+            import eos_workbook
+            if not eos_workbook.configured() or not os.environ.get("GRAPH_CLIENT_ID"):
+                if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
+                    log_warn("End of Shift workbook not configured here (setup/MICROSOFT_365_SETUP.md): hours and reports stay as last recorded")
+                return False
+            raw, notes_raw = labor_sheet.fetch_from_workbook()
+        else:
+            sid, _ = labor_sheet.load_settings()
+            if not sid or not labor_sheet.TOKEN_PATH.exists():
+                if not Path(labor_sheet.LABOR_ENTRIES_PATH).exists():
+                    log_warn("End of Shift sheet not configured here (setup/LABOR_CAPTURE.md): hours and reports stay as last recorded")
+                return False
+            service = labor_sheet.get_sheets_service()
+            raw = labor_sheet.read_responses(service, sid, labor_sheet.load_settings()[1])
+            try:
+                notes_raw = labor_sheet.read_responses(service, sid, labor_sheet.NOTES_RANGE)
+            except Exception:  # noqa: BLE001
+                notes_raw = None
         entries, notes = labor_sheet.responses_to_entries(raw)
         if notes_raw is not None and len(notes_raw):
             notes = pd.concat([notes, labor_sheet.submissions_to_notes(notes_raw)], ignore_index=True)
@@ -335,46 +303,6 @@ def step_cietrade_rows() -> dict[str, Any]:
         log_warn(w)
     if s.get("skipped_weeks"):
         log_warn(f"weeks with workbook rows kept as-is: {', '.join(s['skipped_weeks'])}")
-    return result
-
-
-def step_parse_payroll() -> dict[str, Any]:
-    """Run parse_payroll_pdf.py --pdf-dir to (re)aggregate payroll data.
-
-    Snapshots the previous aggregated payroll file first so a validation
-    block can restore daily data AND payroll together (they must not desync).
-    """
-    import shutil
-    from datetime import datetime as _dt
-    payroll_path = PROJECT_ROOT / "data" / "aggregated_payroll.xlsx"
-    snap_dir = PROJECT_ROOT / "data" / "snapshots"
-    pre_snapshot: Path | None = None
-    if payroll_path.exists():
-        snap_dir.mkdir(parents=True, exist_ok=True)
-        ts = _dt.now().strftime("%Y-%m-%dT%H-%M-%S")
-        pre_snapshot = snap_dir / f"{payroll_path.stem}_prerun_{ts}{payroll_path.suffix}"
-        shutil.copy2(payroll_path, pre_snapshot)
-
-    result: dict[str, Any] = {"ok": False, "processed": 0, "skipped": 0,
-                              "failed": 0, "pre_snapshot": pre_snapshot}
-    _ensure_src_importable()
-    try:
-        from parse_payroll_pdf import parse_pdf_directory
-        summary = parse_pdf_directory(PROJECT_ROOT / "data" / "payroll_pdfs")
-    except Exception as e:
-        logging.exception("Payroll parse failed")
-        log_err(f"Payroll parse failed: {e.__class__.__name__}: {e}")
-        return result
-
-    result.update(
-        ok=True,
-        processed=len(summary.get("processed", [])),
-        skipped=len(summary.get("skipped", [])),
-        failed=len(summary.get("failed", [])),
-    )
-    for name, err_msg in summary.get("failed", [])[:3]:
-        log_warn(f"  failed: {name}: {err_msg}")
-    log_ok(f"{result['processed']} period(s) processed, {result['skipped']} skipped, {result['failed']} failed")
     return result
 
 
@@ -708,16 +636,14 @@ def step_git_commit_push(no_push: bool = False, label: str = "Weekly auto-update
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--no-fetch", action="store_true",
-                        help="Skip Gmail fetch step (rebuild from existing data)")
+    parser.add_argument("--no-fetch", action="store_true", help=argparse.SUPPRESS)   # retired: nothing is fetched
     parser.add_argument("--no-push", action="store_true",
                         help="Build and commit but skip git push")
     parser.add_argument("--no-commit", action="store_true",
                         help="Build only: no pull, no commit, no push (the caller decides what to commit)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Fetch step runs in --list mode; no aggregate/build/commit")
+    parser.add_argument("--dry-run", action="store_true", help=argparse.SUPPRESS)   # retired with the fetch
     parser.add_argument("--daily", action="store_true",
-                        help="Daily mode: no Gmail fetch or payroll; cieTrade rows -> validate -> build -> push")
+                        help="Daily mode (the cloud poll): cieTrade rows -> validate -> build -> push")
     args = parser.parse_args()
 
     setup_file_logger()
@@ -755,51 +681,20 @@ def main() -> int:
     else:
         summary["pull"] = step_git_pull()
 
-    # Step 1: Fetch
-    log_step(1, 7, "Fetching new emails from Gmail")
-    if args.no_fetch or args.daily:
-        log_info("  " + dim("(--no-fetch, skipping)"))
-        summary["fetch"] = {"ok": True, "processing": 0, "payroll": 0}
-    else:
-        summary["fetch"] = step_fetch_emails(dry_run=args.dry_run)
-
-    if args.dry_run:
-        print(f"\n{dim('Dry-run complete.')}\n")
-        return 0
-
-    # A failed fetch means files may be missing; aggregating anyway would
-    # publish a silently incomplete week. Abort and alert instead.
-    if not summary["fetch"]["ok"]:
-        log_err("Email fetch failed — aborting before aggregation.")
-        send_notification(
-            "Walton Weekly Update ⚠",
-            "Email fetch failed; pipeline aborted before aggregation. See logs.",
-            success=False,
-        )
-        return 1
-
-    # Step 2: Aggregate
-    log_step(2, 7, "Aggregating daily production data")
+    # Step 1: Aggregate (the historical workbooks already on disk; nothing new arrives by email)
+    log_step(1, 5, "Aggregating daily production data")
     summary["aggregate"] = step_aggregate()
     if not summary["aggregate"]["ok"]:
         log_err("Aggregation failed — aborting pipeline")
         return 1
 
-    # Step 3: cieTrade rows (production since the workbooks stopped)
-    log_step(3, 7, "Deriving daily rows from cieTrade + End of Shift entries")
+    # Step 2: cieTrade rows (production since the workbooks stopped)
+    log_step(2, 5, "Deriving daily rows from cieTrade + End of Shift entries")
     step_labor_pull()
     summary["cietrade"] = step_cietrade_rows()
 
-    # Step 4: Parse payroll
-    log_step(4, 7, "Parsing payroll PDFs")
-    if args.daily:
-        log_info("  " + dim("(--daily, skipping)"))
-        summary["payroll"] = {"ok": True, "processed": 0, "pre_snapshot": None}
-    else:
-        summary["payroll"] = step_parse_payroll()
-
-    # Step 5: Validate
-    log_step(5, 7, "Validating data quality")
+    # Step 3: Validate
+    log_step(3, 5, "Validating data quality")
     summary["validate"] = step_validate()
 
     # If validation gates publication, restore the pre-aggregation snapshot
@@ -818,13 +713,9 @@ def main() -> int:
             else:
                 log_warn(f"No pre-run snapshot available; {label} left as-is.")
 
-        # Restore daily data and payroll together so they never desync.
         _restore(summary["aggregate"].get("pre_snapshot") or summary.get("cietrade", {}).get("pre_snapshot"),
                  PROJECT_ROOT / "data" / "aggregated_daily_data.xlsx",
                  "aggregated daily data")
-        _restore(summary["payroll"].get("pre_snapshot"),
-                 PROJECT_ROOT / "data" / "aggregated_payroll.xlsx",
-                 "aggregated payroll")
         reasons_short = "; ".join(summary["validate"].get("reasons", []))[:120]
         send_notification(
             "Walton Weekly Update ⚠",
@@ -835,12 +726,12 @@ def main() -> int:
         logging.info(f"=== END runtime={elapsed:.1f}s BLOCKED ===")
         return 3
 
-    # Step 6: Build all dashboards
-    log_step(6, 7, "Building dashboards")
+    # Step 4: Build all dashboards
+    log_step(4, 5, "Building dashboards")
     summary["build"] = step_build_dashboards()
 
-    # Step 7: Commit + push
-    log_step(7, 7, "Committing changes to git")
+    # Step 5: Commit + push
+    log_step(5, 5, "Committing changes to git")
     if args.no_commit:
         log_info("  " + dim("(--no-commit, leaving the working tree for the caller)"))
         summary["git"] = {"ok": True, "committed": False, "pushed": False, "files": 0, "msg": "skipped"}
@@ -852,13 +743,10 @@ def main() -> int:
     print("\n" + "=" * 70)
     print(bold("Summary"))
     print("=" * 70)
-    print(f"  New processing-weights files: {summary['fetch'].get('processing', 0)}")
-    print(f"  New payroll PDFs:             {summary['fetch'].get('payroll', 0)}")
     print(f"  Total daily records:          {summary['aggregate'].get('records', '?'):,}")
     ct = summary.get("cietrade", {})
     if ct:
         print(f"  cieTrade rows (since {ct.get('from_date', '?')}): {ct.get('rows', '?')} over {ct.get('days', '?')} days, {ct.get('with_hours', '?')} with hours")
-    print(f"  Pay periods aggregated:       {summary['payroll'].get('processed', '?')}")
     print(f"  Validation issues:            {len(summary['validate'].get('issues', []))}")
     print(f"  Dashboards built:             {len(summary['build'].get('built', []))} / 5")
     if summary["build"].get("failed"):
@@ -878,7 +766,6 @@ def main() -> int:
     logging.info(f"=== END runtime={elapsed:.1f}s ===")
 
     # ---- Mac native notification ----
-    fetch = summary["fetch"]
     build = summary["build"]
     git = summary["git"]
     build_ok = build.get("ok", False)
@@ -887,9 +774,6 @@ def main() -> int:
 
     # Build a compact one-line message
     parts = []
-    new_files = fetch.get("processing", 0) + fetch.get("payroll", 0)
-    if new_files:
-        parts.append(f"{new_files} new file(s)")
     parts.append(f"{len(build.get('built', []))}/{len(build.get('built', [])) + len(build.get('failed', [])) + len(build.get('skipped', []))} dashboards")
     if git.get("pushed"):
         parts.append("pushed")

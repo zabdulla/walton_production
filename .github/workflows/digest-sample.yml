@@ -18,6 +18,14 @@ on:
         description: "Production day, YYYY-MM-DD (default: yesterday)"
         required: false
         type: string
+      mail_provider:
+        description: "Send through: google or microsoft (default: the repository variable MAIL_PROVIDER, else google)"
+        required: false
+        type: string
+      eos_source:
+        description: "End of Shift rows from: google or microsoft (default: the repository variable EOS_SOURCE, else google)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -52,7 +60,24 @@ jobs:
         env:
           SHEETS_TOKEN_JSON: ${{ secrets.SHEETS_TOKEN_JSON }}
           WALTON_LABOR_SHEET_ID: ${{ secrets.WALTON_LABOR_SHEET_ID }}
+          MAIL_PROVIDER: ${{ vars.MAIL_PROVIDER || 'google' }}
+          EOS_SOURCE: ${{ inputs.eos_source || vars.EOS_SOURCE || 'google' }}
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
+          EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
+          EOS_WORKBOOK_DRIVE_ID: ${{ secrets.EOS_WORKBOOK_DRIVE_ID }}
+          EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
         run: |
+          if [ "$EOS_SOURCE" = "microsoft" ]; then
+            if [ -z "$GRAPH_CLIENT_SECRET" ] || { [ -z "$EOS_WORKBOOK_URL" ] && [ -z "$EOS_WORKBOOK_ITEM_ID" ]; }; then
+              echo "::warning::EOS_SOURCE=microsoft but GRAPH_CLIENT_SECRET / EOS_WORKBOOK_URL (or EOS_WORKBOOK_DRIVE_ID + EOS_WORKBOOK_ITEM_ID) not set — the sample carries the last known reports."
+              exit 0
+            fi
+            python3 src/labor_sheet.py
+            exit 0
+          fi
           if [ -z "$SHEETS_TOKEN_JSON" ] || [ -z "$WALTON_LABOR_SHEET_ID" ]; then
             echo "::warning::SHEETS_TOKEN_JSON / WALTON_LABOR_SHEET_ID not set — the sample carries the last known reports."
             exit 0
@@ -70,8 +95,19 @@ jobs:
           GMAIL_SEND_TOKEN_JSON: ${{ secrets.GMAIL_SEND_TOKEN_JSON }}
           TO: ${{ inputs.to }}
           DAY: ${{ inputs.date }}
+          MAIL_PROVIDER: ${{ inputs.mail_provider || vars.MAIL_PROVIDER || 'google' }}
+          EOS_SOURCE: ${{ vars.EOS_SOURCE || 'google' }}
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
+          EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
+          EOS_WORKBOOK_DRIVE_ID: ${{ secrets.EOS_WORKBOOK_DRIVE_ID }}
+          EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
         run: |
-          if [ -z "$GMAIL_SEND_TOKEN_JSON" ]; then
+          if [ "$MAIL_PROVIDER" = "microsoft" ]; then
+            if [ -z "$GRAPH_CLIENT_SECRET" ]; then echo "::error::GRAPH_CLIENT_SECRET secret is not set"; exit 1; fi
+          elif [ -z "$GMAIL_SEND_TOKEN_JSON" ]; then
             echo "::error::GMAIL_SEND_TOKEN_JSON secret is not set"; exit 1
           fi
           echo "::add-mask::$TO"

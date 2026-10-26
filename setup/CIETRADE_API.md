@@ -66,7 +66,7 @@ breaks. If the Actions tab shows no run in the last 20 minutes, seed it by hand:
 **One writer.** With the cloud poller enabled, uninstall the Mac's poller and daily job
 (`scripts/uninstall_schedule.sh cietrade_poll` and `... daily_update`); a second poller
 appending to the same files would make every push conflict. The Monday weekly run stays on
-the Mac (Gmail workbooks, payroll) and pulls `main` (fast-forward only) before it builds.
+the Mac, or the cloud fallback, and pulls `main` (fast-forward only) before it builds (nothing is fetched by email any more).
 Running the poller by hand on the Mac is still fine for a `--dry-run`. `--rebuild` (pilot
 page + OneDrive copy) is a Mac-only convenience; the public dashboard has replaced it.
 
@@ -115,8 +115,8 @@ workbook convention (rolls in as `Actual_Input`, no `Actual_Output`). Rows carry
 
 `src/weekly_update.py --daily --no-commit` runs after every cloud poll: cieTrade rows →
 validate → build dashboards, and the workflow deploys the result to
-<https://zabdulla.github.io/walton_production/> (classic site under `/classic/`). The Monday weekly run on the Mac does the
-same plus the Gmail fetch and payroll, then commits and pushes.
+<https://zabdulla.github.io/walton_production/> (classic site under `/classic/`). The Monday weekly run does the
+same and then commits and pushes.
 
 ## Weekly routine for the office
 
@@ -177,7 +177,9 @@ stored on the site for it.
     python3 src/daily_digest.py                        # preview: reports/digest/<date>.html (gitignored)
     python3 src/daily_digest.py --send --to me@x.com   # send now through the Gmail API
 
-Setup, once, on the Mac (the Gmail OAuth client already exists for the weekly fetch):
+With the repository variable `MAIL_PROVIDER=microsoft` the email goes out from the Outlook
+mailbox through Graph instead (secrets `GRAPH_*`, setup/MICROSOFT_365_SETUP.md); the content
+is identical. Gmail setup, once, on the Mac (the OAuth client already exists for the weekly fetch):
 
     python3 src/daily_digest.py --authorize            # browser consent for gmail.send only -> ~/.config/walton/gmail_send_token.json
     gh secret set GMAIL_SEND_TOKEN_JSON < ~/.config/walton/gmail_send_token.json

@@ -100,3 +100,28 @@ jobs:
           else
             echo "Redeploy fixed it — live site is current again."
           fi
+
+      - name: Warn before the Microsoft Graph client secret expires
+        # The Entra app's client secret lasts at most 24 months. Record its expiry in the
+        # repository variable GRAPH_SECRET_EXPIRES (YYYY-MM-DD, setup/MICROSOFT_365_SETUP.md);
+        # this opens an issue 30 days ahead so a new secret is made before the email and
+        # the End of Shift reader stop. Does nothing while the variable is unset.
+        if: ${{ vars.GRAPH_SECRET_EXPIRES != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPIRES: ${{ vars.GRAPH_SECRET_EXPIRES }}
+        run: |
+          days=$(( ( $(date -d "$EXPIRES" +%s) - $(date +%s) ) / 86400 ))
+          echo "Graph client secret expires $EXPIRES ($days days)."
+          if [ "$days" -le 30 ]; then
+            title="Microsoft Graph client secret expires $EXPIRES"
+            existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')
+            if [ "$existing" -eq 0 ]; then
+              gh issue create --title "$title" --body \
+                "The Entra app's client secret used by the daily email and the End of Shift reader expires in $days days.
+          Make a new one (Entra admin center > App registrations > Walton production pipeline > Certificates & secrets), then:
+          \`gh secret set GRAPH_CLIENT_SECRET\` and \`gh variable set GRAPH_SECRET_EXPIRES --body <new date>\`. See setup/MICROSOFT_365_SETUP.md."
+            else
+              echo "Expiry issue already open; not duplicating."
+            fi
+          fi

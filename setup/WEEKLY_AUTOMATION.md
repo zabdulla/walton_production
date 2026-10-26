@@ -13,13 +13,18 @@ Schedule it to run automatically every Monday at noon with `scripts/install_sche
 ## What it does
 
 ```
-Step 1/6: Fetch new emails         fetch_emails.fetch_*()
-Step 2/6: Aggregate daily data     aggregate_daily_data.run_aggregation()
-Step 3/6: Parse payroll PDFs       parse_payroll_pdf.parse_pdf_directory()
-Step 4/6: Validate data quality    validate_data.run_validation() + gating_decision()
-Step 5/6: Build all 5 dashboards   the build_*_dashboard modules
-Step 6/6: Commit + push to GitHub  (with rebase retry on conflict)
+Step 1/5: Aggregate daily data     aggregate_daily_data.run_aggregation()  (the history on disk)
+Step 2/5: cieTrade + End of Shift  cietrade_daily.run() after labor_sheet pulls the log
+Step 3/5: Validate data quality    validate_data.run_validation() + gating_decision()
+Step 4/5: Build all 5 dashboards   the build_*_dashboard modules
+Step 5/5: Commit + push to GitHub  (with rebase retry on conflict)
 ```
+
+Nothing is fetched by email any more: the weekly workbooks and the pay-period
+PDFs stopped, production comes from the cieTrade poll log and the End of Shift
+reports, and the cloud poll (`cietrade-poll.yml`) already does steps 2 to 4
+every ten minutes. The Monday run is a full rebuild and commit; it needs no
+Gmail credentials.
 
 The orchestrator imports these modules and calls them **in process** rather
 than shelling out to their CLIs, so each step returns a structured result and
@@ -35,21 +40,15 @@ summary at the end shows totals.
 # Full run
 python3 src/weekly_update.py
 
-# Build only — skip the Gmail fetch (e.g., you're offline)
-python3 src/weekly_update.py --no-fetch
-
 # Build + commit but don't push
 python3 src/weekly_update.py --no-push
-
-# Dry run — show what fetch would download, then exit
-python3 src/weekly_update.py --dry-run
 ```
 
 ---
 
 ## One-time scheduling install (macOS launchd)
 
-Prereq: complete the [Gmail API setup](GMAIL_API_SETUP.md) first. The schedule is useless without working credentials.
+Prereq: `pip install -r requirements.txt`; a `git push` that works from the terminal.
 
 ```bash
 scripts/install_schedule.sh
@@ -127,7 +126,7 @@ For multiple times per week, replace the `<dict>` with a `<array>` of dicts. See
 ## Troubleshooting
 
 **Job runs but nothing happens / token expired**
-Re-authenticate Gmail: `python3 src/fetch_emails.py --auth`
+(Gmail is no longer part of the weekly run.)
 
 **"command not found: python3" in stderr log**
 launchd has a minimal PATH. The plist already adds `/opt/homebrew/bin` and `/usr/local/bin`. If your `python3` is elsewhere, add it to the `PATH` in the `EnvironmentVariables` dict and re-run `install_schedule.sh`.

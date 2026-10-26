@@ -30,7 +30,7 @@ from typing import Any
 
 import pandas as pd
 
-from config import WALTON_CONFIG_DIR
+from config import WALTON_CONFIG_DIR, eos_source
 from labor_entries import (
     LABOR_ENTRIES_PATH, empty_entries, empty_notes, make_entry, normalize_machine,
     normalize_shift, parse_operators, record, to_number,
@@ -172,6 +172,13 @@ def submissions_to_notes(df: pd.DataFrame, source: str = "form") -> pd.DataFrame
     return pd.DataFrame(out) if out else empty_notes()
 
 
+def fetch_from_workbook() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """EOS_SOURCE=microsoft: the Entries and Submissions sheets of the Excel log in SharePoint."""
+    import eos_workbook
+    from graph_client import GraphClient
+    return eos_workbook.fetch(GraphClient.from_env())
+
+
 def load_settings() -> tuple[str | None, str]:
     sid = os.environ.get("WALTON_LABOR_SHEET_ID")
     rng = DEFAULT_RANGE
@@ -197,6 +204,8 @@ def main() -> int:
         raw = pd.read_csv(args.from_csv)
         if args.notes_csv:
             notes_raw = pd.read_csv(args.notes_csv)
+    elif eos_source() == "microsoft":
+        raw, notes_raw = fetch_from_workbook()
     else:
         sid, rng = load_settings()
         sid = args.sheet_id or sid
