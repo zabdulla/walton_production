@@ -33,60 +33,50 @@ gh secret set SHEETS_TOKEN_JSON < ~/.config/walton/sheets_token.json
 gh secret set WALTON_LABOR_SHEET_ID --body "<spreadsheet id>"
 ```
 
-## Route 1 on Microsoft 365 — the same page, a Power Automate flow, an Excel log
+## Route 1 on Microsoft 365 — the same page, Google as a free relay, an Excel log
 
-The target state after the move off Google. `docs/eos/index.html` is the same phone
-page as the Apps Script one (date and shift from the clock, one card per machine, chips,
-drafts kept on the phone), served from GitHub Pages. Each report is posted to a Power
-Automate flow that appends the rows to the Excel log in SharePoint and emails the
-summary. The reader (`src/labor_sheet.py` with `EOS_SOURCE=microsoft`) downloads that
-workbook before every rebuild, so a report is on the dashboard within ten minutes, as
-before. Nothing in the pipeline after `data/labor_entries.xlsx` changes.
+The target state after the move off Google Workspace. Cost: $0. The web app keeps
+running on Apps Script, on any Google account (a personal one is fine): it serves the
+same page and, on submit, writes the rows into the End of Shift log workbook in
+SharePoint through Microsoft Graph with the pipeline's Entra app, and sends the notice
+from the Outlook mailbox. Google holds nothing but the script; no Sheet, no Gmail. The
+reader (`src/labor_sheet.py` with `EOS_SOURCE=microsoft`) downloads the workbook before
+every rebuild, so a report is on the dashboard within ten minutes, as before.
 
-Set up once (about twenty minutes, in your Microsoft 365 account):
+Why not Power Automate: its HTTP trigger is a Premium connector, not in Microsoft 365;
+Azure would do it for cents a month but needs a subscription. Apps Script does the same
+job for nothing.
 
-1. **The log workbook.** `Walton End of Shift (log).xlsx` lives in the root
-   SharePoint site's Documents library, folder `Walton Production`. It has two sheets,
-   each holding one formatted table: sheet `Entries`, table `Entries`, headings
-   `Timestamp, Submission ID, Date, Shift, Machine, Machine hours operated, Total man
-   hours, Operator(s), Material run, Downtime minutes, Downtime reason, Comments,
-   Submitted by`; sheet `Submissions`, table `Submissions`, headings `Timestamp,
-   Submission ID, Date, Shift, Submitted by, Shift notes, Machines reported, Replaces
-   earlier`. (To recreate it anywhere: a new workbook with those two sheets, and on
-   each, Insert → Table with "My table has headers", then Table Design → Table Name.)
-   The pipeline finds it by the ids in the `EOS_WORKBOOK_*` secrets
-   (setup/MICROSOFT_365_SETUP.md).
-2. **The flow** (make.powerautomate.com → Create → Instant cloud flow → *When an HTTP
-   request is received*):
-   - Trigger: method **POST**, *Who can trigger the flow*: **Anyone** (the URL is the key,
-     treat it like one; the Apps Script app worked the same way). No request schema needed.
-   - **Compose** `req`: expression `json(string(triggerBody()))` (the page sends the JSON
-     as plain text so phones can post without a CORS preflight).
-   - **Apply to each** over `outputs('req')?['entries']`, containing **Add a row into a
-     table** (Excel Online (Business)): the log workbook, table `Entries`, each column
-     mapped to `items('Apply_to_each')?['<column heading>']`.
-   - **Add a row into a table**: table `Submissions`, columns from
-     `outputs('req')?['submission']?['<column heading>']`.
-   - **Send an email (V2)** (Office 365 Outlook): To the people who should hear about
-     every report (you, Thomas, Tim), Subject `outputs('req')?['notice']?['subject']`,
-     Body `outputs('req')?['notice']?['body']` (switch the body editor to plain text /
-     code view so the line breaks survive).
-   - **Response**: status 200, **Headers** `Access-Control-Allow-Origin: *` and
-     `Content-Type: application/json`, Body `{"id": "@{outputs('req')?['id']}"}`.
-     The header is what lets the page read the confirmation; without it the supervisor
-     sees "no answer from the flow" even though the rows were saved.
-   - Save; copy the trigger's **HTTP POST URL**.
-3. **Point the page at the flow**: put that URL in `FLOW_URL` at the top of
-   `docs/eos/index.html` and commit. Open the page: the preview banner is gone, send a
-   test report, check the two tables and the email.
-4. **Switch the reader**: repository secrets `GRAPH_*` and `EOS_WORKBOOK_URL`, then
-   `gh variable set EOS_SOURCE --body microsoft`. The old Sheet is no longer read.
-5. **Move the floor's link**: make `docs/shift/index.html` forward to `../eos/` instead
-   of the Apps Script URL. The short link and the printed QR code keep working.
+Set up once (about fifteen minutes):
 
-The chip lists (operators, materials, downtime reasons) live at the top of the page
-now, next to `FLOW_URL`, since there is no sheet to read them from. The flow runs
-whether or not anyone's computer is on.
+1. **Entra app permission.** The app needs `Files.ReadWrite.All` (application) so the
+   script can add rows; an admin adds it next to `Mail.Send` under API permissions and
+   grants consent (`Files.Read.All` can go, the broader one covers the reader too).
+2. **The script.** Signed in to the Google account that will own it, <https://script.google.com>
+   → New project → name it `Walton End of Shift`. Paste `scripts/end_of_shift_app/Code.gs`
+   over the default `Code.gs`; add a file (+ → HTML) named `Index` and paste
+   `scripts/end_of_shift_app/Index.html` into it.
+3. **Settings.** Project Settings (gear): time zone `America/New_York`; Script Properties, add
+   `GRAPH_TENANT_ID`, `GRAPH_CLIENT_ID`, `GRAPH_CLIENT_SECRET`, `GRAPH_MAILBOX`,
+   `EOS_WORKBOOK_DRIVE_ID`, `EOS_WORKBOOK_ITEM_ID` (the same values as the GitHub secrets)
+   and `NOTIFY_EMAIL` (who gets the notice, comma-separated). Optional `OPERATORS`
+   overrides the name chips without editing the script.
+4. **Self test.** In the editor pick `selfTest` in the function dropdown and Run. The first
+   run asks to authorize the script (it connects to an external service: Microsoft). The
+   log should say the log workbook is reachable and a test notice was sent; check the
+   inbox.
+5. **Deploy.** Deploy → New deployment → Web app → Execute as **Me**, Who has access
+   **Anyone** → Deploy. Copy the URL. Put it in `docs/shift/index.html` so the short link
+   and the printed QR code keep working. After any later change to the script:
+   Deploy → Manage deployments → edit → New version.
+6. **Switch the reader**: with the `GRAPH_*` and `EOS_WORKBOOK_*` secrets in place,
+   `gh variable set EOS_SOURCE --body microsoft` (or the Variables tab on GitHub).
+
+The chip lists (operators, materials, downtime reasons) are at the top of `Code.gs`
+(or the `OPERATORS` property). `docs/eos/index.html`, a static copy of the page, can post
+to the same script's `doPost` if the page is ever hosted outside Apps Script; it is not
+needed for this route. `Code.sheets.gs` is the earlier Google Sheets version, kept for
+reference.
 
 ## Route 1 — the End of Shift web app on Google (until the move completes)
 

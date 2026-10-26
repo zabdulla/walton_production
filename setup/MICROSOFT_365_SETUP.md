@@ -32,7 +32,9 @@ the Application Administrator or Global Administrator role.
 3. **API permissions > Add a permission > Microsoft Graph > Application
    permissions** (not Delegated), tick:
    - `Mail.Send` — send the daily email (nothing is read: production comes from cieTrade and the End of Shift log)
-   - `Files.Read.All` — read the End of Shift log workbook wherever it lives (SharePoint or a OneDrive)
+   - `Files.ReadWrite.All` — read the End of Shift log workbook wherever it lives (SharePoint or a
+     OneDrive) and let the End of Shift web app add rows to it (`Files.Read.All` would do for the
+     pipeline alone)
    **Add permissions**, then **Grant admin consent for Plus Materials** > Yes. The
    status column should read "Granted" for both. (`Sites.Selected` plus a per-site
    grant, step 5, is the tighter alternative; not needed with `Files.Read.All`.)
@@ -128,9 +130,9 @@ column order is free):
 - **Submissions**: Timestamp, Submission ID, Date, Shift, Submitted by, Shift
   notes, Machines reported, Replaces earlier
 
-The floor's form page posts each report to a Power Automate flow ("When an HTTP
-request is received") that adds the rows to those two tables and sends the
-notification email; see setup/LABOR_CAPTURE.md for the flow and the page.
+The floor's form page (an Apps Script web app on any Google account, free) adds the
+rows to those two tables through Graph with this same app and sends the notification
+from the mailbox; see setup/LABOR_CAPTURE.md.
 
 ## 4. Checking it from a Mac (optional)
 
