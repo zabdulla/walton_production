@@ -110,6 +110,8 @@ def test_workbook_by_drive_and_path_and_missing_config() -> None:
     client = FakeClient({}, raw={"/drives/d1/root:/Walton/End of Shift (log).xlsx:/content": _workbook_bytes()})
     entries, _ = eos_workbook.fetch(client, {"drive_id": "d1", "path": "/Walton/End of Shift (log).xlsx"})
     assert len(entries) == 2
+    client2 = FakeClient({}, raw={"/drives/d1/items/i9/content": _workbook_bytes()})
+    assert len(eos_workbook.fetch(client2, {"drive_id": "d1", "item_id": "i9"})[0]) == 2
     with pytest.raises(FileNotFoundError):
         eos_workbook.download_workbook(client, {})
     assert eos_workbook.configured({"url": "x"}) and not eos_workbook.configured({"drive_id": "d"})

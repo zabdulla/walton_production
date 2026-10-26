@@ -86,10 +86,12 @@ jobs:
           GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
           GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
           EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
+          EOS_WORKBOOK_DRIVE_ID: ${{ secrets.EOS_WORKBOOK_DRIVE_ID }}
+          EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
         run: |
           if [ "$EOS_SOURCE" = "microsoft" ]; then
-            if [ -z "$GRAPH_CLIENT_SECRET" ] || [ -z "$EOS_WORKBOOK_URL" ]; then
-              echo "::warning::EOS_SOURCE=microsoft but GRAPH_CLIENT_SECRET / EOS_WORKBOOK_URL not set — rows keep the hours already on file."
+            if [ -z "$GRAPH_CLIENT_SECRET" ] || { [ -z "$EOS_WORKBOOK_URL" ] && [ -z "$EOS_WORKBOOK_ITEM_ID" ]; }; then
+              echo "::warning::EOS_SOURCE=microsoft but GRAPH_CLIENT_SECRET / EOS_WORKBOOK_URL (or EOS_WORKBOOK_DRIVE_ID + EOS_WORKBOOK_ITEM_ID) not set — rows keep the hours already on file."
               exit 0
             fi
             python3 src/labor_sheet.py
@@ -114,6 +116,8 @@ jobs:
           GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
           GRAPH_MAILBOX: ${{ secrets.GRAPH_MAILBOX }}
           EOS_WORKBOOK_URL: ${{ secrets.EOS_WORKBOOK_URL }}
+          EOS_WORKBOOK_DRIVE_ID: ${{ secrets.EOS_WORKBOOK_DRIVE_ID }}
+          EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
           WALTON_WEBHOOK_URL: ${{ secrets.WALTON_WEBHOOK_URL }}
         run: python3 src/weekly_update.py
 

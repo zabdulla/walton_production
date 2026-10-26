@@ -94,14 +94,18 @@ the Application Administrator or Global Administrator role.
     gh secret set GRAPH_CLIENT_ID --body "<client id>"
     gh secret set GRAPH_CLIENT_SECRET --body "<secret value>"
     gh secret set GRAPH_MAILBOX --body "production@plusmaterials.com"
-    gh secret set EOS_WORKBOOK_URL --body "<sharing link of the End of Shift log workbook>"
+    gh secret set EOS_WORKBOOK_DRIVE_ID --body "<drive id of the library holding the log>"
+    gh secret set EOS_WORKBOOK_ITEM_ID --body "<item id of the log workbook>"
+    # or, instead of the two ids: gh secret set EOS_WORKBOOK_URL --body "<the workbook's sharing link>"
 
 Without the `gh` tool: GitHub > the repository > Settings > Secrets and variables >
 Actions > **New repository secret**, one per line above (name and value).
 
-The sharing link is SharePoint's **Copy link** on the workbook (any link the app's
-site permission covers; the pipeline reads it through Graph's `/shares` endpoint).
-Alternatively `EOS_WORKBOOK_DRIVE_ID` plus `EOS_WORKBOOK_PATH`.
+The drive and item ids are what Graph calls the library and the file (the connector
+or Graph Explorer shows them; they are not secret, but they identify the tenant, so
+they live in secrets rather than in the public repository). A sharing link
+(SharePoint's **Copy link** on the workbook) works instead, through Graph's `/shares`
+endpoint; so does `EOS_WORKBOOK_DRIVE_ID` plus `EOS_WORKBOOK_PATH`.
 
 `DIGEST_TO` and `DIGEST_BCC` stay as they are. Then flip the variables when
 ready, one at a time:

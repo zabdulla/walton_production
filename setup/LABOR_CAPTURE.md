@@ -45,14 +45,16 @@ before. Nothing in the pipeline after `data/labor_entries.xlsx` changes.
 
 Set up once (about twenty minutes, in your Microsoft 365 account):
 
-1. **The log workbook.** In the SharePoint site for operations, create
-   `Walton End of Shift (log).xlsx` with two sheets, each holding one formatted table
-   (Insert → Table, "My table has headers"): sheet `Entries`, table `Entries`, headings
+1. **The log workbook.** `Walton End of Shift (log).xlsx` lives in the root
+   SharePoint site's Documents library, folder `Walton Production`. It has two sheets,
+   each holding one formatted table: sheet `Entries`, table `Entries`, headings
    `Timestamp, Submission ID, Date, Shift, Machine, Machine hours operated, Total man
    hours, Operator(s), Material run, Downtime minutes, Downtime reason, Comments,
    Submitted by`; sheet `Submissions`, table `Submissions`, headings `Timestamp,
    Submission ID, Date, Shift, Submitted by, Shift notes, Machines reported, Replaces
-   earlier`. Copy the file's sharing link for `EOS_WORKBOOK_URL`
+   earlier`. (To recreate it anywhere: a new workbook with those two sheets, and on
+   each, Insert → Table with "My table has headers", then Table Design → Table Name.)
+   The pipeline finds it by the ids in the `EOS_WORKBOOK_*` secrets
    (setup/MICROSOFT_365_SETUP.md).
 2. **The flow** (make.powerautomate.com → Create → Instant cloud flow → *When an HTTP
    request is received*):

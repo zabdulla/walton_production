@@ -9,8 +9,9 @@ no Excel session, no table API, nothing to lock.
 Where the workbook is, one of:
   EOS_WORKBOOK_URL        the file's SharePoint sharing link (Copy link in SharePoint); read
                           through Graph's /shares endpoint
-  EOS_WORKBOOK_DRIVE_ID + EOS_WORKBOOK_PATH   a drive id and the path inside it
-  ~/.config/walton/eos_workbook.json          {"url": "..."} or {"drive_id": "...", "path": "..."}
+  EOS_WORKBOOK_DRIVE_ID + EOS_WORKBOOK_ITEM_ID  the file's drive id and item id (what Graph calls it)
+  EOS_WORKBOOK_DRIVE_ID + EOS_WORKBOOK_PATH     a drive id and the path inside it
+  ~/.config/walton/eos_workbook.json            {"url": "..."} or {"drive_id": "...", "item_id": "..."} or {"drive_id": "...", "path": "..."}
 """
 from __future__ import annotations
 
@@ -36,7 +37,7 @@ def load_settings() -> dict[str, str]:
     cfg: dict[str, str] = {}
     if SETTINGS_PATH.exists():
         cfg = {k: str(v) for k, v in json.loads(SETTINGS_PATH.read_text()).items() if v}
-    for env, key in (("EOS_WORKBOOK_URL", "url"), ("EOS_WORKBOOK_DRIVE_ID", "drive_id"), ("EOS_WORKBOOK_PATH", "path")):
+    for env, key in (("EOS_WORKBOOK_URL", "url"), ("EOS_WORKBOOK_DRIVE_ID", "drive_id"), ("EOS_WORKBOOK_ITEM_ID", "item_id"), ("EOS_WORKBOOK_PATH", "path")):
         if os.environ.get(env):
             cfg[key] = os.environ[env]
     return cfg
@@ -44,7 +45,7 @@ def load_settings() -> dict[str, str]:
 
 def configured(cfg: dict[str, str] | None = None) -> bool:
     cfg = cfg if cfg is not None else load_settings()
-    return bool(cfg.get("url") or (cfg.get("drive_id") and cfg.get("path")))
+    return bool(cfg.get("url") or (cfg.get("drive_id") and (cfg.get("item_id") or cfg.get("path"))))
 
 
 def share_token(url: str) -> str:
@@ -56,10 +57,12 @@ def download_workbook(client: Any, cfg: dict[str, str] | None = None) -> bytes:
     cfg = cfg if cfg is not None else load_settings()
     if cfg.get("url"):
         return client.get_bytes(f"/shares/{share_token(cfg['url'])}/driveItem/content")
+    if cfg.get("drive_id") and cfg.get("item_id"):
+        return client.get_bytes(f"/drives/{cfg['drive_id']}/items/{cfg['item_id']}/content")
     if cfg.get("drive_id") and cfg.get("path"):
         path = cfg["path"].strip("/")
         return client.get_bytes(f"/drives/{cfg['drive_id']}/root:/{path}:/content")
-    raise FileNotFoundError("End of Shift workbook not configured: set EOS_WORKBOOK_URL (or drive id + path, or "
+    raise FileNotFoundError("End of Shift workbook not configured: set EOS_WORKBOOK_URL (or drive id + item id / path, or "
                             f"{SETTINGS_PATH})")
 
 
