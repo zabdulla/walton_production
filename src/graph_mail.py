@@ -39,7 +39,7 @@ class GraphMailbox:
         if bcc:
             msg["bccRecipients"] = [{"emailAddress": {"address": a}} for a in bcc]
         self.client.post(f"{self.prefix}/sendMail", {"message": msg, "saveToSentItems": True})
-        return f"via Graph from {self.client.mailbox or 'me'}"   # Graph returns no message id from sendMail
+        return f"via Graph from {getattr(self.client, 'mailbox', None) or 'me'}"   # Graph returns no message id from sendMail
 
     def whoami(self) -> str:
         return self.client.whoami()
