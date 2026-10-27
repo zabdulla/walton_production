@@ -217,12 +217,12 @@
    "last": "2026-10-02T05:20"
   }
  ],
- "data_through": "2026-10-26",
- "last_poll": "2026-10-26T05:21:28",
- "last_snapshot": "2026-10-26T00:04:29",
- "polls": 5812,
+ "data_through": "2026-10-27",
+ "last_poll": "2026-10-27T01:22:40",
+ "last_snapshot": "2026-10-27T01:22:40",
+ "polls": 5939,
  "open_jobs": 18,
- "open_lbs": 499430,
+ "open_lbs": 549923,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -237,113 +237,137 @@
  ],
  "awaiting": [
   [
-   "2026-10-26",
+   "2026-10-27",
    "1st",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "1st",
    "EXTRUDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "1st",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "1st",
    "GRINDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "1st",
    "GUILLOTINE"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "1st",
    "SHREDDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "2nd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "2nd",
    "EXTRUDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "2nd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "2nd",
    "GRINDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "2nd",
    "GUILLOTINE"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "2nd",
    "SHREDDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "3rd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "3rd",
    "GRINDER"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "3rd",
    "GUILLOTINE"
   ],
   [
-   "2026-10-26",
+   "2026-10-27",
    "3rd",
    "SHREDDER"
   ]
  ],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
-  "3 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
+  "4 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "17 shift-day(s) with entries made during another shift's hours (51,939 lbs), credited to the shift on the clock",
   "7 weekend/closure shift-day(s) (32,860 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-26",
+  "as_of": "2026-10-27",
   "days": [
    {
-    "date": "2026-10-26",
+    "date": "2026-10-27",
     "shifts": {
      "1st": {
       "filed": false
      },
      "2nd": {
       "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-10-26",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 26.2,
+      "man_hours": 39.8,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": true,
+      "by": "Brandon",
+      "machines": 3,
+      "machine_hours": 21.8,
+      "man_hours": 29.0,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -449,41 +473,22 @@
       "downtime_min": 90
      }
     }
-   },
-   {
-    "date": "2026-10-20",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 4,
-      "machine_hours": 29.2,
-      "man_hours": 43.5,
-      "downtime_min": 0
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon",
-      "machines": 4,
-      "machine_hours": 29.0,
-      "man_hours": 36.2,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 2,
-      "machine_hours": 14.0,
-      "man_hours": 21.0,
-      "downtime_min": 0
-     }
-    }
    }
   ],
-  "filed": 9,
-  "entries": 254,
-  "last_filed": "2026-10-23",
+  "filed": 8,
+  "entries": 183,
+  "last_filed": "2026-10-26",
   "recent": [
+   {
+    "date": "2026-10-26",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon Marcus",
+    "hours": 7.25,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Did 2 blade changes and had a small wrap up when I first started"
+   },
    {
     "date": "2026-10-23",
     "shift": "2nd",
@@ -573,19 +578,19 @@
     "downtime_min": 120,
     "reason": "Other",
     "comment": "Blade and screen change at start \n1 blade broke\nHad to clean and get organized before start"
-   },
-   {
-    "date": "2026-10-16",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "James, Connor",
-    "hours": 6.0,
-    "downtime_min": 60,
-    "reason": "",
-    "comment": "3 blade changes and 1 screen change"
    }
   ],
   "notes": [
+   {
+    "date": "2026-10-26",
+    "shift": "2nd",
+    "note": "Steven a was cleaning"
+   },
+   {
+    "date": "2026-10-26",
+    "shift": "1st",
+    "note": "Test"
+   },
    {
     "date": "2026-10-23",
     "shift": "2nd",
@@ -605,24 +610,108 @@
     "date": "2026-10-21",
     "shift": "3rd",
     "note": "Dee was transferring small boxes of bopp into big boxes as requested by Tim"
-   },
-   {
-    "date": "2026-10-21",
-    "shift": "2nd",
-    "note": "Steven a was cleaning and Tevin was on the extruder with Brandon and Marcus"
-   },
-   {
-    "date": "2026-10-20",
-    "shift": "2nd",
-    "note": "Steven a was cleaning"
    }
   ],
   "reports": [
    {
+    "date": "2026-10-26",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "2026-10-26 21:13:56",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.25,
+      "man_hours": 14.5,
+      "operators": "Brandon Marcus",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Did 2 blade changes and had a small wrap up when I first started"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tevin",
+      "material": "Green grass regrind",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven a was cleaning"
+    ]
+   },
+   {
+    "date": "2026-10-26",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "2026-10-26 14:05:08",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Steven, Daniel",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 6.5,
+      "man_hours": 13.0,
+      "operators": "Kemonica Anthony",
+      "material": "LDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "BOPP slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "SHREDDER",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Tony",
+      "material": "Pet",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Test"
+    ]
+   },
+   {
     "date": "2026-10-23",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/23/2026",
+    "filed_at": "2026-10-23 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -674,7 +763,7 @@
     "date": "2026-10-23",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/23/2026",
+    "filed_at": "2026-10-23 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -726,7 +815,7 @@
     "date": "2026-10-22",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/22/2026",
+    "filed_at": "2026-10-22 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -758,7 +847,7 @@
     "date": "2026-10-21",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/22/2026",
+    "filed_at": "2026-10-22 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -800,7 +889,7 @@
     "date": "2026-10-21",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/21/2026",
+    "filed_at": "2026-10-21 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -842,7 +931,7 @@
     "date": "2026-10-21",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/21/2026",
+    "filed_at": "2026-10-21 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -892,7 +981,7 @@
     "date": "2026-10-20",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/21/2026",
+    "filed_at": "2026-10-21 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -922,7 +1011,7 @@
     "date": "2026-10-20",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/20/2026",
+    "filed_at": "2026-10-20 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -974,7 +1063,7 @@
     "date": "2026-10-20",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/20/2026",
+    "filed_at": "2026-10-20 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1024,7 +1113,7 @@
     "date": "2026-10-19",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/20/2026",
+    "filed_at": "2026-10-20 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1064,7 +1153,7 @@
     "date": "2026-10-19",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/19/2026",
+    "filed_at": "2026-10-19 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1116,7 +1205,7 @@
     "date": "2026-10-16",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/17/2026",
+    "filed_at": "2026-10-17 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1156,7 +1245,7 @@
     "date": "2026-10-16",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/16/2026",
+    "filed_at": "2026-10-16 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1208,7 +1297,7 @@
     "date": "2026-10-16",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/16/2026",
+    "filed_at": "2026-10-16 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1258,7 +1347,7 @@
     "date": "2026-10-15",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/16/2026",
+    "filed_at": "2026-10-16 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1298,7 +1387,7 @@
     "date": "2026-10-15",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/15/2026",
+    "filed_at": "2026-10-15 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1350,7 +1439,7 @@
     "date": "2026-10-15",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/15/2026",
+    "filed_at": "2026-10-15 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1392,7 +1481,7 @@
     "date": "2026-10-14",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/15/2026",
+    "filed_at": "2026-10-15 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1432,7 +1521,7 @@
     "date": "2026-10-14",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/14/2026",
+    "filed_at": "2026-10-14 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1474,7 +1563,7 @@
     "date": "2026-10-14",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/14/2026",
+    "filed_at": "2026-10-14 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1514,7 +1603,7 @@
     "date": "2026-10-13",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/14/2026",
+    "filed_at": "2026-10-14 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1554,7 +1643,7 @@
     "date": "2026-10-13",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/13/2026",
+    "filed_at": "2026-10-13 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1586,7 +1675,7 @@
     "date": "2026-10-13",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/13/2026",
+    "filed_at": "2026-10-13 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1626,7 +1715,7 @@
     "date": "2026-10-12",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/12/2026",
+    "filed_at": "2026-10-12 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1668,7 +1757,7 @@
     "date": "2026-10-12",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/12/2026",
+    "filed_at": "2026-10-12 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1728,7 +1817,7 @@
     "date": "2026-10-09",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/10/2026",
+    "filed_at": "2026-10-10 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1768,7 +1857,7 @@
     "date": "2026-10-09",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/9/2026",
+    "filed_at": "2026-10-09 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1818,7 +1907,7 @@
     "date": "2026-10-09",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/9/2026",
+    "filed_at": "2026-10-09 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1878,7 +1967,7 @@
     "date": "2026-10-08",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/9/2026",
+    "filed_at": "2026-10-09 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1918,7 +2007,7 @@
     "date": "2026-10-08",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/8/2026",
+    "filed_at": "2026-10-08 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -1970,7 +2059,7 @@
     "date": "2026-10-07",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/8/2026",
+    "filed_at": "2026-10-08 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2010,7 +2099,7 @@
     "date": "2026-10-07",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/7/2026",
+    "filed_at": "2026-10-07 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2062,7 +2151,7 @@
     "date": "2026-10-07",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/7/2026",
+    "filed_at": "2026-10-07 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2112,7 +2201,7 @@
     "date": "2026-10-06",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/7/2026",
+    "filed_at": "2026-10-07 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2154,7 +2243,7 @@
     "date": "2026-10-06",
     "shift": "2nd",
     "by": "Montez",
-    "filed_at": "10/6/2026",
+    "filed_at": "2026-10-06 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2214,7 +2303,7 @@
     "date": "2026-10-06",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/6/2026",
+    "filed_at": "2026-10-06 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2274,7 +2363,7 @@
     "date": "2026-10-05",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/6/2026",
+    "filed_at": "2026-10-06 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2324,7 +2413,7 @@
     "date": "2026-10-05",
     "shift": "2nd",
     "by": "Tim",
-    "filed_at": "10/5/2026",
+    "filed_at": "2026-10-05 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2376,7 +2465,7 @@
     "date": "2026-10-05",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/5/2026",
+    "filed_at": "2026-10-05 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2426,7 +2515,7 @@
     "date": "2026-10-02",
     "shift": "2nd",
     "by": "Montez",
-    "filed_at": "10/2/2026",
+    "filed_at": "2026-10-02 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2478,7 +2567,7 @@
     "date": "2026-10-02",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/2/2026",
+    "filed_at": "2026-10-02 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2530,7 +2619,7 @@
     "date": "2026-10-01",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/2/2026",
+    "filed_at": "2026-10-02 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2570,7 +2659,7 @@
     "date": "2026-10-01",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/1/2026",
+    "filed_at": "2026-10-01 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2612,7 +2701,7 @@
     "date": "2026-10-01",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/1/2026",
+    "filed_at": "2026-10-01 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2654,7 +2743,7 @@
     "date": "2026-09-30",
     "shift": "3rd",
     "by": "Connor",
-    "filed_at": "10/1/2026",
+    "filed_at": "2026-10-01 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2686,7 +2775,7 @@
     "date": "2026-09-30",
     "shift": "2nd",
     "by": "Brandon",
-    "filed_at": "10/1/2026",
+    "filed_at": "2026-10-01 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2738,7 +2827,7 @@
     "date": "2026-09-30",
     "shift": "1st",
     "by": "Tim",
-    "filed_at": "10/1/2026",
+    "filed_at": "2026-10-01 00:00:00",
     "source": "form",
     "machines": [
      {
@@ -2783,153 +2872,11 @@
      }
     ],
     "notes": []
-   },
-   {
-    "date": "2026-09-29",
-    "shift": "3rd",
-    "by": "Connor",
-    "filed_at": "9/30/2026",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Darius",
-      "material": "Mixed Plastic silicone sba",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 5.0,
-      "man_hours": 10.0,
-      "operators": "James, Connor",
-      "material": "BOPP resin",
-      "downtime_min": 180,
-      "reason": "Other",
-      "comment": "2 screen change had to find material 2 blade change"
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Daniel",
-      "material": "Bopp silicone",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
-   },
-   {
-    "date": "2026-09-29",
-    "shift": "2nd",
-    "by": "Montez",
-    "filed_at": "9/29/2026",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Steven B",
-      "material": "Cores",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 7.5,
-      "man_hours": 14.5,
-      "operators": "Montez, Brandon",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Andrew",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "SHREDDER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Kevin",
-      "material": "HDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Steven . A was unloading/ cleaning"
-    ]
-   },
-   {
-    "date": "2026-09-29",
-    "shift": "1st",
-    "by": "Tim",
-    "filed_at": "9/29/2026",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Tony",
-      "material": "Cores",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 7.5,
-      "man_hours": 21.75,
-      "operators": "Jay, Steven, Daniel",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Vince",
-      "material": "Bopp/silicone",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "SHREDDER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Clarence",
-      "material": "HDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
    }
   ]
  },
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-26T05:21:52"
+ "generated": "2026-10-27T01:23:02"
 }
