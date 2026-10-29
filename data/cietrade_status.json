@@ -1,6 +1,18 @@
 {
  "shift_flags": [
   {
+   "date": "2026-10-28",
+   "shift": "2nd",
+   "from_shift": "1st",
+   "kind": "reassigned",
+   "machine": "AUTO TIE BALER",
+   "job": 17144,
+   "lbs": 4820,
+   "windows": 3,
+   "first": "2026-10-28T18:47",
+   "last": "2026-10-28T20:39"
+  },
+  {
    "date": "2026-10-24",
    "shift": "1st",
    "from_shift": "1st",
@@ -217,12 +229,12 @@
    "last": "2026-10-02T05:20"
   }
  ],
- "data_through": "2026-10-28",
- "last_poll": "2026-10-28T17:32:42",
- "last_snapshot": "2026-10-28T17:23:32",
- "polls": 6194,
+ "data_through": "2026-10-29",
+ "last_poll": "2026-10-29T13:40:59",
+ "last_snapshot": "2026-10-29T13:40:59",
+ "polls": 6323,
  "open_jobs": 18,
- "open_lbs": 648911,
+ "open_lbs": 708646,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -237,32 +249,62 @@
  ],
  "awaiting": [
   [
-   "2026-10-28",
+   "2026-10-29",
+   "2nd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-10-29",
+   "2nd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-10-29",
+   "2nd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-10-29",
+   "2nd",
+   "GRINDER"
+  ],
+  [
+   "2026-10-29",
+   "2nd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-10-29",
+   "2nd",
+   "SHREDDER"
+  ],
+  [
+   "2026-10-29",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-10-28",
+   "2026-10-29",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-10-28",
+   "2026-10-29",
    "3rd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-10-28",
+   "2026-10-29",
    "3rd",
    "GRINDER"
   ],
   [
-   "2026-10-28",
+   "2026-10-29",
    "3rd",
    "GUILLOTINE"
   ],
   [
-   "2026-10-28",
+   "2026-10-29",
    "3rd",
    "SHREDDER"
   ]
@@ -270,12 +312,26 @@
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "4 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
-  "17 shift-day(s) with entries made during another shift's hours (51,939 lbs), credited to the shift on the clock",
+  "18 shift-day(s) with entries made during another shift's hours (56,759 lbs), credited to the shift on the clock",
   "7 weekend/closure shift-day(s) (32,860 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-10-28",
+  "as_of": "2026-10-29",
   "days": [
+   {
+    "date": "2026-10-29",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-10-28",
     "shifts": {
@@ -288,7 +344,12 @@
       "downtime_min": 0
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon",
+      "machines": 4,
+      "machine_hours": 29.0,
+      "man_hours": 7754.0,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -404,31 +465,22 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-10-22",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon",
-      "machines": 2,
-      "machine_hours": 11.2,
-      "man_hours": 11.2,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": false
-     }
-    }
    }
   ],
   "filed": 10,
-  "entries": 197,
+  "entries": 201,
   "last_filed": "2026-10-28",
   "recent": [
+   {
+    "date": "2026-10-28",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon Marcus",
+    "hours": 7.25,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Did 2 blade changes"
+   },
    {
     "date": "2026-10-28",
     "shift": "1st",
@@ -518,19 +570,14 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Did 2 blade changes"
-   },
-   {
-    "date": "2026-10-21",
-    "shift": "1st",
-    "machine": "AUTO TIE BALER",
-    "operator": "Tony",
-    "hours": 5.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Belt was cut up had to wait for maintenance"
    }
   ],
   "notes": [
+   {
+    "date": "2026-10-28",
+    "shift": "2nd",
+    "note": "Steven a was cleaning"
+   },
    {
     "date": "2026-10-27",
     "shift": "3rd",
@@ -555,14 +602,61 @@
     "date": "2026-10-26",
     "shift": "1st",
     "note": "Test"
-   },
-   {
-    "date": "2026-10-23",
-    "shift": "2nd",
-    "note": "Steven a was cleaning"
    }
   ],
   "reports": [
+   {
+    "date": "2026-10-28",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "2026-10-28 21:18:35",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7725.0,
+      "operators": "Steven b",
+      "material": "Cardboard",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.25,
+      "man_hours": 14.5,
+      "operators": "Brandon Marcus",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Did 2 blade changes"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tevin",
+      "material": "Green grass",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Andrew",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "Steven a was cleaning"
+    ]
+   },
    {
     "date": "2026-10-28",
     "shift": "1st",
@@ -2760,135 +2854,11 @@
     "notes": [
      "Had to share tilt lift"
     ]
-   },
-   {
-    "date": "2026-10-01",
-    "shift": "3rd",
-    "by": "Connor",
-    "filed_at": "2026-10-02 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Darius",
-      "material": "Mixed Plastic and lose ld",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "James",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Connor",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
-   },
-   {
-    "date": "2026-10-01",
-    "shift": "2nd",
-    "by": "Brandon",
-    "filed_at": "2026-10-01 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 6.5,
-      "man_hours": 13.5,
-      "operators": "Brandon, Montez",
-      "material": "BOPP resin",
-      "downtime_min": 30,
-      "reason": "",
-      "comment": "We had it on the belt we had to purge it"
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 5.0,
-      "man_hours": 5.0,
-      "operators": "Kevin",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.5,
-      "man_hours": 7.5,
-      "operators": "Andrew",
-      "material": "BOPP resin/ldpe chunks",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Steven a cleaning"
-    ]
-   },
-   {
-    "date": "2026-10-01",
-    "shift": "1st",
-    "by": "Tim",
-    "filed_at": "2026-10-01 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Kemonica",
-      "material": "Supersack w/ ld",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 4.0,
-      "man_hours": 12.0,
-      "operators": "Jay, Steven, Daniel",
-      "material": "BOPP resin",
-      "downtime_min": 120,
-      "reason": "Breakdown",
-      "comment": "Started late then had to have maintenance fix the power switch for the belt"
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 14.5,
-      "operators": "Tony, Vince",
-      "material": "Ricoh Slabs",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Clarence was cleaning and bring material"
-    ]
    }
   ]
  },
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-10-28T17:32:55"
+ "generated": "2026-10-29T13:41:20"
 }
