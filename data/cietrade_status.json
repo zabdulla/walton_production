@@ -242,9 +242,9 @@
   }
  ],
  "data_through": "2026-11-01",
- "last_poll": "2026-11-01T00:21:06",
+ "last_poll": "2026-11-01T19:29:27",
  "last_snapshot": "2026-11-01T00:21:06",
- "polls": 6531,
+ "polls": 6660,
  "open_jobs": 18,
  "open_lbs": 814027,
  "from_date": "2026-08-24",
@@ -3037,5 +3037,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-01T00:21:30"
+ "generated": "2026-11-01T19:29:49"
 }
