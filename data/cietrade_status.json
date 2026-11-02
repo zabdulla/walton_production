@@ -241,12 +241,12 @@
    "last": "2026-10-03T10:23"
   }
  ],
- "data_through": "2026-11-01",
- "last_poll": "2026-11-01T19:29:27",
- "last_snapshot": "2026-11-01T00:21:06",
- "polls": 6660,
+ "data_through": "2026-11-02",
+ "last_poll": "2026-11-02T15:33:34",
+ "last_snapshot": "2026-11-02T15:33:34",
+ "polls": 6786,
  "open_jobs": 18,
- "open_lbs": 814027,
+ "open_lbs": 851490,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -259,7 +259,38 @@
   "2026-12-25",
   "2027-01-01"
  ],
- "awaiting": [],
+ "awaiting": [
+  [
+   "2026-11-02",
+   "3rd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-11-02",
+   "3rd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-11-02",
+   "3rd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-11-02",
+   "3rd",
+   "GRINDER"
+  ],
+  [
+   "2026-11-02",
+   "3rd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-11-02",
+   "3rd",
+   "SHREDDER"
+  ]
+ ],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "5 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
@@ -267,8 +298,27 @@
   "7 weekend/closure shift-day(s) (32,860 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-11-01",
+  "as_of": "2026-11-02",
   "days": [
+   {
+    "date": "2026-11-02",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 5,
+      "machine_hours": 34.5,
+      "man_hours": 41.5,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-11-01",
     "shifts": {
@@ -407,41 +457,22 @@
       "downtime_min": 60
      }
     }
-   },
-   {
-    "date": "2026-10-26",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 4,
-      "machine_hours": 26.2,
-      "man_hours": 39.8,
-      "downtime_min": 0
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon",
-      "machines": 3,
-      "machine_hours": 21.8,
-      "man_hours": 29.0,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 2,
-      "machine_hours": 13.3,
-      "man_hours": 23.6,
-      "downtime_min": 30
-     }
-    }
    }
   ],
-  "filed": 14,
-  "entries": 226,
-  "last_filed": "2026-10-30",
+  "filed": 12,
+  "entries": 231,
+  "last_filed": "2026-11-02",
   "recent": [
+   {
+    "date": "2026-11-02",
+    "shift": "1st",
+    "machine": "EXTRUDER",
+    "operator": "Daniel, Steven",
+    "hours": 7.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Die face clogged at end of shift had to raise temp to purge screw out"
+   },
    {
     "date": "2026-10-30",
     "shift": "3rd",
@@ -531,16 +562,6 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "E-stop was damaged had to troubleshoot then had to bypass it."
-   },
-   {
-    "date": "2026-10-29",
-    "shift": "1st",
-    "machine": "GRINDER",
-    "operator": "Anthony",
-    "hours": 6.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Blew a fuse twice"
    }
   ],
   "notes": [
@@ -576,6 +597,66 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-02",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "2026-11-02 14:11:49",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "Cardboard",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Daniel, Steven",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Die face clogged at end of shift had to raise temp to purge screw out"
+     },
+     {
+      "machine": "GREEN MAX DENSIFIER (NEW)",
+      "machine_hours": 5.25,
+      "man_hours": 5.25,
+      "operators": "Kemonica",
+      "material": "EPS",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Anthony",
+      "material": "LDPE",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "BOPP slabs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-10-30",
     "shift": "3rd",
@@ -2879,163 +2960,11 @@
      }
     ],
     "notes": []
-   },
-   {
-    "date": "2026-10-05",
-    "shift": "3rd",
-    "by": "Connor",
-    "filed_at": "2026-10-06 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Darius",
-      "material": "Mixed Plastic",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GREEN MAX DENSIFIER (NEW)",
-      "machine_hours": 3.0,
-      "man_hours": 3.0,
-      "operators": "James",
-      "material": "EPS fines",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": "Issue with heat on machine also none of us are trained on machine"
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.0,
-      "man_hours": 11.0,
-      "operators": "Connor, James",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": "Moved James over after issues with densifier"
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Daniel",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
-   },
-   {
-    "date": "2026-10-05",
-    "shift": "2nd",
-    "by": "Tim",
-    "filed_at": "2026-10-05 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Steven B",
-      "material": "Mixed Plastic",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GREEN MAX DENSIFIER (NEW)",
-      "machine_hours": 4.0,
-      "man_hours": 4.0,
-      "operators": "Steven A",
-      "material": "EPS fines",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Kevin",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Andrew",
-      "material": "LDPE/Ricoh/BOPP",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Steven A. was unloading"
-    ]
-   },
-   {
-    "date": "2026-10-05",
-    "shift": "1st",
-    "by": "Tim",
-    "filed_at": "2026-10-05 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Tony",
-      "material": "Mixed Plastic",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 4.0,
-      "man_hours": 8.0,
-      "operators": "Steven, Daniel",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": "Chiller went down"
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Jay",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Clarence",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
    }
   ]
  },
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-01T19:29:49"
+ "generated": "2026-11-02T15:33:58"
 }
