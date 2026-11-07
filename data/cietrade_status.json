@@ -1,6 +1,18 @@
 {
  "shift_flags": [
   {
+   "date": "2026-11-06",
+   "shift": "2nd",
+   "from_shift": "3rd",
+   "kind": "reassigned",
+   "machine": "AUTO TIE BALER",
+   "job": 17150,
+   "lbs": 6651,
+   "windows": 4,
+   "first": "2026-11-06T15:56",
+   "last": "2026-11-06T21:05"
+  },
+  {
    "date": "2026-11-04",
    "shift": "2nd",
    "from_shift": "3rd",
@@ -266,11 +278,11 @@
   }
  ],
  "data_through": "2026-11-06",
- "last_poll": "2026-11-06T02:00:59",
- "last_snapshot": "2026-11-06T00:08:46",
- "polls": 7251,
+ "last_poll": "2026-11-06T22:02:01",
+ "last_snapshot": "2026-11-06T21:24:20",
+ "polls": 7377,
  "open_jobs": 18,
- "open_lbs": 1078534,
+ "open_lbs": 1134243,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -284,66 +296,6 @@
   "2027-01-01"
  ],
  "awaiting": [
-  [
-   "2026-11-06",
-   "1st",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-11-06",
-   "1st",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-06",
-   "1st",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-06",
-   "1st",
-   "GRINDER"
-  ],
-  [
-   "2026-11-06",
-   "1st",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-06",
-   "1st",
-   "SHREDDER"
-  ],
-  [
-   "2026-11-06",
-   "2nd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-11-06",
-   "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-06",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-06",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-11-06",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-06",
-   "2nd",
-   "SHREDDER"
-  ],
   [
    "2026-11-06",
    "3rd",
@@ -377,8 +329,8 @@
  ],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
-  "6 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
-  "25 shift-day(s) with entries made during another shift's hours (73,333 lbs), credited to the shift on the clock",
+  "7 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
+  "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
   "7 weekend/closure shift-day(s) (32,860 lbs) kept on their own days"
  ],
  "end_of_shift": {
@@ -391,7 +343,12 @@
       "filed": false
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon",
+      "machines": 4,
+      "machine_hours": 28.0,
+      "man_hours": 39.5,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -418,7 +375,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 1,
+      "machine_hours": 5.3,
+      "man_hours": 10.6,
+      "downtime_min": 90
      }
     }
    },
@@ -533,10 +495,30 @@
     }
    }
   ],
-  "filed": 10,
-  "entries": 269,
-  "last_filed": "2026-11-05",
+  "filed": 12,
+  "entries": 274,
+  "last_filed": "2026-11-06",
   "recent": [
+   {
+    "date": "2026-11-06",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon Marcus",
+    "hours": 5.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Was fixing the pipe that was leaking and had two wrap ups did a screen change and change the blades 2"
+   },
+   {
+    "date": "2026-11-05",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, James",
+    "hours": 5.3,
+    "downtime_min": 90,
+    "reason": "",
+    "comment": "Screen change at start of shift than wrap up at 10:44 than a blade change"
+   },
    {
     "date": "2026-11-05",
     "shift": "2nd",
@@ -616,26 +598,6 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Die face clogged at end of shift had to raise temp to purge screw out"
-   },
-   {
-    "date": "2026-10-30",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "James, Connor",
-    "hours": 7.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "1 screen 1 blade change at start of shift"
-   },
-   {
-    "date": "2026-10-30",
-    "shift": "2nd",
-    "machine": "AUTO TIE BALER",
-    "operator": "Steven",
-    "hours": 3.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Shut down for matnince"
    }
   ],
   "notes": [
@@ -671,6 +633,76 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-06",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "2026-11-06 21:41:25",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven",
+      "material": "Sbs",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.5,
+      "man_hours": 10.0,
+      "operators": "Brandon Marcus",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Was fixing the pipe that was leaking and had two wrap ups did a screen change and change the blades 2"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Tevin s, Steven",
+      "material": "Pet",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Andrew",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-11-05",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "2026-11-06 05:34:36",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.3,
+      "man_hours": 10.6,
+      "operators": "Connor, James",
+      "material": "BOPP resin",
+      "downtime_min": 90,
+      "reason": "",
+      "comment": "Screen change at start of shift than wrap up at 10:44 than a blade change"
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-11-05",
     "shift": "2nd",
@@ -2968,5 +3000,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-06T02:01:25"
+ "generated": "2026-11-06T22:02:25"
 }
