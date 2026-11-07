@@ -1,6 +1,18 @@
 {
  "shift_flags": [
   {
+   "date": "2026-11-07",
+   "shift": "1st",
+   "from_shift": "1st",
+   "kind": "weekend",
+   "machine": "GUILLOTINE",
+   "job": 17147,
+   "lbs": 7809,
+   "windows": 1,
+   "first": "2026-11-07T11:08",
+   "last": "2026-11-07T11:17"
+  },
+  {
    "date": "2026-11-06",
    "shift": "2nd",
    "from_shift": "3rd",
@@ -277,12 +289,12 @@
    "last": "2026-10-13T04:56"
   }
  ],
- "data_through": "2026-11-06",
- "last_poll": "2026-11-06T22:02:01",
- "last_snapshot": "2026-11-06T21:24:20",
- "polls": 7377,
+ "data_through": "2026-11-07",
+ "last_poll": "2026-11-07T18:11:08",
+ "last_snapshot": "2026-11-07T11:17:53",
+ "polls": 7506,
  "open_jobs": 18,
- "open_lbs": 1134243,
+ "open_lbs": 1145122,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -295,52 +307,40 @@
   "2026-12-25",
   "2027-01-01"
  ],
- "awaiting": [
-  [
-   "2026-11-06",
-   "3rd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-11-06",
-   "3rd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-06",
-   "3rd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-06",
-   "3rd",
-   "GRINDER"
-  ],
-  [
-   "2026-11-06",
-   "3rd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-06",
-   "3rd",
-   "SHREDDER"
-  ]
- ],
+ "awaiting": [],
  "warnings": [
   "ignored (no machine/shift mapping): REPACKAGING",
   "7 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
-  "7 weekend/closure shift-day(s) (32,860 lbs) kept on their own days"
+  "8 weekend/closure shift-day(s) (40,669 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-11-06",
+  "as_of": "2026-11-07",
   "days": [
+   {
+    "date": "2026-11-07",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-11-06",
     "shifts": {
      "1st": {
-      "filed": false
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 29.5,
+      "man_hours": 39.0,
+      "downtime_min": 0
      },
      "2nd": {
       "filed": true,
@@ -351,7 +351,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 1,
+      "machine_hours": 5.0,
+      "man_hours": 10.0,
+      "downtime_min": 0
      }
     }
    },
@@ -479,26 +484,22 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-10-31",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
-     }
-    }
    }
   ],
-  "filed": 12,
-  "entries": 274,
+  "filed": 14,
+  "entries": 279,
   "last_filed": "2026-11-06",
   "recent": [
+   {
+    "date": "2026-11-06",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, James",
+    "hours": 5.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "1 screen and blade at start of shift pelitizer motor wasn\u2019t working fixed it than the shredder blew apart and leaked oil on the floor"
+   },
    {
     "date": "2026-11-06",
     "shift": "2nd",
@@ -588,16 +589,6 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Had to purge the machine out multiple times and the cuter compactor backfilled had to open it up and clean it out"
-   },
-   {
-    "date": "2026-11-02",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Daniel, Steven",
-    "hours": 7.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Die face clogged at end of shift had to raise temp to purge screw out"
    }
   ],
   "notes": [
@@ -633,6 +624,26 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-06",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "2026-11-07 04:25:34",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.0,
+      "man_hours": 10.0,
+      "operators": "Connor, James",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "1 screen and blade at start of shift pelitizer motor wasn\u2019t working fixed it than the shredder blew apart and leaked oil on the floor"
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-11-06",
     "shift": "2nd",
@@ -675,6 +686,56 @@
       "machine_hours": 7.5,
       "man_hours": 7.5,
       "operators": "Andrew",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-11-06",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "2026-11-06 23:04:50",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Tony",
+      "material": "SBS",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Daniel, Steven",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.5,
+      "man_hours": 10.0,
+      "operators": "Kemonica Anthony",
+      "material": "PET regrind",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
       "material": "BOPP",
       "downtime_min": 0,
       "reason": "",
@@ -3000,5 +3061,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-06T22:02:25"
+ "generated": "2026-11-07T18:11:28"
 }
