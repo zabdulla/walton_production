@@ -25,8 +25,8 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    CIETRADE_DATA_DIR, CIETRADE_LINE_TO_MACHINE, CIETRADE_SITES, LIVE_FEED_LENGTH, LIVE_GIST_ID,
-    LIVE_JSON_PATH, LIVE_QUIET_MINUTES, SHIFT_HOURS,
+    CIETRADE_DATA_DIR, CIETRADE_SITES, LIVE_FEED_LENGTH, LIVE_GIST_ID,
+    LIVE_JSON_PATH, LIVE_QUIET_MINUTES, SHIFT_HOURS, UNTAGGED, line_to_machine,
 )
 from cietrade_model import classify_window
 
@@ -46,8 +46,8 @@ def load_snapshots(api_dir: Path = CIETRADE_DATA_DIR, sites: set = CIETRADE_SITE
     df["ts"] = pd.to_datetime(df["Snapshot"])
     df["job"] = df["Job No"].astype(int)
     df["line"] = df["Machine"].astype(str).str.replace(r"\s*\(\d(?:ST|ND|RD) SHIFT\)", "", regex=True).str.strip()
-    df["machine"] = df["line"].map(CIETRADE_LINE_TO_MACHINE).fillna(df["line"])
-    df["shift"] = df["Machine"].astype(str).str.extract(SHIFT_RE)[0].map(SHIFT_NAME)
+    df["machine"] = df["line"].map(lambda s: line_to_machine(s, s))
+    df["shift"] = df["Machine"].astype(str).str.extract(SHIFT_RE)[0].map(SHIFT_NAME).fillna(UNTAGGED)   # no tag: the clock decides
     df["qty"] = pd.to_numeric(df["Output Qty"], errors="coerce").fillna(0.0)
     df["units"] = pd.to_numeric(df["Output Units"], errors="coerce").fillna(0).astype(int)
     start = pd.to_datetime(df["Start-Time"].astype(str).str.strip(), format="%I:%M%p", errors="coerce")
@@ -113,8 +113,8 @@ def changes(snaps: pd.DataFrame, polls: pd.DataFrame) -> pd.DataFrame:
             if abs(lbs) < 0.5 and units == 0:
                 continue
         t0 = t0 if t0 is not None else r.ts
-        cls = classify_window(t0, r.ts, r.shift)                 # the clock checks the job's shift tag
-        s_eff = cls["shift"] if cls["kind"] != "unresolved" else r.shift
+        cls = classify_window(t0, r.ts, r.shift)                 # the clock checks the job's shift tag, or decides alone
+        s_eff = cls["shift"]                                      # unresolved: the tag, or the clock's best guess
         out.append(dict(t0=t0, t1=r.ts, job=int(r.job), machine=r.machine,
                         shift=r.shift, lbs=round(lbs), units=units, correction=bool(lbs < 0),
                         s_eff=s_eff, off_shift=cls["kind"] == "off", eff_day=cls["date"] if cls["date"] is not None else production_day(r.ts)))

@@ -104,6 +104,19 @@ Every correction is written into the row's Comment, listed in `cietrade_status.j
 `shift_flags`, shown on the beta Today view for that day, and summarised in the daily email.
 `SHIFT_REASSIGN = False` keeps the flags but leaves every pound on its tagged shift.
 
+**One job per machine (untagged).** A converting job whose machine record carries no shift
+tag (`EXTRUDER` rather than `EXTRUDER (1ST SHIFT)`) has shift `config.UNTAGGED`: it owns all
+three shifts of every day it covers and the clock alone places each window, by its midpoint,
+with no grace. Nothing on such a job is ever *reassigned*; weekend and closure rows and the
+outage split work as above. Tagged and untagged jobs on one line can overlap during the
+changeover: each job's windows land where they belong and the shift-day figure is their sum.
+Machine names are matched loosely (case, hyphens and spacing are ignored, so `Auto Tie Baler`
+is `AUTO-TIE BALER`), and a record the maps do not know is reported as *ignored (no machine
+mapping)* in the run log. The one thing the tag used to buy is the grace: a 1st-shift bale
+weighed at 2:05 PM on an untagged job counts for 2nd shift, so the outgoing crew should log
+its last items before the hour. Measured on Sep 15 – Nov 9 2026, that grace moved 1.0% of
+pounds.
+
 ## Into the dashboard — `src/cietrade_daily.py`
 
 From `config.CIETRADE_FROM_DATE` on, every run regenerates one aggregate row per

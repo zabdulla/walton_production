@@ -9,7 +9,7 @@ Observations come from three places, all in the manual export's column layout:
 An open-jobs observation is a snapshot: the job's Output Qty at that instant, so
 consecutive snapshots of one job bracket the output produced between them.
 
-Attribution, per line (one cieTrade machine name including its shift tag):
+Attribution, per line (one cieTrade machine name, with or without a shift tag):
   1. Coverage — which shift-days a job owns — as validated against the hand-built
      workbooks (98.8% of Aug 3–21 shift-days to the pound): through Aug 21 the Job
      Date's shift; since Aug 24 the shifts between the job's creation and the next
@@ -34,6 +34,12 @@ Attribution, per line (one cieTrade machine name including its shift tag):
      least a grace ago) and flagged as reassigned. A window on a weekend or closure
      day keeps its shift but gets that day's own row, flagged as weekend/closure, so
      it never inflates the nearest weekday. Both kinds are listed in ``flags``.
+  6. A job with no shift tag (one job per machine, shift config.UNTAGGED) owns all
+     three shifts of every day between its creation and the next untagged job on its
+     line, and the clock alone places each window: the shift on at its midpoint, no
+     grace, so nothing is ever "reassigned". Tagged and untagged jobs on one line can
+     overlap (the changeover): each job's windows land where they belong and the
+     shift-day's figure is their sum.
 """
 from __future__ import annotations
 
@@ -46,7 +52,7 @@ import pandas as pd
 
 from config import (
     CIETRADE_DATA_DIR, CIETRADE_EXPORT_DIR, CIETRADE_POSTED_LOOKBACK_DAYS, CIETRADE_SITES, DEFAULT_AGGREGATED_DATA, SHIFT_GRACE_MINUTES,
-    SHIFT_HOURS, SHIFT_REASSIGN, SHIFT_WINDOW_MAX_HOURS,
+    SHIFT_HOURS, SHIFT_REASSIGN, SHIFT_WINDOW_MAX_HOURS, UNTAGGED, canon_line,
 )
 
 # cieTrade line -> series on the pilot page (the small lines share one)
@@ -55,6 +61,7 @@ MACHINE_MAP = {"AUTO-TIE BALER": "AUTO TIE BALER", "EXTRUDER": "EXTRUDER", "GUIL
                "SHREDDER/GRINDER": "SHREDDER+GRINDER", "SMALL GRINDER": "SHREDDER+GRINDER",
                "AVANGARD (OLD)": "OTHER LINES", "BALER2": "OTHER LINES", "BALER 2": "OTHER LINES",
                "BALER1": "OTHER LINES", "BALER 1": "OTHER LINES"}
+_MACHINE_CANON = {canon_line(k): v for k, v in MACHINE_MAP.items()}
 MID = {k: (a + b) / 2 for k, (a, b) in SHIFT_HOURS.items()}   # coverage midpoint of each shift (validation unchanged)
 WORKDAYS = {0, 1, 2, 3, 4}
 REGIME_CHANGE = pd.Timestamp("2026-08-24")
@@ -67,6 +74,11 @@ FAR = pd.Timestamp("2100-01-01")
 SHIFT_RE = r"\((\d)(?:ST|ND|RD) SHIFT\)"
 MODE_RANK = {"not yet posted": 4, "partial": 3, "spread": 2, "exact": 1, "no open job": 0}
 GRACE = pd.Timedelta(minutes=SHIFT_GRACE_MINUTES)
+
+
+def is_tag(tag: object) -> bool:
+    """True for a real shift tag ("1st", "2nd", "3rd"); False for an untagged job's shift."""
+    return isinstance(tag, str) and tag in SHIFT_HOURS
 
 
 def shift_at(t: pd.Timestamp) -> tuple[pd.Timestamp, str]:
@@ -88,12 +100,17 @@ def classify_window(t0: pd.Timestamp, t1: pd.Timestamp, tag: str, grace: pd.Time
     "on": the tagged shift was on the clock at the window's midpoint, or had ended less
     than ``grace`` earlier (late logging). "off": another shift was on the clock for
     longer than the grace; ``shift`` is that shift. "unresolved": the window is too
-    long to place (a polling gap); the caller splits it by overlap as before."""
+    long to place (a polling gap); the caller splits it by overlap as before.
+
+    An untagged job (``tag`` is not a shift) is always "on" the shift the clock shows at
+    the midpoint, with no grace; unresolved, its ``shift`` is the clock's best guess."""
     t0, t1 = pd.Timestamp(t0), pd.Timestamp(t1)
-    if t1 - t0 > pd.Timedelta(hours=max_hours):
-        return {"kind": "unresolved", "date": None, "shift": tag}
     mid = t0 + (t1 - t0) / 2
+    if t1 - t0 > pd.Timedelta(hours=max_hours):
+        return {"kind": "unresolved", "date": None, "shift": tag if is_tag(tag) else shift_at(mid)[1]}
     d_now, s_now = shift_at(mid)
+    if not is_tag(tag):
+        return {"kind": "on", "date": d_now, "shift": s_now}
     d_prev, s_prev = shift_at(mid - grace)
     if tag == s_now:
         return {"kind": "on", "date": d_now, "shift": tag}
@@ -191,13 +208,13 @@ def job_master(raw: pd.DataFrame, sites: set = CIETRADE_SITES) -> tuple[pd.DataF
         warnings.append(f"posted job {j} changed quantity after posting ({r['min']:,.0f} -> {r['max']:,.0f} lbs); the latest value is used")
     posted = posted_obs.groupby("Job No").tail(1)
     m = pd.concat([posted, latest[~latest["Job No"].isin(posted["Job No"])]]).copy()
-    m["line"] = m["Machine"].str.replace(r"\s*" + SHIFT_RE, "", regex=True)
-    m["machine"] = m["line"].map(MACHINE_MAP)
-    m["shift"] = m["Machine"].str.extract(SHIFT_RE)[0].map({"1": "1st", "2": "2nd", "3": "3rd"})
-    unmapped = sorted(m.loc[m["machine"].isna() | m["shift"].isna(), "Machine"].unique())
+    m["line"] = m["Machine"].str.replace(r"\s*" + SHIFT_RE, "", regex=True).str.strip()
+    m["machine"] = m["line"].map(lambda s: _MACHINE_CANON.get(canon_line(s)))
+    m["shift"] = m["Machine"].str.extract(SHIFT_RE)[0].map({"1": "1st", "2": "2nd", "3": "3rd"}).fillna(UNTAGGED)
+    unmapped = sorted(m.loc[m["machine"].isna(), "Machine"].unique())
     if unmapped:
-        warnings.append("ignored (no machine/shift mapping): " + ", ".join(unmapped))
-    m = m.dropna(subset=["machine", "shift"])
+        warnings.append("ignored (no machine mapping): " + ", ".join(unmapped))
+    m = m.dropna(subset=["machine"])
     m["start_dt"] = m["Job Date"] + _tod(m["Start-Time"]).fillna(pd.Timedelta(0))
     m["old_regime"] = m["Job Date"] < REGIME_CHANGE
     m = m.sort_values(["line", "shift", "start_dt", "Job No"]).reset_index(drop=True)
@@ -224,12 +241,14 @@ def snapshot_points(raw: pd.DataFrame, m: pd.DataFrame) -> pd.DataFrame:
 def coverage(m: pd.DataFrame, closed_days: set, horizon: pd.Timestamp, last_seen: pd.Timestamp | None = None) -> pd.DataFrame:
     """Which job owns each shift-day of each line.
 
-    ``last_seen`` is the last moment the full open-jobs list was known (last
-    successful poll or open-jobs export): a shift that started before it and has
-    no job is idle, not awaiting."""
+    A tagged job owns its shift's days; an untagged job (shift UNTAGGED) owns all
+    three shifts of each day. ``last_seen`` is the last moment the full open-jobs
+    list was known (last successful poll or open-jobs export): a shift that started
+    before it and has no job is idle, not awaiting."""
     rows = []
-    for (line, shift), jobs in m.groupby(["line", "shift"]):
+    for (line, tag), jobs in m.groupby(["line", "shift"]):
         jobs = jobs.sort_values("start_dt")
+        shifts = list(SHIFT_HOURS) if tag == UNTAGGED else [tag]
         machine = jobs["machine"].iloc[0]
         last_activity = max(jobs["Job Date"].max(), jobs["Post Date"].max()) if jobs["Post Date"].notna().any() else jobs["Job Date"].max()
         line_active = np.busday_count(jobs["Job Date"].max().date(), horizon.date()) <= ACTIVE_WINDOW
@@ -238,16 +257,17 @@ def coverage(m: pd.DataFrame, closed_days: set, horizon: pd.Timestamp, last_seen
         for d in pd.date_range(jobs["Job Date"].min(), horizon, freq="D"):
             if d.weekday() not in WORKDAYS or d in closed_days:
                 continue
-            mid = d + pd.Timedelta(hours=MID[shift])
-            by_date = (jobs["Job Date"] <= d) & (d < post)                 # daily era: the Job Date's shift
-            by_time = (jobs["start_dt"] <= mid) & (mid < closed_at)         # multi-day era: creation-time partition
-            cand = jobs[(jobs["old_regime"] & by_date) | (~jobs["old_regime"] & by_time)]
-            if cand.empty:
-                unseen = last_seen is None or d + pd.Timedelta(hours=SHIFT_HOURS[shift][0]) > last_seen
-                mode = "not yet posted" if (line_active and d >= last_activity and unseen) else "no open job"
-                rows.append(dict(Date=d, Shift=shift, line=line, Machine=machine, job=np.nan, mode=mode))
-            else:
-                rows.append(dict(Date=d, Shift=shift, line=line, Machine=machine, job=int(cand.iloc[-1]["Job No"]), mode=""))
+            for shift in shifts:
+                mid = d + pd.Timedelta(hours=MID[shift])
+                by_date = (jobs["Job Date"] <= d) & (d < post)                 # daily era: the Job Date's shift
+                by_time = (jobs["start_dt"] <= mid) & (mid < closed_at)         # multi-day era: creation-time partition
+                cand = jobs[(jobs["old_regime"] & by_date) | (~jobs["old_regime"] & by_time)]
+                if cand.empty:
+                    unseen = last_seen is None or d + pd.Timedelta(hours=SHIFT_HOURS[shift][0]) > last_seen
+                    mode = "not yet posted" if (line_active and d >= last_activity and unseen) else "no open job"
+                    rows.append(dict(Date=d, Shift=shift, line=line, Machine=machine, job=np.nan, mode=mode))
+                else:
+                    rows.append(dict(Date=d, Shift=shift, line=line, Machine=machine, job=int(cand.iloc[-1]["Job No"]), mode=""))
     return pd.DataFrame(rows)
 
 
@@ -319,7 +339,7 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame, reassign
                                 near = i
                         shares = {near: 1.0} if near is not None else {}
                         if near is None:
-                            target = (int(j), cls["date"], job["shift"], kind)
+                            target = (int(j), cls["date"], job["shift"] if is_tag(job["shift"]) else cls["shift"], kind)
             if not shares and target is None and idx:
                 ov = {i: max(0.0, (min(t1, e) - max(t0, s)) / HOUR) for i, (s, e) in span.items()}
                 tot = sum(ov.values())
@@ -342,7 +362,8 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame, reassign
                     days_lab = target[1].strftime("%a %b %d") + f" {target[2]}"
                 else:
                     days_lab = ", ".join(cov.at[i, "Date"].strftime("%a %b %d") for i in sorted(shares, key=lambda i: cov.at[i, "Date"]))
-                windows.append(dict(job=int(j), line=job["line"], machine=job["machine"], shift=job["shift"], t0=t0, t1=t1,
+                w_shift = job["shift"] if is_tag(job["shift"]) else cls.get("shift", UNTAGGED)   # untagged: where the clock put it
+                windows.append(dict(job=int(j), line=job["line"], machine=job["machine"], shift=w_shift, t0=t0, t1=t1,
                                     lbs=delta, correction=bool(delta < 0), from_file=f0, to_file=f1, days=days_lab, kind=kind))
         for i in idx:
             s_, e_ = span[i]
@@ -380,7 +401,8 @@ def attribute(m: pd.DataFrame, cov: pd.DataFrame, points: pd.DataFrame, reassign
     extra = []
     for j in sorted(orphans):
         r = by_job.loc[j]
-        extra.append(dict(Date=r["Job Date"], Shift=r["shift"], line=r["line"], Machine=r["machine"], job=int(j),
+        extra.append(dict(Date=r["Job Date"], Shift=r["shift"] if is_tag(r["shift"]) else shift_at(r["start_dt"])[1],
+                          line=r["line"], Machine=r["machine"], job=int(j),
                           mode="exact", lbs=float(r["Output Qty"]), src="snap" if j in snap_jobs else "job", note=""))
     if extra:
         cov = pd.concat([cov, pd.DataFrame(extra)], ignore_index=True)
