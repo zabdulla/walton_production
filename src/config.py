@@ -8,6 +8,7 @@ dashboard building, and validation scripts.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -350,7 +351,9 @@ CIETRADE_POLL_INTERVAL_MIN = 10
 # regenerated from cieTrade + the End of Shift app on every run.
 CIETRADE_FROM_DATE = "2026-08-24"
 
-# cieTrade line (machine name without its "(1ST SHIFT)" tag) -> dashboard Machine_Name.
+# cieTrade line (machine name without any "(1ST SHIFT)" tag) -> dashboard Machine_Name.
+# Lookups go through line_to_machine(), which ignores case, hyphens and spacing, so a
+# machine record named "Auto Tie Baler" or "AUTO-TIE BALER (2ND SHIFT)" is the same line.
 CIETRADE_LINE_TO_MACHINE: dict[str, str] = {
     "AUTO-TIE BALER": "AUTO TIE BALER",
     "BALER 1": "BALER 1", "BALER1": "BALER 1",
@@ -364,24 +367,45 @@ CIETRADE_LINE_TO_MACHINE: dict[str, str] = {
     "SMALL GRINDER": "SMALL GRINDER",
 }
 
+
+def canon_line(name: object) -> str:
+    """A cieTrade machine name the way the maps know it: upper case, hyphens and underscores
+    as spaces, one space between words, no spaces around a slash, and no "(1ST SHIFT)" tag."""
+    s = re.sub(r"\s*\(\s*\d\s*(?:ST|ND|RD)\s+SHIFT\s*\)\s*", " ", str(name if name is not None else "").upper())
+    s = re.sub(r"[-_]+", " ", s)
+    s = re.sub(r"\s*/\s*", "/", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+_LINE_CANON = {canon_line(k): v for k, v in CIETRADE_LINE_TO_MACHINE.items()}
+
+
+def line_to_machine(line: object, default: str | None = None) -> str | None:
+    """Dashboard Machine_Name for a cieTrade line, tolerant of case, hyphens and spacing."""
+    return _LINE_CANON.get(canon_line(line), default)
+
 # Working hours of each shift as hours after midnight of the shift's date
 # (3rd shift runs into the next morning). Used to split a job's output
 # between two API polls across the shifts that ran in between.
 SHIFT_HOURS: dict[str, tuple[int, int]] = {"1st": (6, 14), "2nd": (14, 22), "3rd": (22, 30)}   # 6-2, 2-10, 10-6 (confirmed 2026-09-17)
 
-# Which shift a cieTrade entry belongs to is read from the job's tag, checked
-# against the clock. Entries within SHIFT_GRACE_MINUTES after a shift's end
-# still belong to that shift (crews finish logging a little into the next one).
-# Beyond the grace, an entry on a job tagged for another shift is credited to
-# the shift that was on the clock and flagged (seen on the Grinder: 3rd-shift
-# bales entered on the 2nd-shift job at 4-5 AM). Entries on a weekend or a
-# closure day get their own row for that day instead of inflating the nearest
+# Which shift a cieTrade entry belongs to is decided by the clock. A job whose
+# machine name carries a shift tag ("EXTRUDER (1ST SHIFT)") is checked against
+# it: entries within SHIFT_GRACE_MINUTES after that shift's end still belong to
+# it (crews finish logging a little into the next one); beyond the grace, an
+# entry on a job tagged for another shift is credited to the shift that was on
+# the clock and flagged (seen on the Grinder: 3rd-shift bales entered on the
+# 2nd-shift job at 4-5 AM). A job with no tag ("EXTRUDER", one job per machine)
+# has shift UNTAGGED: the clock alone places every entry, with no grace, and
+# the job owns all three shifts of each day it covers. Entries on a weekend or
+# a closure day get their own row for that day instead of inflating the nearest
 # weekday. Only windows shorter than SHIFT_WINDOW_MAX_HOURS are time-resolved;
-# a longer gap (an outage) is split by overlap as before. SHIFT_REASSIGN=False
-# keeps the flags but leaves every pound on its tagged shift.
+# a longer gap (an outage) is split by overlap with the shifts' hours.
+# SHIFT_REASSIGN=False keeps the flags but leaves every pound on its tag.
 SHIFT_GRACE_MINUTES = 90
 SHIFT_WINDOW_MAX_HOURS = 3
 SHIFT_REASSIGN = True
+UNTAGGED = "any"                 # the "shift" of a job whose machine name has no shift tag
 
 # Where the poller drops a copy of the freshly built pilot page so it can be
 # opened from a phone through OneDrive. Set to None to disable.

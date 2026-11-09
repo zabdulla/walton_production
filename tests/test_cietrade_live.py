@@ -119,3 +119,25 @@ def test_outage_names_the_first_failed_poll_after_the_last_good_one(tmp_path) ->
     assert L["lbs_today"] == 400 and L["changes_today"] == 3          # figures through the last good poll are kept
     ok = live.build_live(now=pd.Timestamp("2026-09-17 13:35:00"), api_dir=_api_dir(tmp_path / "ok"))
     assert ok["poll_ok"] and ok["api_down_since"] is None and ok["failed_polls"] == 0 and ok["last_error"] == ""
+
+
+def test_changes_for_untagged_jobs_follow_the_clock(tmp_path) -> None:
+    """A plain EXTRUDER job (no shift tag): 1:55 PM is 1st, 2:15 PM is 2nd, nothing is off-shift."""
+    d = tmp_path / "cietrade"; (d / "snapshots").mkdir(parents=True)
+    rows = [
+        _row("2026-10-13T13:50:00", 7, "EXTRUDER", 1000, 0, job_date="2026-10-13", start="7:00AM"),
+        _row("2026-10-13T14:00:00", 7, "EXTRUDER", 1400, 0, job_date="2026-10-13", start="7:00AM"),
+        _row("2026-10-13T14:20:00", 7, "EXTRUDER", 1900, 0, job_date="2026-10-13", start="7:00AM"),
+        _row("2026-10-13T14:20:00", 8, "Auto Tie Baler", 250, 1, job_date="2026-10-13", start="2:12PM"),   # created after the 14:10 poll
+    ]
+    pd.DataFrame(rows, columns=COLS).to_csv(d / "snapshots" / "all.csv", index=False)
+    polls = ["2026-10-13T13:40:00", "2026-10-13T13:50:00", "2026-10-13T14:00:00", "2026-10-13T14:10:00", "2026-10-13T14:20:00"]
+    (d / "polls.jsonl").write_text("".join(json.dumps({"ts": t, "ok": True, "changed": True}) + "\n" for t in polls))
+    ch = live.changes(live.load_snapshots(d), live.load_polls(d))
+    assert [(r.machine, r.lbs, r.shift, r.s_eff, r.off_shift) for r in ch.itertuples()] == [
+        ("EXTRUDER", 400, live.UNTAGGED, "1st", False), ("AUTO TIE BALER", 250, live.UNTAGGED, "2nd", False), ("EXTRUDER", 500, live.UNTAGGED, "2nd", False)]
+    L = live.build_live(now=pd.Timestamp("2026-10-13 14:30:00"), api_dir=d)
+    tiles = {m["m"]: m["by_shift"] for m in L["machines"]}
+    assert tiles == {"EXTRUDER": {"1st": 400, "2nd": 500}, "AUTO TIE BALER": {"2nd": 250}}
+    assert L["flags"] == [] and L["changes"][0]["tag"] == "any" and L["changes"][0]["s"] == "2nd"
+    json.loads(json.dumps(L, allow_nan=False))                                   # no NaN leaks into the feed

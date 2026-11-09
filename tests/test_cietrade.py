@@ -368,3 +368,99 @@ def test_without_the_end_of_shift_file_the_record_keeps_hours_and_reports(tmp_pa
     assert st["end_of_shift"]["reports"][0]["by"] == "Tim" and st["end_of_shift"]["carried"] is True
     st2 = daily.build_status(res, from_date="2026-09-01", labor_path=tmp_path / "no-labor.xlsx", api_dir=api_dir, previous=None)
     assert st2["end_of_shift"]["reports"] == []
+
+
+# ---- untagged jobs: one job per machine, the clock decides -----------------
+
+def _write_jobs_api_dir(tmp_path: Path, obs: list, created: dict) -> Path:
+    """``obs``: (snapshot ts, {job no: qty}); ``created``: job no -> (machine, job date, start)."""
+    api_dir = tmp_path / "cietrade"
+    (api_dir / "snapshots").mkdir(parents=True)
+    frames = []
+    for ts, qtys in obs:
+        df = api.normalize([job(no, *created[no], qty) for no, qty in qtys.items()])
+        df.insert(0, "Snapshot", ts)
+        frames.append(df)
+    pd.concat(frames).to_csv(api_dir / "snapshots" / "all.csv", index=False)
+    with (api_dir / "polls.jsonl").open("w") as fh:
+        for ts, _ in obs:
+            fh.write(json.dumps({"ts": ts, "ok": True, "changed": True}) + "\n")
+    (tmp_path / "exports").mkdir(exist_ok=True)
+    return api_dir
+
+
+def test_classify_window_untagged_jobs_follow_the_clock_with_no_grace() -> None:
+    on = lambda t0, t1, tag: model.classify_window(pd.Timestamp(t0), pd.Timestamp(t1), tag)
+    for tag in (model.UNTAGGED, None, float("nan"), ""):
+        assert on("2026-10-16 13:56", "2026-10-16 14:06", tag) == {"kind": "on", "date": pd.Timestamp("2026-10-16"), "shift": "2nd"}  # 14:01: 2nd, no grace
+        assert on("2026-10-16 13:40", "2026-10-16 13:50", tag) == {"kind": "on", "date": pd.Timestamp("2026-10-16"), "shift": "1st"}
+        assert on("2026-10-14 04:40", "2026-10-14 04:50", tag) == {"kind": "on", "date": pd.Timestamp("2026-10-13"), "shift": "3rd"}  # 3rd belongs to the day it started
+        assert on("2026-10-14 06:30", "2026-10-14 06:40", tag) == {"kind": "on", "date": pd.Timestamp("2026-10-14"), "shift": "1st"}
+    gap = on("2026-10-07 11:05", "2026-10-07 15:30", model.UNTAGGED)
+    assert gap == {"kind": "unresolved", "date": None, "shift": "1st"}                 # too long to place: the clock's guess at the midpoint
+    assert model.is_tag("2nd") and not model.is_tag(model.UNTAGGED) and not model.is_tag(None)
+
+
+def test_model_untagged_job_owns_every_shift_and_the_clock_splits_it(tmp_path) -> None:
+    """One untagged EXTRUDER job (Mon 2:10 PM) that gains pounds Tue 1:45 PM (1st), 2:05 PM
+    (2nd: no grace without a tag), 10:05 PM (3rd), Wed 8:55 AM (1st) and Saturday (weekend)."""
+    created = {700: ("EXTRUDER", "2026-10-12", "2:10PM"), 701: ("Auto Tie Baler", "2026-10-12", "2:12PM"),
+               702: ("REPACKAGING", "2026-10-12", "2:15PM")}
+    obs = [("2026-10-13T13:40:00", {700: 0, 701: 0, 702: 0}), ("2026-10-13T13:50:00", {700: 1000, 701: 0, 702: 50}),
+           ("2026-10-13T14:10:00", {700: 1000, 701: 0, 702: 50}), ("2026-10-13T14:20:00", {700: 1800, 701: 0, 702: 50}),
+           ("2026-10-13T22:00:00", {700: 1800, 701: 0, 702: 50}), ("2026-10-13T22:10:00", {700: 2500, 701: 300, 702: 50}),
+           ("2026-10-14T08:50:00", {700: 2500, 701: 300, 702: 50}), ("2026-10-14T09:00:00", {700: 3100, 701: 300, 702: 50}),
+           ("2026-10-17T09:00:00", {700: 3100, 701: 300, 702: 50}), ("2026-10-17T09:10:00", {700: 3600, 701: 300, 702: 50})]
+    api_dir = _write_jobs_api_dir(tmp_path, obs, created)
+    res = model.run(export_dir=tmp_path / "exports", api_dir=api_dir, aggregate=tmp_path / "none.xlsx", verbose=False)
+    assert any(w == "ignored (no machine mapping): REPACKAGING" for w in res["meta"]["warnings"])
+    assert not any("credited to the shift on the clock" in w for w in res["meta"]["warnings"])   # nothing is "reassigned" without a tag
+    cov = res["cov"].dropna(subset=["lbs"])
+    by = {(d.strftime("%m-%d"), s, ln): float(v) for d, s, ln, v in zip(cov["Date"], cov["Shift"], cov["line"], cov["lbs"])}
+    assert by[("10-13", "1st", "EXTRUDER")] == 1000
+    assert by[("10-13", "2nd", "EXTRUDER")] == 800                                # 2:05 PM: 2nd shift, no grace for an untagged job
+    assert by[("10-13", "3rd", "EXTRUDER")] == 700
+    assert by[("10-14", "1st", "EXTRUDER")] == 600
+    assert by[("10-17", "1st", "EXTRUDER")] == 500                                # Saturday gets its own row
+    assert by[("10-13", "3rd", "Auto Tie Baler")] == 300                          # a loosely named record still maps
+    assert cov.loc[cov["line"] == "EXTRUDER", "lbs"].sum() == 3600                 # every pound lands once
+    cells = res["cells"].set_index(["Date", "Shift", "Machine"])
+    assert cells.loc[(pd.Timestamp("2026-10-13"), "2nd", "EXTRUDER"), "mode"] == "exact"
+    assert cells.loc[(pd.Timestamp("2026-10-13"), "3rd", "AUTO TIE BALER"), "lbs"] == 300
+    f = res["flags"]
+    assert [(r.date.strftime("%m-%d"), r.shift, r.from_shift, r.kind, int(r.lbs)) for r in f.itertuples()] == [("10-17", "1st", "1st", "weekend", 500)]
+    w = res["windows"]
+    assert list(w.loc[w["job"] == 700, "shift"]) == ["1st", "2nd", "3rd", "1st", "1st"]      # the log records where the clock put each window
+    # the daily record and the status see ordinary shift rows
+    rows, _, _ = daily.daily_rows(res, labor_path=tmp_path / "no-labor.xlsx", from_date="2026-10-01")
+    ex = rows[(rows["Machine_Name"] == "EXTRUDER") & (rows["Date"] == "2026-10-13")].set_index("Shift")["Actual_Output"]
+    assert ex.to_dict() == {"1st": 1000, "2nd": 800, "3rd": 700}
+    st = daily.build_status(res, from_date="2026-10-01", labor_path=tmp_path / "no-labor.xlsx", api_dir=api_dir)
+    assert [(x["date"], x["machine"], x["kind"]) for x in st["shift_flags"]] == [("2026-10-17", "EXTRUDER", "weekend")]
+    json.dumps(st)
+
+
+def test_model_tagged_and_untagged_jobs_on_one_line_add_up_during_the_changeover(tmp_path) -> None:
+    """The old 1st-shift job is still open when the plain EXTRUDER job starts: both count once."""
+    created = {600: ("EXTRUDER (1ST SHIFT)", "2026-10-12", "2:10PM"), 700: ("EXTRUDER", "2026-10-13", "7:00AM")}
+    obs = [("2026-10-13T09:50:00", {600: 0, 700: 0}), ("2026-10-13T10:00:00", {600: 300, 700: 0}),
+           ("2026-10-13T13:40:00", {600: 300, 700: 0}), ("2026-10-13T13:50:00", {600: 300, 700: 1000}),
+           ("2026-10-13T15:00:00", {600: 300, 700: 1000}), ("2026-10-13T15:10:00", {600: 300, 700: 1400})]
+    api_dir = _write_jobs_api_dir(tmp_path, obs, created)
+    res = model.run(export_dir=tmp_path / "exports", api_dir=api_dir, aggregate=tmp_path / "none.xlsx", verbose=False)
+    cells = res["cells"].set_index(["Date", "Shift", "Machine"])
+    first = cells.loc[(pd.Timestamp("2026-10-13"), "1st", "EXTRUDER")]
+    assert first["lbs"] == 1300 and first["job"] == "600+700"
+    assert cells.loc[(pd.Timestamp("2026-10-13"), "2nd", "EXTRUDER"), "lbs"] == 400
+    assert res["cov"]["lbs"].sum() == 1700
+    rows, _, _ = daily.daily_rows(res, labor_path=tmp_path / "no-labor.xlsx", from_date="2026-10-01")
+    ex = rows[(rows["Machine_Name"] == "EXTRUDER") & (rows["Date"] == "2026-10-13")].set_index("Shift")["Actual_Output"]
+    assert ex.to_dict() == {"1st": 1300, "2nd": 400}
+
+
+def test_line_names_match_loosely() -> None:
+    from config import canon_line, line_to_machine
+    assert canon_line("AUTO-TIE BALER (2ND SHIFT)") == "AUTO TIE BALER" == canon_line("auto tie  baler")
+    assert canon_line("Shredder / Grinder") == "SHREDDER/GRINDER" and canon_line(None) == ""
+    assert line_to_machine("Auto Tie Baler") == "AUTO TIE BALER" and line_to_machine("green max (new)") == "GREEN MAX DENSIFIER (NEW)"
+    assert line_to_machine("REPACKAGING") is None and line_to_machine("REPACKAGING", "REPACKAGING") == "REPACKAGING"

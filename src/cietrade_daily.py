@@ -27,7 +27,7 @@ from pathlib import Path
 import pandas as pd
 
 from config import (
-    CIETRADE_FROM_DATE, CIETRADE_LINE_TO_MACHINE, DATA_DIR, DEFAULT_AGGREGATED_DATA,
+    CIETRADE_FROM_DATE, DATA_DIR, DEFAULT_AGGREGATED_DATA, line_to_machine,
     DEFAULT_AGGREGATED_NOTES, LABOR_RATE,
 )
 from aggregate_daily_data import _categorize_note, dedup_daily, merge_incremental
@@ -85,7 +85,7 @@ def daily_rows(res: dict, labor_path: Path = LABOR_ENTRIES_PATH, from_date: str 
     warnings: list[str] = []
     cov = res["cov"]
     keep = cov[(cov["Date"] >= pd.Timestamp(from_date)) & cov["mode"].isin(["exact", "spread", "partial"]) & cov["lbs"].notna()].copy()
-    keep["Machine_Name"] = keep["line"].map(CIETRADE_LINE_TO_MACHINE)
+    keep["Machine_Name"] = keep["line"].map(line_to_machine)
     lost = keep[keep["Machine_Name"].isna()]
     if len(lost):
         warnings.append("cieTrade lines without a dashboard machine (dropped): " + ", ".join(sorted(lost["line"].unique())))
@@ -214,7 +214,7 @@ def shift_flags(flags: pd.DataFrame | None, since: pd.Timestamp | None = None, d
         lo = max(lo, since)
     f = f[f["date"] >= lo].sort_values(["date", "shift", "machine"], ascending=[False, True, True])
     return [{"date": r.date.strftime("%Y-%m-%d"), "shift": r.shift, "from_shift": r.from_shift, "kind": r.kind,
-             "machine": CIETRADE_LINE_TO_MACHINE.get(r.line, r.line), "job": int(r.job), "lbs": round(float(r.lbs)),
+             "machine": line_to_machine(r.line, r.line), "job": int(r.job), "lbs": round(float(r.lbs)),
              "windows": int(r.windows), "first": pd.Timestamp(r.first).strftime("%Y-%m-%dT%H:%M"), "last": pd.Timestamp(r.last).strftime("%Y-%m-%dT%H:%M")}
             for r in f.itertuples(index=False)]
 
@@ -232,7 +232,7 @@ def build_status(res: dict, from_date: str = CIETRADE_FROM_DATE, labor_path: Pat
         eos = dict(previous["end_of_shift"], carried=True)         # no sheet on this machine: keep the last known reports
     recent = cov[cov["Date"] >= pd.Timestamp(from_date)]
     awaiting = recent[recent["mode"] == "not yet posted"]
-    awaiting_cells = sorted({(d.strftime("%Y-%m-%d"), s, CIETRADE_LINE_TO_MACHINE.get(ln, ln))
+    awaiting_cells = sorted({(d.strftime("%Y-%m-%d"), s, line_to_machine(ln, ln))
                              for d, s, ln in zip(awaiting["Date"], awaiting["Shift"], awaiting["line"])})
     return {
         "shift_flags": shift_flags(res.get("flags"), since=pd.Timestamp(from_date)),
