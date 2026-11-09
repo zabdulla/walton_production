@@ -57,7 +57,8 @@ from config import (
 
 # cieTrade line -> series on the pilot page (the small lines share one)
 MACHINE_MAP = {"AUTO-TIE BALER": "AUTO TIE BALER", "EXTRUDER": "EXTRUDER", "GUILLOTINE": "GUILLOTINE",
-               "GREEN MAX (NEW)": "GREEN MAX DENSIFIER (NEW)", "SHREDDER": "SHREDDER+GRINDER",
+               "GREEN MAX (NEW)": "GREEN MAX DENSIFIER (NEW)", "GREEN MAX DENSIFIER": "GREEN MAX DENSIFIER (NEW)",
+               "SHREDDER": "SHREDDER+GRINDER",
                "SHREDDER/GRINDER": "SHREDDER+GRINDER", "SMALL GRINDER": "SHREDDER+GRINDER",
                "AVANGARD (OLD)": "OTHER LINES", "BALER2": "OTHER LINES", "BALER 2": "OTHER LINES",
                "BALER1": "OTHER LINES", "BALER 1": "OTHER LINES"}
