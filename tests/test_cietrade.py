@@ -463,4 +463,9 @@ def test_line_names_match_loosely() -> None:
     assert canon_line("AUTO-TIE BALER (2ND SHIFT)") == "AUTO TIE BALER" == canon_line("auto tie  baler")
     assert canon_line("Shredder / Grinder") == "SHREDDER/GRINDER" and canon_line(None) == ""
     assert line_to_machine("Auto Tie Baler") == "AUTO TIE BALER" and line_to_machine("green max (new)") == "GREEN MAX DENSIFIER (NEW)"
+    assert line_to_machine("GREEN MAX DENSIFIER") == "GREEN MAX DENSIFIER (NEW)"            # the untagged record's name (2026-11-09)
+    # every machine record opened for the one-job-per-machine changeover is known to both maps
+    from cietrade_model import _MACHINE_CANON, canon_line
+    for name in ("AUTO-TIE BALER", "EXTRUDER", "GUILLOTINE", "SHREDDER", "SHREDDER/GRINDER", "GREEN MAX DENSIFIER", "SMALL GRINDER"):
+        assert line_to_machine(name) and _MACHINE_CANON.get(canon_line(name)), name
     assert line_to_machine("REPACKAGING") is None and line_to_machine("REPACKAGING", "REPACKAGING") == "REPACKAGING"
