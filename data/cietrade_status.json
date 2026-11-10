@@ -289,12 +289,12 @@
    "last": "2026-10-13T04:56"
   }
  ],
- "data_through": "2026-11-09",
- "last_poll": "2026-11-09T10:20:42",
- "last_snapshot": "2026-11-09T10:11:11",
- "polls": 7757,
- "open_jobs": 18,
- "open_lbs": 1151781,
+ "data_through": "2026-11-10",
+ "last_poll": "2026-11-10T06:22:07",
+ "last_snapshot": "2026-11-10T04:47:01",
+ "polls": 7867,
+ "open_jobs": 17,
+ "open_lbs": 597458,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -316,70 +316,135 @@
   [
    "2026-11-09",
    "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-09",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-09",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-11-09",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-09",
-   "2nd",
    "SHREDDER"
   ],
   [
    "2026-11-09",
+   "3rd",
+   "GRINDER"
+  ],
+  [
+   "2026-11-09",
+   "3rd",
+   "SHREDDER"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "EXTRUDER"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "GRINDER"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "SHREDDER"
+  ],
+  [
+   "2026-11-10",
+   "1st",
+   "SMALL GRINDER"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "GRINDER"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "SHREDDER"
+  ],
+  [
+   "2026-11-10",
+   "2nd",
+   "SMALL GRINDER"
+  ],
+  [
+   "2026-11-10",
    "3rd",
    "AUTO TIE BALER"
   ],
   [
-   "2026-11-09",
+   "2026-11-10",
    "3rd",
    "EXTRUDER"
   ],
   [
-   "2026-11-09",
+   "2026-11-10",
    "3rd",
    "GREEN MAX DENSIFIER (NEW)"
   ],
   [
-   "2026-11-09",
+   "2026-11-10",
    "3rd",
    "GRINDER"
   ],
   [
-   "2026-11-09",
+   "2026-11-10",
    "3rd",
    "GUILLOTINE"
   ],
   [
-   "2026-11-09",
+   "2026-11-10",
    "3rd",
    "SHREDDER"
+  ],
+  [
+   "2026-11-10",
+   "3rd",
+   "SMALL GRINDER"
   ]
  ],
  "warnings": [
-  "ignored (no machine/shift mapping): REPACKAGING",
+  "ignored (no machine mapping): REPACKAGING",
   "7 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
   "8 weekend/closure shift-day(s) (40,669 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-11-09",
+  "as_of": "2026-11-10",
   "days": [
    {
-    "date": "2026-11-09",
+    "date": "2026-11-10",
     "shifts": {
      "1st": {
       "filed": false
@@ -389,6 +454,30 @@
      },
      "3rd": {
       "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-11-09",
+    "shifts": {
+     "1st": {
+      "filed": true,
+      "by": "Tim",
+      "machines": 4,
+      "machine_hours": 19.8,
+      "man_hours": 30.8,
+      "downtime_min": 0
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": true,
+      "by": "Brandon",
+      "machines": 4,
+      "machine_hours": 26.7,
+      "man_hours": 33.7,
+      "downtime_min": 0
      }
     }
    },
@@ -506,36 +595,32 @@
       "downtime_min": 0
      }
     }
-   },
-   {
-    "date": "2026-11-03",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 5,
-      "machine_hours": 34.2,
-      "man_hours": 41.2,
-      "downtime_min": 0
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon",
-      "machines": 5,
-      "machine_hours": 35.5,
-      "man_hours": 42.5,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": false
-     }
-    }
    }
   ],
   "filed": 11,
-  "entries": 279,
-  "last_filed": "2026-11-06",
+  "entries": 287,
+  "last_filed": "2026-11-09",
   "recent": [
+   {
+    "date": "2026-11-09",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, James",
+    "hours": 7.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Screen and blade change at start"
+   },
+   {
+    "date": "2026-11-09",
+    "shift": "1st",
+    "machine": "EXTRUDER",
+    "operator": "Daniel, Steven, Vince",
+    "hours": 5.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Shredder is down had to use old shredder and manually feed the extruder"
+   },
    {
     "date": "2026-11-06",
     "shift": "3rd",
@@ -615,26 +700,6 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Had to clean out different materials"
-   },
-   {
-    "date": "2026-11-02",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "James, Connor",
-    "hours": 7.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "1 screen and blade change at start of shift"
-   },
-   {
-    "date": "2026-11-02",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Brandon Marcus",
-    "hours": 1.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Had to purge the machine out multiple times and the cuter compactor backfilled had to open it up and clean it out"
    }
   ],
   "notes": [
@@ -670,6 +735,106 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-09",
+    "shift": "3rd",
+    "by": "Brandon",
+    "filed_at": "2026-11-09 22:19:02",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.2,
+      "man_hours": 7.2,
+      "operators": "Steven",
+      "material": "Cardboard",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.0,
+      "man_hours": 14.0,
+      "operators": "Connor, James",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Screen and blade change at start"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Darius",
+      "material": "Pet toll",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 5.5,
+      "man_hours": 5.5,
+      "operators": "Andrew",
+      "material": "Silicone",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-11-09",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "2026-11-09 14:15:43",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 1.5,
+      "man_hours": 1.5,
+      "operators": "Tony",
+      "material": "Cores",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.5,
+      "man_hours": 16.5,
+      "operators": "Daniel, Steven, Vince",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Shredder is down had to use old shredder and manually feed the extruder"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Anthony",
+      "material": "PET regrind",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 5.5,
+      "man_hours": 5.5,
+      "operators": "Tony",
+      "material": "Silicone",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-11-06",
     "shift": "3rd",
@@ -2887,123 +3052,11 @@
      }
     ],
     "notes": []
-   },
-   {
-    "date": "2026-10-13",
-    "shift": "3rd",
-    "by": "Connor",
-    "filed_at": "2026-10-14 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Darius",
-      "material": "LDPE Cardboard",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "James",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.0,
-      "man_hours": 7.0,
-      "operators": "Daniel",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
-   },
-   {
-    "date": "2026-10-13",
-    "shift": "2nd",
-    "by": "Brandon",
-    "filed_at": "2026-10-13 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Kevin",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Andrew",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Steven a unloading/cleaning and Brandon was cleaning."
-    ]
-   },
-   {
-    "date": "2026-10-13",
-    "shift": "1st",
-    "by": "Tim",
-    "filed_at": "2026-10-13 00:00:00",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "AUTO TIE BALER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Tony",
-      "material": "Cardboard",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.25,
-      "man_hours": 14.5,
-      "operators": "Anthony Jay",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Vince",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
    }
   ]
  },
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-09T10:21:02"
+ "generated": "2026-11-10T06:22:31"
 }
