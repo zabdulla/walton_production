@@ -1,6 +1,30 @@
 {
  "shift_flags": [
   {
+   "date": "2026-11-14",
+   "shift": "1st",
+   "from_shift": "1st",
+   "kind": "weekend",
+   "machine": "AUTO TIE BALER",
+   "job": 17163,
+   "lbs": 2503,
+   "windows": 2,
+   "first": "2026-11-14T10:16",
+   "last": "2026-11-14T10:35"
+  },
+  {
+   "date": "2026-11-14",
+   "shift": "1st",
+   "from_shift": "1st",
+   "kind": "weekend",
+   "machine": "EXTRUDER",
+   "job": 17164,
+   "lbs": 3300,
+   "windows": 2,
+   "first": "2026-11-14T07:27",
+   "last": "2026-11-14T09:29"
+  },
+  {
    "date": "2026-11-07",
    "shift": "1st",
    "from_shift": "1st",
@@ -227,74 +251,14 @@
    "windows": 1,
    "first": "2026-10-19T19:42",
    "last": "2026-10-19T19:51"
-  },
-  {
-   "date": "2026-10-17",
-   "shift": "1st",
-   "from_shift": "1st",
-   "kind": "weekend",
-   "machine": "EXTRUDER",
-   "job": 17145,
-   "lbs": 5900,
-   "windows": 4,
-   "first": "2026-10-17T07:36",
-   "last": "2026-10-17T12:06"
-  },
-  {
-   "date": "2026-10-16",
-   "shift": "1st",
-   "from_shift": "2nd",
-   "kind": "reassigned",
-   "machine": "GRINDER",
-   "job": 17140,
-   "lbs": 1741,
-   "windows": 1,
-   "first": "2026-10-16T07:33",
-   "last": "2026-10-16T07:43"
-  },
-  {
-   "date": "2026-10-14",
-   "shift": "3rd",
-   "from_shift": "2nd",
-   "kind": "reassigned",
-   "machine": "GRINDER",
-   "job": 17140,
-   "lbs": 5665,
-   "windows": 1,
-   "first": "2026-10-15T04:02",
-   "last": "2026-10-15T04:11"
-  },
-  {
-   "date": "2026-10-13",
-   "shift": "3rd",
-   "from_shift": "2nd",
-   "kind": "reassigned",
-   "machine": "GRINDER",
-   "job": 17140,
-   "lbs": 4269,
-   "windows": 1,
-   "first": "2026-10-14T05:13",
-   "last": "2026-10-14T05:22"
-  },
-  {
-   "date": "2026-10-12",
-   "shift": "3rd",
-   "from_shift": "2nd",
-   "kind": "reassigned",
-   "machine": "GRINDER",
-   "job": 17140,
-   "lbs": 3367,
-   "windows": 1,
-   "first": "2026-10-13T04:46",
-   "last": "2026-10-13T04:56"
   }
  ],
- "data_through": "2026-11-13",
- "last_poll": "2026-11-13T14:45:19",
- "last_snapshot": "2026-11-13T14:45:19",
- "polls": 8343,
+ "data_through": "2026-11-14",
+ "last_poll": "2026-11-14T10:54:20",
+ "last_snapshot": "2026-11-14T10:35:25",
+ "polls": 8471,
  "open_jobs": 11,
- "open_lbs": 238832,
+ "open_lbs": 274490,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -401,50 +365,25 @@
   [
    "2026-11-13",
    "3rd",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-11-13",
-   "3rd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-13",
-   "3rd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-13",
-   "3rd",
    "GRINDER"
   ],
   [
    "2026-11-13",
    "3rd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-13",
-   "3rd",
    "SHREDDER"
-  ],
-  [
-   "2026-11-13",
-   "3rd",
-   "SMALL GRINDER"
   ]
  ],
  "warnings": [
   "ignored (no machine mapping): REPACKAGING",
   "7 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
-  "8 weekend/closure shift-day(s) (40,669 lbs) kept on their own days"
+  "10 weekend/closure shift-day(s) (46,472 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-11-13",
+  "as_of": "2026-11-14",
   "days": [
    {
-    "date": "2026-11-13",
+    "date": "2026-11-14",
     "shifts": {
      "1st": {
       "filed": false
@@ -454,6 +393,30 @@
      },
      "3rd": {
       "filed": false
+     }
+    }
+   },
+   {
+    "date": "2026-11-13",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": true,
+      "by": "Brandon",
+      "machines": 5,
+      "machine_hours": 33.5,
+      "man_hours": 39.0,
+      "downtime_min": 0
+     },
+     "3rd": {
+      "filed": true,
+      "by": "Connor",
+      "machines": 2,
+      "machine_hours": 11.3,
+      "man_hours": 15.6,
+      "downtime_min": 150
      }
     }
    },
@@ -571,26 +534,32 @@
       "filed": false
      }
     }
-   },
-   {
-    "date": "2026-11-07",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
-     }
-    }
    }
   ],
-  "filed": 9,
-  "entries": 314,
-  "last_filed": "2026-11-12",
+  "filed": 11,
+  "entries": 321,
+  "last_filed": "2026-11-13",
   "recent": [
+   {
+    "date": "2026-11-13",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "Connor, James",
+    "hours": 4.3,
+    "downtime_min": 150,
+    "reason": "Other",
+    "comment": "Blade and screen change at start of shift \nCutter got clogged had to clean \nHad to reset water chiller twice and wait for water temp to adjust \nHad to change water filter"
+   },
+   {
+    "date": "2026-11-13",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon Marcus, Andrew",
+    "hours": 5.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Did a blade change and a screen change and Chad was putting the shredder back together"
+   },
    {
     "date": "2026-11-11",
     "shift": "2nd",
@@ -670,29 +639,14 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "1 screen and blade at start of shift pelitizer motor wasn\u2019t working fixed it than the shredder blew apart and leaked oil on the floor"
-   },
-   {
-    "date": "2026-11-06",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Brandon Marcus",
-    "hours": 5.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Was fixing the pipe that was leaking and had two wrap ups did a screen change and change the blades 2"
-   },
-   {
-    "date": "2026-11-05",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "Connor, James",
-    "hours": 5.3,
-    "downtime_min": 90,
-    "reason": "",
-    "comment": "Screen change at start of shift than wrap up at 10:44 than a blade change"
    }
   ],
   "notes": [
+   {
+    "date": "2026-11-13",
+    "shift": "2nd",
+    "note": "And Marcus was cleaning at the beginning of the shift"
+   },
    {
     "date": "2026-11-12",
     "shift": "2nd",
@@ -717,14 +671,101 @@
     "date": "2026-11-04",
     "shift": "2nd",
     "note": "Steven a was braking down boxes at the shredder grinder"
-   },
-   {
-    "date": "2026-10-28",
-    "shift": "2nd",
-    "note": "Steven a was cleaning"
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-13",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "2026-11-14 05:09:12",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Darius",
+      "material": "SBS",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 4.3,
+      "man_hours": 8.6,
+      "operators": "Connor, James",
+      "material": "BOPP resin",
+      "downtime_min": 150,
+      "reason": "Other",
+      "comment": "Blade and screen change at start of shift \nCutter got clogged had to clean \nHad to reset water chiller twice and wait for water temp to adjust \nHad to change water filter"
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-11-13",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "2026-11-13 21:26:34",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven",
+      "material": "Mixed plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 5.5,
+      "man_hours": 11.0,
+      "operators": "Brandon Marcus, Andrew",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Did a blade change and a screen change and Chad was putting the shredder back together"
+     },
+     {
+      "machine": "GREEN MAX DENSIFIER (NEW)",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven A",
+      "material": "Eps",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Tevin",
+      "material": "Hdpe",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 5.5,
+      "man_hours": 5.5,
+      "operators": "Andrew, Brandon",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": [
+     "And Marcus was cleaning at the beginning of the shift"
+    ]
+   },
    {
     "date": "2026-11-12",
     "shift": "2nd",
@@ -2996,5 +3037,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-13T14:45:34"
+ "generated": "2026-11-14T10:54:38"
 }
