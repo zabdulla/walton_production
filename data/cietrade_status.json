@@ -266,11 +266,11 @@
   }
  ],
  "data_through": "2026-11-16",
- "last_poll": "2026-11-16T03:06:00",
- "last_snapshot": "2026-11-16T00:06:50",
- "polls": 8726,
+ "last_poll": "2026-11-16T23:11:19",
+ "last_snapshot": "2026-11-16T21:55:34",
+ "polls": 8847,
  "open_jobs": 11,
- "open_lbs": 278469,
+ "open_lbs": 324981,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -386,73 +386,13 @@
   ],
   [
    "2026-11-16",
-   "1st",
-   "AUTO TIE BALER"
-  ],
-  [
-   "2026-11-16",
-   "1st",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-16",
-   "1st",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-16",
-   "1st",
-   "GRINDER"
-  ],
-  [
-   "2026-11-16",
-   "1st",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-16",
-   "1st",
-   "SHREDDER"
-  ],
-  [
-   "2026-11-16",
-   "1st",
-   "SMALL GRINDER"
-  ],
-  [
-   "2026-11-16",
    "2nd",
    "AUTO TIE BALER"
   ],
   [
    "2026-11-16",
    "2nd",
-   "EXTRUDER"
-  ],
-  [
-   "2026-11-16",
-   "2nd",
-   "GREEN MAX DENSIFIER (NEW)"
-  ],
-  [
-   "2026-11-16",
-   "2nd",
-   "GRINDER"
-  ],
-  [
-   "2026-11-16",
-   "2nd",
-   "GUILLOTINE"
-  ],
-  [
-   "2026-11-16",
-   "2nd",
    "SHREDDER"
-  ],
-  [
-   "2026-11-16",
-   "2nd",
-   "SMALL GRINDER"
   ],
   [
    "2026-11-16",
@@ -503,10 +443,20 @@
     "date": "2026-11-16",
     "shifts": {
      "1st": {
-      "filed": false
+      "filed": true,
+      "by": "Tim",
+      "machines": 5,
+      "machine_hours": 25.8,
+      "man_hours": 32.8,
+      "downtime_min": 0
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon",
+      "machines": 5,
+      "machine_hours": 34.0,
+      "man_hours": 41.0,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -643,10 +593,30 @@
     }
    }
   ],
-  "filed": 9,
-  "entries": 321,
-  "last_filed": "2026-11-13",
+  "filed": 11,
+  "entries": 331,
+  "last_filed": "2026-11-16",
   "recent": [
+   {
+    "date": "2026-11-16",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon Marcus",
+    "hours": 6.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Did a screen change and a blade change and a drill out"
+   },
+   {
+    "date": "2026-11-16",
+    "shift": "1st",
+    "machine": "GRINDER",
+    "operator": "Tony",
+    "hours": 4.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Shut down early for maintenance"
+   },
    {
     "date": "2026-11-13",
     "shift": "3rd",
@@ -726,26 +696,6 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Screen and blade change at start"
-   },
-   {
-    "date": "2026-11-09",
-    "shift": "1st",
-    "machine": "EXTRUDER",
-    "operator": "Daniel, Steven, Vince",
-    "hours": 5.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Shredder is down had to use old shredder and manually feed the extruder"
-   },
-   {
-    "date": "2026-11-06",
-    "shift": "3rd",
-    "machine": "EXTRUDER",
-    "operator": "Connor, James",
-    "hours": 5.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "1 screen and blade at start of shift pelitizer motor wasn\u2019t working fixed it than the shredder blew apart and leaked oil on the floor"
    }
   ],
   "notes": [
@@ -781,6 +731,126 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-16",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "2026-11-16 22:03:02",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven",
+      "material": "Cardboard hd",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "AVANGUARD DENSIFIER (OLD)",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven A",
+      "material": "Eps",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 6.5,
+      "man_hours": 6.5,
+      "operators": "Brandon Marcus",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Did a screen change and a blade change and a drill out"
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Tevin",
+      "material": "Hdpe",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Andrew  Devin",
+      "material": "BOPP silicone",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
+   {
+    "date": "2026-11-16",
+    "shift": "1st",
+    "by": "Tim",
+    "filed_at": "2026-11-16 14:09:33",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 2.0,
+      "man_hours": 2.0,
+      "operators": "Tony",
+      "material": "Mixed plastic",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "AVANGUARD DENSIFIER (OLD)",
+      "machine_hours": 5.0,
+      "man_hours": 5.0,
+      "operators": "Kemonica",
+      "material": "EPS fines",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 14.5,
+      "operators": "Daniel Anthony",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "GRINDER",
+      "machine_hours": 4.0,
+      "man_hours": 4.0,
+      "operators": "Tony",
+      "material": "Hdpe",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Shut down early for maintenance"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.25,
+      "man_hours": 7.25,
+      "operators": "Vince",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-11-13",
     "shift": "3rd",
@@ -3052,5 +3122,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-16T03:06:25"
+ "generated": "2026-11-16T23:11:38"
 }
