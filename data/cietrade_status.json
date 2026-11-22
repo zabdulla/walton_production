@@ -1,6 +1,18 @@
 {
  "shift_flags": [
   {
+   "date": "2026-11-21",
+   "shift": "1st",
+   "from_shift": "1st",
+   "kind": "weekend",
+   "machine": "EXTRUDER",
+   "job": 17164,
+   "lbs": 5828,
+   "windows": 4,
+   "first": "2026-11-21T07:43",
+   "last": "2026-11-21T12:00"
+  },
+  {
    "date": "2026-11-14",
    "shift": "1st",
    "from_shift": "1st",
@@ -155,122 +167,14 @@
    "windows": 3,
    "first": "2026-10-28T18:47",
    "last": "2026-10-28T20:39"
-  },
-  {
-   "date": "2026-10-24",
-   "shift": "1st",
-   "from_shift": "1st",
-   "kind": "weekend",
-   "machine": "EXTRUDER",
-   "job": 17145,
-   "lbs": 1012,
-   "windows": 1,
-   "first": "2026-10-24T07:48",
-   "last": "2026-10-24T07:58"
-  },
-  {
-   "date": "2026-10-24",
-   "shift": "1st",
-   "from_shift": "1st",
-   "kind": "weekend",
-   "machine": "GUILLOTINE",
-   "job": 17147,
-   "lbs": 9382,
-   "windows": 7,
-   "first": "2026-10-24T06:24",
-   "last": "2026-10-24T11:13"
-  },
-  {
-   "date": "2026-10-22",
-   "shift": "2nd",
-   "from_shift": "1st",
-   "kind": "reassigned",
-   "machine": "AUTO TIE BALER",
-   "job": 17144,
-   "lbs": 4548,
-   "windows": 3,
-   "first": "2026-10-22T15:26",
-   "last": "2026-10-22T17:47"
-  },
-  {
-   "date": "2026-10-21",
-   "shift": "2nd",
-   "from_shift": "1st",
-   "kind": "reassigned",
-   "machine": "AUTO TIE BALER",
-   "job": 17144,
-   "lbs": 1130,
-   "windows": 1,
-   "first": "2026-10-21T21:14",
-   "last": "2026-10-21T21:23"
-  },
-  {
-   "date": "2026-10-20",
-   "shift": "1st",
-   "from_shift": "3rd",
-   "kind": "reassigned",
-   "machine": "AUTO TIE BALER",
-   "job": 17150,
-   "lbs": 1240,
-   "windows": 1,
-   "first": "2026-10-20T15:12",
-   "last": "2026-10-20T15:21"
-  },
-  {
-   "date": "2026-10-20",
-   "shift": "2nd",
-   "from_shift": "1st",
-   "kind": "reassigned",
-   "machine": "AUTO TIE BALER",
-   "job": 17144,
-   "lbs": 5222,
-   "windows": 2,
-   "first": "2026-10-20T17:41",
-   "last": "2026-10-20T19:43"
-  },
-  {
-   "date": "2026-10-19",
-   "shift": "1st",
-   "from_shift": "2nd",
-   "kind": "reassigned",
-   "machine": "GRINDER",
-   "job": 17140,
-   "lbs": 925,
-   "windows": 1,
-   "first": "2026-10-19T09:54",
-   "last": "2026-10-19T10:04"
-  },
-  {
-   "date": "2026-10-19",
-   "shift": "2nd",
-   "from_shift": "1st",
-   "kind": "reassigned",
-   "machine": "AUTO TIE BALER",
-   "job": 17144,
-   "lbs": 1235,
-   "windows": 1,
-   "first": "2026-10-19T20:56",
-   "last": "2026-10-19T21:05"
-  },
-  {
-   "date": "2026-10-19",
-   "shift": "2nd",
-   "from_shift": "3rd",
-   "kind": "reassigned",
-   "machine": "AUTO TIE BALER",
-   "job": 17150,
-   "lbs": 587,
-   "windows": 1,
-   "first": "2026-10-19T19:42",
-   "last": "2026-10-19T19:51"
   }
  ],
  "data_through": "2026-11-21",
- "last_poll": "2026-11-21T03:37:19",
- "last_snapshot": "2026-11-21T03:37:19",
- "polls": 9481,
+ "last_poll": "2026-11-21T23:43:15",
+ "last_snapshot": "2026-11-21T12:00:38",
+ "polls": 9608,
  "open_jobs": 11,
- "open_lbs": 597056,
+ "open_lbs": 611524,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -489,7 +393,7 @@
   "ignored (no machine mapping): REPACKAGING",
   "9 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
-  "11 weekend/closure shift-day(s) (50,451 lbs) kept on their own days"
+  "12 weekend/closure shift-day(s) (56,279 lbs) kept on their own days"
  ],
  "end_of_shift": {
   "as_of": "2026-11-21",
@@ -528,7 +432,12 @@
       "downtime_min": 0
      },
      "3rd": {
-      "filed": false
+      "filed": true,
+      "by": "Connor",
+      "machines": 2,
+      "machine_hours": 14.0,
+      "man_hours": 21.0,
+      "downtime_min": 0
      }
     }
    },
@@ -658,10 +567,20 @@
     }
    }
   ],
-  "filed": 13,
-  "entries": 377,
+  "filed": 14,
+  "entries": 379,
   "last_filed": "2026-11-20",
   "recent": [
+   {
+    "date": "2026-11-20",
+    "shift": "3rd",
+    "machine": "EXTRUDER",
+    "operator": "James, Connor",
+    "hours": 7.0,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Screen and blade change at start of shift"
+   },
    {
     "date": "2026-11-20",
     "shift": "2nd",
@@ -751,16 +670,6 @@
     "downtime_min": 0,
     "reason": "",
     "comment": "Did a screen change and a blade change and a drill out"
-   },
-   {
-    "date": "2026-11-16",
-    "shift": "1st",
-    "machine": "GRINDER",
-    "operator": "Tony",
-    "hours": 4.0,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Shut down early for maintenance"
    }
   ],
   "notes": [
@@ -796,6 +705,36 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-20",
+    "shift": "3rd",
+    "by": "Connor",
+    "filed_at": "2026-11-21 05:20:17",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.0,
+      "man_hours": 14.0,
+      "operators": "James, Connor",
+      "material": "BOPP resin",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Screen and blade change at start of shift"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.0,
+      "man_hours": 7.0,
+      "operators": "Marcus",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-11-20",
     "shift": "2nd",
@@ -3365,5 +3304,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-21T03:37:37"
+ "generated": "2026-11-21T23:43:30"
 }
