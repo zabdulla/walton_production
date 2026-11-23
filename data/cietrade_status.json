@@ -1,6 +1,18 @@
 {
  "shift_flags": [
   {
+   "date": "2026-11-22",
+   "shift": "2nd",
+   "from_shift": "2nd",
+   "kind": "weekend",
+   "machine": "GUILLOTINE",
+   "job": 17165,
+   "lbs": 11767,
+   "windows": 12,
+   "first": "2026-11-22T14:33",
+   "last": "2026-11-22T19:48"
+  },
+  {
    "date": "2026-11-21",
    "shift": "1st",
    "from_shift": "1st",
@@ -169,12 +181,12 @@
    "last": "2026-10-28T20:39"
   }
  ],
- "data_through": "2026-11-21",
- "last_poll": "2026-11-21T23:43:15",
- "last_snapshot": "2026-11-21T12:00:38",
- "polls": 9608,
+ "data_through": "2026-11-22",
+ "last_poll": "2026-11-22T19:48:21",
+ "last_snapshot": "2026-11-22T19:48:21",
+ "polls": 9735,
  "open_jobs": 11,
- "open_lbs": 611524,
+ "open_lbs": 623291,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -393,11 +405,25 @@
   "ignored (no machine mapping): REPACKAGING",
   "9 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
-  "12 weekend/closure shift-day(s) (56,279 lbs) kept on their own days"
+  "13 weekend/closure shift-day(s) (68,046 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-11-21",
+  "as_of": "2026-11-22",
   "days": [
+   {
+    "date": "2026-11-22",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-11-21",
     "shifts": {
@@ -549,20 +575,6 @@
       "machine_hours": 16.3,
       "man_hours": 33.6,
       "downtime_min": 150
-     }
-    }
-   },
-   {
-    "date": "2026-11-15",
-    "shifts": {
-     "1st": {
-      "filed": false
-     },
-     "2nd": {
-      "filed": false
-     },
-     "3rd": {
-      "filed": false
      }
     }
    }
@@ -3304,5 +3316,5 @@
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-21T23:43:30"
+ "generated": "2026-11-22T19:48:37"
 }
