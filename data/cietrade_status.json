@@ -5,12 +5,60 @@
    "shift": "2nd",
    "from_shift": "2nd",
    "kind": "weekend",
+   "machine": "AUTO TIE BALER",
+   "job": 17163,
+   "lbs": 3030,
+   "windows": 2,
+   "first": "2026-11-22T20:26",
+   "last": "2026-11-22T21:04"
+  },
+  {
+   "date": "2026-11-22",
+   "shift": "2nd",
+   "from_shift": "2nd",
+   "kind": "weekend",
+   "machine": "EXTRUDER",
+   "job": 17164,
+   "lbs": 4706,
+   "windows": 1,
+   "first": "2026-11-22T21:23",
+   "last": "2026-11-22T21:33"
+  },
+  {
+   "date": "2026-11-22",
+   "shift": "2nd",
+   "from_shift": "2nd",
+   "kind": "weekend",
    "machine": "GUILLOTINE",
    "job": 17165,
-   "lbs": 11767,
-   "windows": 12,
+   "lbs": 13734,
+   "windows": 14,
    "first": "2026-11-22T14:33",
-   "last": "2026-11-22T19:48"
+   "last": "2026-11-22T20:35"
+  },
+  {
+   "date": "2026-11-22",
+   "shift": "3rd",
+   "from_shift": "3rd",
+   "kind": "weekend",
+   "machine": "EXTRUDER",
+   "job": 17164,
+   "lbs": 4710,
+   "windows": 1,
+   "first": "2026-11-23T04:22",
+   "last": "2026-11-23T04:32"
+  },
+  {
+   "date": "2026-11-22",
+   "shift": "3rd",
+   "from_shift": "3rd",
+   "kind": "weekend",
+   "machine": "GREEN MAX DENSIFIER (NEW)",
+   "job": 17168,
+   "lbs": 915,
+   "windows": 1,
+   "first": "2026-11-23T04:13",
+   "last": "2026-11-23T04:22"
   },
   {
    "date": "2026-11-21",
@@ -181,12 +229,12 @@
    "last": "2026-10-28T20:39"
   }
  ],
- "data_through": "2026-11-22",
- "last_poll": "2026-11-22T19:48:21",
- "last_snapshot": "2026-11-22T19:48:21",
- "polls": 9735,
+ "data_through": "2026-11-23",
+ "last_poll": "2026-11-23T15:54:58",
+ "last_snapshot": "2026-11-23T15:35:49",
+ "polls": 9861,
  "open_jobs": 11,
- "open_lbs": 623291,
+ "open_lbs": 661615,
  "from_date": "2026-08-24",
  "closures": [
   "2026-04-03",
@@ -399,17 +447,76 @@
    "2026-11-20",
    "3rd",
    "SHREDDER"
+  ],
+  [
+   "2026-11-23",
+   "2nd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-11-23",
+   "2nd",
+   "SHREDDER"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "AUTO TIE BALER"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "EXTRUDER"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "GREEN MAX DENSIFIER (NEW)"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "GRINDER"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "GUILLOTINE"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "SHREDDER"
+  ],
+  [
+   "2026-11-23",
+   "3rd",
+   "SMALL GRINDER"
   ]
  ],
  "warnings": [
   "ignored (no machine mapping): REPACKAGING",
   "9 window(s) where a job's output went DOWN between observations (deleted or re-weighed items); carried as negative pounds",
   "26 shift-day(s) with entries made during another shift's hours (79,984 lbs), credited to the shift on the clock",
-  "13 weekend/closure shift-day(s) (68,046 lbs) kept on their own days"
+  "17 weekend/closure shift-day(s) (83,374 lbs) kept on their own days"
  ],
  "end_of_shift": {
-  "as_of": "2026-11-22",
+  "as_of": "2026-11-23",
   "days": [
+   {
+    "date": "2026-11-23",
+    "shifts": {
+     "1st": {
+      "filed": false
+     },
+     "2nd": {
+      "filed": false
+     },
+     "3rd": {
+      "filed": false
+     }
+    }
+   },
    {
     "date": "2026-11-22",
     "shifts": {
@@ -417,7 +524,12 @@
       "filed": false
      },
      "2nd": {
-      "filed": false
+      "filed": true,
+      "by": "Brandon",
+      "machines": 3,
+      "machine_hours": 22.5,
+      "man_hours": 22.5,
+      "downtime_min": 0
      },
      "3rd": {
       "filed": false
@@ -548,41 +660,22 @@
       "downtime_min": 180
      }
     }
-   },
-   {
-    "date": "2026-11-16",
-    "shifts": {
-     "1st": {
-      "filed": true,
-      "by": "Tim",
-      "machines": 5,
-      "machine_hours": 25.8,
-      "man_hours": 32.8,
-      "downtime_min": 0
-     },
-     "2nd": {
-      "filed": true,
-      "by": "Brandon",
-      "machines": 5,
-      "machine_hours": 34.0,
-      "man_hours": 41.0,
-      "downtime_min": 0
-     },
-     "3rd": {
-      "filed": true,
-      "by": "Connor",
-      "machines": 3,
-      "machine_hours": 16.3,
-      "man_hours": 33.6,
-      "downtime_min": 150
-     }
-    }
    }
   ],
-  "filed": 14,
-  "entries": 379,
-  "last_filed": "2026-11-20",
+  "filed": 12,
+  "entries": 382,
+  "last_filed": "2026-11-22",
   "recent": [
+   {
+    "date": "2026-11-22",
+    "shift": "2nd",
+    "machine": "EXTRUDER",
+    "operator": "Brandon Marcus",
+    "hours": 7.5,
+    "downtime_min": 0,
+    "reason": "",
+    "comment": "Had a wrap up and the shredder belt motor broke"
+   },
    {
     "date": "2026-11-20",
     "shift": "3rd",
@@ -672,16 +765,6 @@
     "downtime_min": 150,
     "reason": "",
     "comment": "Had to fix belt tensioner \nScreen and blade change 2 times"
-   },
-   {
-    "date": "2026-11-16",
-    "shift": "2nd",
-    "machine": "EXTRUDER",
-    "operator": "Brandon Marcus",
-    "hours": 6.5,
-    "downtime_min": 0,
-    "reason": "",
-    "comment": "Did a screen change and a blade change and a drill out"
    }
   ],
   "notes": [
@@ -717,6 +800,46 @@
    }
   ],
   "reports": [
+   {
+    "date": "2026-11-22",
+    "shift": "2nd",
+    "by": "Brandon",
+    "filed_at": "2026-11-22 21:57:39",
+    "source": "form",
+    "machines": [
+     {
+      "machine": "AUTO TIE BALER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Steven",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     },
+     {
+      "machine": "EXTRUDER",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Brandon Marcus",
+      "material": "BOPP",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": "Had a wrap up and the shredder belt motor broke"
+     },
+     {
+      "machine": "GUILLOTINE",
+      "machine_hours": 7.5,
+      "man_hours": 7.5,
+      "operators": "Devin",
+      "material": "",
+      "downtime_min": 0,
+      "reason": "",
+      "comment": ""
+     }
+    ],
+    "notes": []
+   },
    {
     "date": "2026-11-20",
     "shift": "3rd",
@@ -3186,135 +3309,11 @@
     "notes": [
      "Tony was cleaning around the auto tie"
     ]
-   },
-   {
-    "date": "2026-10-26",
-    "shift": "3rd",
-    "by": "Connor",
-    "filed_at": "2026-10-27 05:19:11",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 6.3,
-      "man_hours": 12.6,
-      "operators": "Connor, James",
-      "material": "BOPP resin",
-      "downtime_min": 30,
-      "reason": "Blades",
-      "comment": "Screen and blade change at beginning \nThan another blade change in middle of shift"
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.0,
-      "man_hours": 11.0,
-      "operators": "Darius, Daniel",
-      "material": "BOPP",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": []
-   },
-   {
-    "date": "2026-10-26",
-    "shift": "2nd",
-    "by": "Brandon",
-    "filed_at": "2026-10-26 21:13:56",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 7.25,
-      "man_hours": 14.5,
-      "operators": "Brandon Marcus",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": "Did 2 blade changes and had a small wrap up when I first started"
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Tevin",
-      "material": "Green grass regrind",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Andrew",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Steven a was cleaning"
-    ]
-   },
-   {
-    "date": "2026-10-26",
-    "shift": "1st",
-    "by": "Tim",
-    "filed_at": "2026-10-26 14:05:08",
-    "source": "form",
-    "machines": [
-     {
-      "machine": "EXTRUDER",
-      "machine_hours": 7.5,
-      "man_hours": 14.5,
-      "operators": "Steven, Daniel",
-      "material": "BOPP resin",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GRINDER",
-      "machine_hours": 6.5,
-      "man_hours": 13.0,
-      "operators": "Kemonica Anthony",
-      "material": "LDPE",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "GUILLOTINE",
-      "machine_hours": 7.25,
-      "man_hours": 7.25,
-      "operators": "Vince",
-      "material": "BOPP slabs",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     },
-     {
-      "machine": "SHREDDER",
-      "machine_hours": 5.0,
-      "man_hours": 5.0,
-      "operators": "Tony",
-      "material": "Pet",
-      "downtime_min": 0,
-      "reason": "",
-      "comment": ""
-     }
-    ],
-    "notes": [
-     "Test"
-    ]
    }
   ]
  },
  "api_down_since": null,
  "failed_polls": 0,
  "last_error": "",
- "generated": "2026-11-22T19:48:37"
+ "generated": "2026-11-23T15:55:20"
 }
