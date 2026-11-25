@@ -10037,3 +10037,4 @@
 {"ts": "2026-11-24T23:32:16", "ok": true, "ms": 1921, "changed": false, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 720227.0, "open_hash": "89c9f8e014759f4b", "posted_recent": 6, "posted_new": 0, "posted_changed": 0, "posted_total": 1974}
 {"ts": "2026-11-24T23:41:52", "ok": true, "ms": 863, "changed": false, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 720227.0, "open_hash": "89c9f8e014759f4b", "posted_recent": 6, "posted_new": 0, "posted_changed": 0, "posted_total": 1974}
 {"ts": "2026-11-24T23:51:26", "ok": true, "ms": 1187, "changed": false, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 720227.0, "open_hash": "89c9f8e014759f4b", "posted_recent": 6, "posted_new": 0, "posted_changed": 0, "posted_total": 1974}
+{"ts": "2026-11-25T00:01:04", "ok": true, "ms": 968, "changed": true, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 720227.0, "open_hash": "89c9f8e014759f4b", "posted_recent": 0}
