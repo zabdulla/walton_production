@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import DATA_DIR, SHIFT_FORM_MACHINE_MAP
+from config import DATA_DIR, SHIFT_FORM_MACHINE_MAP, KNOWN_OPERATORS
 
 LABOR_ENTRIES_PATH = DATA_DIR / "labor_entries.xlsx"
 
@@ -79,10 +79,32 @@ def split_operator_material(text: object) -> tuple[list[str], str | None]:
     return parse_operators(names_part), (", ".join(materials) or None)
 
 
+def _split_run_together(part: str) -> list[str]:
+    """'Brandon Marcus' -> ['Brandon', 'Marcus'] when both words are crew first names; an
+    initial or surname stays with the name before it ('Steven B', 'Marcus Robion')."""
+    words = part.split()
+    known = {n.lower() for n in KNOWN_OPERATORS}
+    if len(words) < 2 or words[0].lower() not in known or not any(w.lower() in known for w in words[1:]):
+        return [part]
+    people: list[str] = []
+    for w in words:
+        if w.lower() in known or not people:
+            people.append(w)
+        else:
+            people[-1] += " " + w
+    return people
+
+
 def parse_operators(text: object) -> list[str]:
-    """Split a crew cell on commas, slashes, ampersands and 'and'."""
+    """Split a crew cell on commas, slashes, ampersands and 'and'; then split two first names
+    typed together without a separator (config.KNOWN_OPERATORS)."""
     parts = re.split(r"[,/&]|\band\b", str(text or ""))
-    return [p.strip(" .\t\n") for p in parts if p and p.strip(" .\t\n")]
+    out: list[str] = []
+    for p in parts:
+        p = p.strip(" .\t\n")
+        if p:
+            out.extend(_split_run_together(p))
+    return out
 
 
 def to_number(value: object) -> float | None:

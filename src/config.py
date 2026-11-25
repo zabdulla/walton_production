@@ -384,6 +384,13 @@ def line_to_machine(line: object, default: str | None = None) -> str | None:
     """Dashboard Machine_Name for a cieTrade line, tolerant of case, hyphens and spacing."""
     return _LINE_CANON.get(canon_line(line), default)
 
+# First names of the floor crew, as the End of Shift form knows them. Supervisors
+# sometimes type two names without a comma ("Brandon Marcus", "Jay Anthony"); the
+# reader splits such a cell into people when the words are names on this list. A
+# word that is not a name (an initial, a surname) stays with the name before it.
+KNOWN_OPERATORS = ["Tony", "Daniel", "Steven", "Vince", "Clarence", "Kemonica", "Shynequa", "Montez", "Tevin", "Andrew",
+                   "Brandon", "Darius", "Connor", "James", "Jay", "Anthony", "Marcus", "Kevin", "Devin", "Dee", "Tim"]
+
 # Working hours of each shift as hours after midnight of the shift's date
 # (3rd shift runs into the next morning). Used to split a job's output
 # between two API polls across the shifts that ran in between.

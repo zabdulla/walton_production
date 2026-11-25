@@ -9,17 +9,20 @@ on:
     inputs:
       submission:
         description: "Submission ID of the row (e.g. 20261028-211835-2nd)"
-        required: true
+        required: false
       machine:
-        description: "Machine as written in the row (e.g. Auto tie)"
-        required: true
+        description: "Machine as written in the row (e.g. Auto tie), or * for every row of the submission"
+        required: false
       column:
         description: "Column heading to change"
-        required: true
+        required: false
         default: "Total man hours"
       value:
         description: "New value"
-        required: true
+        required: false
+      fixes:
+        description: "Instead of the fields above: a JSON list of {table, submission, machine, column, value}"
+        required: false
       table:
         description: "Table"
         required: true
@@ -52,7 +55,12 @@ jobs:
           GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
           EOS_WORKBOOK_DRIVE_ID: ${{ secrets.EOS_WORKBOOK_DRIVE_ID }}
           EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
+          FIXES_JSON: ${{ inputs.fixes }}
         run: |
-          python3 src/eos_fix.py --table "${{ inputs.table }}" --submission "${{ inputs.submission }}" \
-            --machine "${{ inputs.machine }}" --column "${{ inputs.column }}" --value "${{ inputs.value }}" \
-            ${{ inputs.dry_run == true && '--dry-run' || '' }}
+          if [ -n "$FIXES_JSON" ]; then
+            python3 src/eos_fix.py --fixes-json "$FIXES_JSON" ${{ inputs.dry_run == true && '--dry-run' || '' }}
+          else
+            python3 src/eos_fix.py --table "${{ inputs.table }}" --submission "${{ inputs.submission }}" \
+              --machine "${{ inputs.machine }}" --column "${{ inputs.column }}" --value "${{ inputs.value }}" \
+              ${{ inputs.dry_run == true && '--dry-run' || '' }}
+          fi
