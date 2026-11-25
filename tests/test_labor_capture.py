@@ -59,6 +59,16 @@ def test_crew_splitting_handles_separators() -> None:
     assert L.parse_operators("Connor / James & Rohan and Daniel") == ["Connor", "James", "Rohan", "Daniel"]
 
 
+def test_two_first_names_typed_together_are_two_people() -> None:
+    assert L.parse_operators("Brandon Marcus") == ["Brandon", "Marcus"]
+    assert L.parse_operators("Jay Anthony") == ["Jay", "Anthony"] and L.parse_operators("Kemonica Anthony") == ["Kemonica", "Anthony"]
+    assert L.parse_operators("Andrew  Devin") == ["Andrew", "Devin"]
+    assert L.parse_operators("Brandon Marcus robion") == ["Brandon", "Marcus robion"]      # a surname stays with its name
+    assert L.parse_operators("Steven B") == ["Steven B"] and L.parse_operators("Tevin s, Steven") == ["Tevin s", "Steven"]
+    assert L.parse_operators("Connor Phanthavong") == ["Connor Phanthavong"]                # one person with a surname
+    assert L.parse_operators("Brandon, Kevin Marcus") == ["Brandon", "Kevin", "Marcus"]
+
+
 # ---------------------------------------------------------------------------
 # Photo extraction -> landing rows
 # ---------------------------------------------------------------------------

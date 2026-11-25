@@ -347,6 +347,19 @@ def test_eos_fix_writes_one_cell_found_by_submission_and_machine() -> None:
     with pytest.raises(LookupError):
         eos_fix.fix_cell(Client(), cfg, "Entries", "20261028-211835-2nd", "Auto tie", "Man hours", 7.25)
     assert eos_fix.parse_value("7.25") == 7.25 and eos_fix.parse_value("7") == 7 and eos_fix.parse_value("Tony") == "Tony"
+    # every row of a submission at once ("*"), e.g. a report filed under the wrong shift
+    c3 = Client(); c3.routes["/tables/Entries/rows/itemAt(index=298)/range"] = {"address": "Entries!A300:M300"}
+    res = eos_fix.fix_cells(c3, cfg, "Entries", "20261028-211835-2nd", "*", "Shift", "3rd")
+    assert [(r["cell"], r["machine"], r["before"]) for r in res] == [("D300", "Extruder", "2nd"), ("D301", "Auto tie", "2nd")]
+    assert [p[1][-21:] for p in c3.patches] == ["range(address='D300')", "range(address='D301')"]
+    # the Submissions table has no Machine column: the submission alone names the row
+    sub_headers = ["Timestamp", "Submission ID", "Date", "Shift", "Submitted by", "Shift notes", "Machines reported", "Replaces earlier"]
+    c4 = Client(); c4.routes.update({"/tables/Submissions/headerRowRange": {"values": [sub_headers]},
+                                    "/tables/Submissions/rows": {"value": [{"index": 70, "values": [[46323.9, "20261028-211835-2nd", 46323, "2nd", "Brandon", "", 4, ""]]}]},
+                                    "/tables/Submissions/rows/itemAt(index=70)/range": {"address": "Submissions!A72:H72"}})
+    res = eos_fix.fix_cells(c4, cfg, "Submissions", "20261028-211835-2nd", None, "Shift", "3rd")
+    assert [(r["cell"], r["machine"], r["before"]) for r in res] == [("D72", None, "2nd")]
+    assert "would set Submissions!D72 (Shift) for 20261028-211835-2nd: '2nd' -> '3rd'" in eos_fix.describe(res[0], True)
     assert eos_fix.col_letter(0) == "A" and eos_fix.col_letter(6) == "G" and eos_fix.col_letter(26) == "AA"
 
 
