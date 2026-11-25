@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -q msal requests
+      - run: pip install -q -r requirements.lock
       - name: Change the cell
         env:
           GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
