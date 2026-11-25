@@ -1,0 +1,58 @@
+# Correct one cell of the End of Shift log workbook (a typed 7725 for 7.25) through
+# Graph, with the pipeline's own secrets. Run from the Actions tab: fill in the
+# Submission ID and machine of the row, the column heading and the new value. The
+# next poll run reads the corrected row within ten minutes.
+name: End of Shift fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      submission:
+        description: "Submission ID of the row (e.g. 20261028-211835-2nd)"
+        required: true
+      machine:
+        description: "Machine as written in the row (e.g. Auto tie)"
+        required: true
+      column:
+        description: "Column heading to change"
+        required: true
+        default: "Total man hours"
+      value:
+        description: "New value"
+        required: true
+      table:
+        description: "Table"
+        required: true
+        default: "Entries"
+        type: choice
+        options: [Entries, Submissions]
+      dry_run:
+        description: "Only show what would change"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -q msal requests
+      - name: Change the cell
+        env:
+          GRAPH_TENANT_ID: ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID: ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET: ${{ secrets.GRAPH_CLIENT_SECRET }}
+          EOS_WORKBOOK_DRIVE_ID: ${{ secrets.EOS_WORKBOOK_DRIVE_ID }}
+          EOS_WORKBOOK_ITEM_ID: ${{ secrets.EOS_WORKBOOK_ITEM_ID }}
+        run: |
+          python3 src/eos_fix.py --table "${{ inputs.table }}" --submission "${{ inputs.submission }}" \
+            --machine "${{ inputs.machine }}" --column "${{ inputs.column }}" --value "${{ inputs.value }}" \
+            ${{ inputs.dry_run == true && '--dry-run' || '' }}

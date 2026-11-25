@@ -80,6 +80,26 @@ def _text(v: object) -> str | None:
     return t if t and t != "nan" else None
 
 
+# One machine cannot run more than a day in a shift, and six people for a whole shift
+# is 48 man-hours; anything above is a typo (7725 typed for 7.25 cost $193,000 of
+# labor in Oct 2026). The hours are left out, the pounds stay, the row is marked.
+MAX_MACHINE_HOURS = 24.0
+MAX_MAN_HOURS = 48.0
+TYPO_NOTE = "left out as a typo"
+
+
+def plausible_hours(machine_hours: float | None, man_hours: float | None) -> tuple[float | None, float | None, list[str]]:
+    """(machine_hours, man_hours, reasons): implausible figures become None and are named."""
+    reasons = []
+    if machine_hours is not None and machine_hours > MAX_MACHINE_HOURS:
+        reasons.append(f"machine hours {machine_hours:g} {TYPO_NOTE}")
+        machine_hours = None
+    if man_hours is not None and man_hours > MAX_MAN_HOURS:
+        reasons.append(f"man hours {man_hours:g} {TYPO_NOTE}")
+        man_hours = None
+    return machine_hours, man_hours, reasons
+
+
 def responses_to_entries(df: pd.DataFrame, source: str = "form") -> tuple[pd.DataFrame, pd.DataFrame]:
     """Normalise raw rows (web-app Entries tab or a Forms sheet) into the landing schema.
 
@@ -102,15 +122,19 @@ def responses_to_entries(df: pd.DataFrame, source: str = "form") -> tuple[pd.Dat
         captured = str(get("timestamp") or "")
         machine = normalize_machine(get("machine"))
         if machine is not None or to_number(get("machine_hours")) is not None:
+            mh, man, typos = plausible_hours(to_number(get("machine_hours")), to_number(get("man_hours")))
+            comment = _text(get("comment"))
+            if typos:
+                comment = "; ".join(["End of Shift: " + ", ".join(typos)] + ([comment] if comment else []))
             rows.append(make_entry(
                 Date=date_s, Shift=shift, Machine_Name=machine,
-                Machine_Hours=to_number(get("machine_hours")), Man_Hours=to_number(get("man_hours")),
+                Machine_Hours=mh, Man_Hours=man,
                 Operator=parse_operators(get("operators")), Material=_text(get("material")),
-                Comment=_text(get("comment")),
+                Comment=comment,
                 Downtime_Minutes=to_number(get("downtime_minutes")),
                 Downtime_Reason=_text(get("downtime_reason")),
                 Source=source, Confidence=1.0,
-                Needs_Review=(machine is None or date_s is None or shift is None),
+                Needs_Review=(machine is None or date_s is None or shift is None or bool(typos)),
                 Captured_At=captured, Submitted_By=_text(get("submitted_by")),
             ))
         note = get("shift_note")
@@ -227,6 +251,10 @@ def main() -> int:
     print(f"{'[dry-run] ' if args.dry_run else ''}{result['new_entries']} submission(s) -> "
           f"{result['total_entries']} entries on file ({result['needs_review']} need review), "
           f"{result['total_notes']} shift notes")
+    typos = entries[entries["Comment"].astype(str).str.contains(TYPO_NOTE, na=False)] if len(entries) else entries
+    for r in typos.itertuples(index=False):
+        print(f"::warning::End of Shift typo: {r.Date} {r.Shift} {r.Machine_Name} — {r.Comment} "
+              f"(fix it with the 'End of Shift fix' workflow or in the log workbook)")
     if args.dry_run and len(entries):
         print(entries.to_string(index=False))
     return 0

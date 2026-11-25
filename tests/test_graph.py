@@ -319,3 +319,46 @@ def test_sheet_reader_blanks_nan_material_and_comment() -> None:
     assert len(rows) == 1
     r = rows.iloc[0]
     assert pd.isna(r["Material"]) and pd.isna(r["Comment"]) and r["Machine_Name"] == "EXTRUDER"
+
+
+def test_eos_fix_writes_one_cell_found_by_submission_and_machine() -> None:
+    from src import eos_fix
+    headers = ["Timestamp", "Submission ID", "Date", "Shift", "Machine", "Machine hours operated", "Total man hours",
+               "Operator(s)", "Material run", "Downtime minutes", "Downtime reason", "Comments", "Submitted by"]
+    rows = [{"index": 298, "values": [[46323.9, "20261028-211835-2nd", 46323, "2nd", "Extruder", 7.25, 14.5, "Brandon Marcus", "BOPP resin", "", "", "", "Brandon"]]},
+            {"index": 299, "values": [[46323.9, "20261028-211835-2nd", 46323, "2nd", "Auto tie", 7.25, 7725, "Steven b", "Cardboard", "", "", "", "Brandon"]]}]
+    class Client(FakeClient):
+        def __init__(self):
+            super().__init__({"/tables/Entries/headerRowRange": {"values": [headers]}, "/tables/Entries/rows": {"value": rows},
+                              "/tables/Entries/rows/itemAt(index=299)/range": {"address": "Entries!A301:M301"}})
+            self.patches = []
+        def request(self, method, path, *, params=None, json_body=None, raw=False, headers=None):
+            self.patches.append((method, path, json_body)); return {}
+    c = Client()
+    cfg = {"drive_id": "d1", "item_id": "i1"}
+    out = eos_fix.fix_cell(c, cfg, "Entries", "20261028-211835-2nd", "AUTO-TIE BALER", "Total man hours", 7.25)
+    assert out["cell"] == "G301" and out["before"] == 7725 and out["after"] == 7.25 and out["machine"] == "Auto tie"
+    assert c.patches == [("PATCH", "/drives/d1/items/i1/workbook/worksheets/Entries/range(address='G301')", {"values": [[7.25]]})]
+    c2 = Client()
+    eos_fix.fix_cell(c2, cfg, "Entries", "20261028-211835-2nd", "Auto tie", "Total man hours", 7.25, dry_run=True)
+    assert c2.patches == []
+    with pytest.raises(LookupError):
+        eos_fix.fix_cell(Client(), cfg, "Entries", "20261028-211835-2nd", "Guillotine", "Total man hours", 7.25)
+    with pytest.raises(LookupError):
+        eos_fix.fix_cell(Client(), cfg, "Entries", "20261028-211835-2nd", "Auto tie", "Man hours", 7.25)
+    assert eos_fix.parse_value("7.25") == 7.25 and eos_fix.parse_value("7") == 7 and eos_fix.parse_value("Tony") == "Tony"
+    assert eos_fix.col_letter(0) == "A" and eos_fix.col_letter(6) == "G" and eos_fix.col_letter(26) == "AA"
+
+
+def test_relay_refuses_implausible_hours_before_writing() -> None:
+    sub = lambda mh, man: ("(function(){ try { submitReport({date:'2026-10-28', shift:'2nd', submittedBy:'B', "
+                           f"machines:[{{machine:'Auto tie', ran:true, machineHours:'{mh}', manHours:'{man}', operators:'Steven'}}]}}); "
+                           "return 'wrote'; } catch (e) { return String(e.message); } })()")
+    out = run_gs([sub(7.25, 7725), sub(725, 7.25), sub(7.25, 50), sub(7.25, 14.5), "oddHours_(7.5, 45)", "oddHours_('', 48)", "oddHours_(7, 49)"])
+    assert out[sub(7.25, 7725)].startswith("Check the hours for: Auto tie (7.25 h machine, 7725 man-h)")
+    assert out[sub(725, 7.25)].startswith("Check the hours for")
+    assert out[sub(7.25, 50)].startswith("Check the hours for")
+    assert "LockService" in out[sub(7.25, 14.5)] or out[sub(7.25, 14.5)] == "wrote"     # sane hours get past the check (the shim has no lock service)
+    assert out["oddHours_(7.5, 45)"] is False and out["oddHours_('', 48)"] is False and out["oddHours_(7, 49)"] is True
+    page = (ROOT / "scripts" / "end_of_shift_app" / "Index.html").read_text()
+    assert "function oddHours(" in page and "Check the hours for" in page

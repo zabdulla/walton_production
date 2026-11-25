@@ -72,6 +72,15 @@ Set up once (about fifteen minutes):
 6. **Switch the reader**: with the `GRAPH_*` and `EOS_WORKBOOK_*` secrets in place,
    `gh variable set EOS_SOURCE --body microsoft` (or the Variables tab on GitHub).
 
+**Typos in hours.** The page and the script both refuse a report with more than 24 machine
+hours, more than 48 man-hours, or a crew of more than six per machine hour on one machine
+(7725 typed for 7.25 once cost $193,000 of labor on the dashboard). The reader applies the
+same limits to rows already in the log: the hours are left out, the pounds stay, the row's
+comment says so, the run log carries a warning, and the morning email shows the comment.
+To correct the cell itself, run the **End of Shift fix** workflow from the Actions tab with
+the row's Submission ID, machine, column heading and new value (`src/eos_fix.py`), or edit
+the workbook in SharePoint; either way the next poll run reads the corrected row.
+
 The chip lists (operators, materials, downtime reasons) are at the top of `Code.gs`
 (or the `OPERATORS` property). The script's `doPost` also takes a report as text/plain
 JSON (the same object `submitReport` takes), for a test from the command line or a
