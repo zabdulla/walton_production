@@ -232,3 +232,23 @@ def test_webapp_headers_map_new_fields() -> None:
     m = map_columns(["Timestamp", "Submission ID", "Downtime minutes", "Downtime reason", "Submitted by"])
     assert m["Downtime minutes"] == "downtime_minutes" and m["Downtime reason"] == "downtime_reason"
     assert m["Submitted by"] == "submitted_by" and m["Submission ID"] == "submission_id"
+
+
+def test_implausible_hours_are_left_out_and_named() -> None:
+    import pandas as pd
+    from labor_sheet import plausible_hours, responses_to_entries
+    assert plausible_hours(7.25, 7725) == (7.25, None, ["man hours 7725 left out as a typo"])
+    assert plausible_hours(725, 14.5) == (None, 14.5, ["machine hours 725 left out as a typo"])
+    assert plausible_hours(7.5, 14.5) == (7.5, 14.5, [])
+    assert plausible_hours(None, 48) == (None, 48, [])                       # six people all shift is the limit, not over it
+    cols = ["Timestamp", "Submission ID", "Date", "Shift", "Machine", "Machine hours operated", "Total man hours",
+            "Operator(s)", "Material run", "Downtime minutes", "Downtime reason", "Comments", "Submitted by"]
+    df = pd.DataFrame([["2026-10-28 21:18:35", "20261028-211835-2nd", "2026-10-28", "2nd", "Auto tie", 7.25, 7725, "Steven b", "Cardboard", "", "", "", "Brandon"],
+                       ["2026-10-28 21:18:35", "20261028-211835-2nd", "2026-10-28", "2nd", "Extruder", 7.25, 14.5, "Brandon Marcus", "BOPP resin", "", "", "Did 2 blade changes", "Brandon"]],
+                      columns=cols)
+    rows, _ = responses_to_entries(df, source="webapp")
+    baler = rows[rows["Machine_Name"] == "AUTO TIE BALER"].iloc[0]
+    assert pd.isna(baler["Man_Hours"]) and baler["Machine_Hours"] == 7.25 and bool(baler["Needs_Review"])
+    assert baler["Comment"] == "End of Shift: man hours 7725 left out as a typo"
+    ext = rows[rows["Machine_Name"] == "EXTRUDER"].iloc[0]
+    assert ext["Man_Hours"] == 14.5 and ext["Comment"] == "Did 2 blade changes" and not bool(ext["Needs_Review"])

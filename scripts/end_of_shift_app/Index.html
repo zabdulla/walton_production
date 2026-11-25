@@ -251,6 +251,15 @@
     }, function () {});
   }
 
+  // A machine cannot run more than 24 h in a shift; 48 man-hours is six people all shift;
+  // and a crew of more than six per machine hour is a slipped decimal (7725 for 7.25).
+  function oddHours(machineHours, manHours) {
+    var mh = parseFloat(machineHours), man = parseFloat(manHours);
+    if (!isNaN(mh) && mh > 24) return true;
+    if (!isNaN(man) && man > 48) return true;
+    return !isNaN(mh) && !isNaN(man) && mh > 0 && man > 6 * mh;
+  }
+
   // ---- review + submit ----
   $('review').addEventListener('click', function () {
     var p = collect(), ran = p.machines.filter(function (m) { return m.ran; }), err = $('err'); err.style.display = 'none';
@@ -259,6 +268,8 @@
     if (!ran.length && !p.shiftNotes.trim()) { err.textContent = 'Turn on at least one machine that ran, or add a shift note.'; err.style.display = 'block'; return; }
     var missing = ran.filter(function (m) { return !m.machineHours && !m.manHours && !m.operators.trim(); }).map(function (m) { return m.machine; });
     if (missing.length) { err.textContent = 'Fill in hours or operators for: ' + missing.join(', '); err.style.display = 'block'; return; }
+    var odd = ran.filter(function (m) { return oddHours(m.machineHours, m.manHours); }).map(function (m) { return m.machine + ' (' + (m.machineHours || '—') + ' h machine, ' + (m.manHours || '—') + ' man-h)'; });
+    if (odd.length) { err.textContent = 'Check the hours for: ' + odd.join(', ') + '. Man hours is the whole crew for the shift — two people for 7.25 h is 14.5.'; err.style.display = 'block'; return; }
     var d = new Date(p.date + 'T00:00:00');
     var html = '<p><b>' + d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' · ' + esc(p.shift) + ' shift</b> · ' + esc(p.submittedBy) + '</p><ul>';
     ran.forEach(function (m) { html += '<li><b>' + esc(m.machine) + '</b>: ' + (m.machineHours || '—') + ' h machine, ' + (m.manHours || '—') + ' man-h' + (m.operators ? ' · ' + esc(m.operators) : '') + (m.material ? ' · ' + esc(m.material) : '') + (m.downtimeMinutes ? ' · ' + m.downtimeMinutes + ' min down' + (m.downtimeReason ? ' (' + esc(m.downtimeReason) + ')' : '') : '') + '</li>'; });

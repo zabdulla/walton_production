@@ -127,6 +127,14 @@ function serialToDate_(v) {
 function isSerial_(v) { return typeof v === 'number' && isFinite(v) && v > 20000; }
 
 /** 'yyyy-MM-dd' from whatever the cell holds: a serial, a Date, or the text as written. */
+/** A machine cannot run more than 24 h in a shift, 48 man-hours is six people all shift, and a
+ *  crew of more than six per machine hour is a slipped decimal (7725 typed for 7.25). */
+function oddHours_(mh, man) {
+  if (mh !== '' && mh > 24) return true;
+  if (man !== '' && man > 48) return true;
+  return mh !== '' && man !== '' && mh > 0 && man > 6 * mh;
+}
+
 function normDate_(v) {
   if (isSerial_(v)) return Utilities.formatDate(serialToDate_(v), 'UTC', 'yyyy-MM-dd');
   if (v instanceof Date) return Utilities.formatDate(v, 'UTC', 'yyyy-MM-dd');
@@ -157,6 +165,11 @@ function submitReport(p) {
   if (!rows.length && !notes) throw new Error('Nothing to submit — mark at least one machine as run, or add a shift note.');
   var bad = rows.filter(function (m) { return num_(m.machineHours) === '' && num_(m.manHours) === '' && !String(m.operators || '').trim(); });
   if (bad.length) throw new Error('Fill in hours or operators for: ' + bad.map(function (m) { return m.machine; }).join(', '));
+  var odd = rows.filter(function (m) { return oddHours_(num_(m.machineHours), num_(m.manHours)); });
+  if (odd.length) {
+    throw new Error('Check the hours for: ' + odd.map(function (m) { return m.machine + ' (' + (num_(m.machineHours) === '' ? '—' : num_(m.machineHours)) + ' h machine, ' + (num_(m.manHours) === '' ? '—' : num_(m.manHours)) + ' man-h)'; }).join(', ')
+                    + '. Man hours is the whole crew for the shift.');
+  }
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
