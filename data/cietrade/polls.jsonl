@@ -10085,3 +10085,4 @@
 {"ts": "2026-11-25T07:13:23", "ok": true, "ms": 1274, "changed": false, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 724536.0, "open_hash": "2290784af3f6d840", "posted_recent": 0}
 {"ts": "2026-11-25T07:22:59", "ok": true, "ms": 1456, "changed": false, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 724536.0, "open_hash": "2290784af3f6d840", "posted_recent": 0}
 {"ts": "2026-11-25T07:32:19", "ok": true, "ms": 1086, "changed": false, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 724536.0, "open_hash": "2290784af3f6d840", "posted_recent": 0}
+{"ts": "2026-11-25T07:41:49", "ok": true, "ms": 450, "changed": true, "error": null, "open_jobs": 8, "monroe_open": 7, "open_lbs": 725589.0, "open_hash": "06992fa773d1f73a", "posted_recent": 0}
